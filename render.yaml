@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: meryl-system
+    runtime: python
+    pythonVersion: 3.11
+    plan: free
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SUPABASE_URL
+        scope: build
+      - key: SUPABASE_KEY
+        scope: build
+      - key: GMAIL_APP_EMAIL
+        scope: build
+      - key: GMAIL_APP_PASSWORD
+        scope: build
