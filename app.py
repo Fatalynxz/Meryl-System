@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import wraps
+import logging
 import math
 import os
 import random
@@ -9,7 +10,7 @@ from email.message import EmailMessage
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, Response, redirect, render_template, request, session, url_for
+from flask import Flask, Response, redirect, render_template, request, session, url_for, g
 from supabase import create_client
 from app_modules.auth.app_auth_store import (
     find_auth_account as store_find_auth_account,
@@ -152,16 +153,60 @@ from app_modules.auth.app_staff import (
 # Load environment variables from .env file
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")
+# Supabase initialization (lazy-loaded)
+_supabase_client = None
+_supabase_error = None
 
-if not url or not key:
-    raise ValueError("Missing SUPABASE_URL or SUPABASE_KEY environment variables")
 
-supabase = create_client(url, key)
+def get_supabase():
+    """
+    Lazy-load and return the Supabase client.
+    Raises an exception if credentials are missing or connection fails.
+    """
+    global _supabase_client, _supabase_error
+
+    if _supabase_client is not None:
+        return _supabase_client
+
+    if _supabase_error is not None:
+        raise RuntimeError(_supabase_error)
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+
+    if not url or not key:
+        error_msg = (
+            "Missing SUPABASE_URL or SUPABASE_KEY environment variables. "
+            "Please set these in your .env file or environment configuration."
+        )
+        _supabase_error = error_msg
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+
+    try:
+        _supabase_client = create_client(url, key)
+        logger.info("✓ Supabase client initialized successfully")
+        return _supabase_client
+    except Exception as e:
+        error_msg = f"Failed to initialize Supabase client: {str(e)}"
+        _supabase_error = error_msg
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+
+
+# Provide a property to access supabase
+def supabase():
+    """Accessor function for lazy-loaded Supabase client"""
+    return get_supabase()
+
+
 ADMIN_CREDENTIALS = {
     "username": "admin",
     "password": "admin123",
@@ -191,7 +236,7 @@ def get_inventory_row(product_id):
         product_id,
         safe_int=safe_int,
         table_exists=table_exists,
-        supabase=supabase,
+        supabase=supabase(),
     )
 
 
@@ -204,7 +249,7 @@ def upsert_inventory_record(product_id, stock_quantity, reorder_level=10, refere
         safe_int=safe_int,
         table_exists=table_exists,
         get_inventory_row=get_inventory_row,
-        supabase=supabase,
+        supabase=supabase(),
     )
 
 
@@ -241,7 +286,7 @@ def table_exists(table_name):
     if table_name in DB_TABLE_EXISTS_CACHE:
         return DB_TABLE_EXISTS_CACHE[table_name]
     try:
-        supabase.table(table_name).select("*").limit(1).execute()
+        supabase().table(table_name).select("*").limit(1).execute()
         DB_TABLE_EXISTS_CACHE[table_name] = True
     except Exception:
         DB_TABLE_EXISTS_CACHE[table_name] = False
@@ -249,7 +294,7 @@ def table_exists(table_name):
 
 
 def fetch_raw_rows(table_name, query="*"):
-    return supabase.table(table_name).select(query).execute().data or []
+    return supabase().table(table_name).select(query).execute().data or []
 
 
 def normalize_user_rows(rows):
@@ -437,7 +482,7 @@ def sync_staff_user_record(account, previous_username=None):
         db_user_status=db_user_status,
         fetch_rows=fetch_rows,
         safe_int=safe_int,
-        supabase=supabase,
+        supabase=supabase(),
     )
 
 
@@ -529,7 +574,7 @@ def sync_sales_summary_entry(summary_date=None):
         safe_float=safe_float,
         defaultdict_cls=defaultdict,
         parse_iso_datetime=parse_iso_datetime,
-        supabase=supabase,
+        supabase=supabase(),
     )
 
 
@@ -542,7 +587,7 @@ def sync_promotion_notifications(promo_id):
         promo_id,
         safe_int=safe_int,
         table_exists=table_exists,
-        supabase=supabase,
+        supabase=supabase(),
         build_sale_status_maps=build_sale_status_maps,
         fetch_rows=fetch_rows,
         build_customer_lookup=build_customer_lookup,
@@ -559,7 +604,7 @@ def ensure_default_categories():
             if name.strip().lower() not in existing_names
         ]
         if missing_names:
-            supabase.table("category").insert(missing_names).execute()
+            supabase().table("category").insert(missing_names).execute()
     except Exception:
         pass
 
@@ -617,7 +662,7 @@ def create_user_profile(name, username, role, password=None, status="active"):
             return None
 
         created = (
-            supabase.table("users")
+            supabase().table("users")
             .insert(
                 {
                     "name": name,
@@ -744,6 +789,59 @@ def roles_required(*allowed_roles):
         return wrapped_view
 
     return decorator
+
+
+# Request lifecycle hooks for robustness
+@app.before_request
+def before_request():
+    """Called before each request. Can be used for setup."""
+    # Store connection status in Flask's g object for this request
+    try:
+        supabase()
+        g.supabase_connected = True
+    except Exception as e:
+        g.supabase_connected = False
+        g.supabase_error = str(e)
+
+
+# Health check endpoint (no auth required)
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Health check endpoint to verify app is running and Supabase is configured."""
+    try:
+        # Try to check if Supabase is accessible
+        supabase()
+        return {
+            "status": "healthy",
+            "message": "Application is running with Supabase connected",
+            "database": "connected"
+        }, 200
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "message": "Application is running but Supabase is not configured",
+            "database": "disconnected",
+            "error": str(e)
+        }, 200  # Still return 200 so the app is considered alive
+
+
+# Error handler for Supabase initialization failures
+@app.errorhandler(RuntimeError)
+def handle_runtime_error(error):
+    """Handle runtime errors, particularly Supabase initialization failures."""
+    error_msg = str(error)
+    if "Supabase" in error_msg or "environment variables" in error_msg:
+        logger.error(f"Configuration error: {error_msg}")
+        return render_template("error.html",
+            title="Configuration Error",
+            message="The application is not properly configured. Please set SUPABASE_URL and SUPABASE_KEY environment variables.",
+            details=error_msg
+        ), 500
+    return render_template("error.html",
+        title="Application Error",
+        message="An unexpected error occurred",
+        details=error_msg
+    ), 500
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -966,7 +1064,7 @@ def sync_promotion_products(promo_id, target_category_id=None, target_product_id
         promo_id,
         target_category_id,
         target_product_id,
-        supabase=supabase,
+        supabase=supabase(),
         safe_int=safe_int,
     )
 
@@ -986,7 +1084,7 @@ def get_or_create_customer(customer_name, email="", phone="", address=""):
         phone,
         address,
         fetch_rows=fetch_rows,
-        supabase=supabase,
+        supabase=supabase(),
         normalize_customer_rows=normalize_customer_rows,
     )
 
@@ -1015,7 +1113,7 @@ def sync_sales_analytics_entry(product_id, quantity_delta, amount_delta):
         quantity_delta,
         amount_delta,
         safe_int=safe_int,
-        supabase=supabase,
+        supabase=supabase(),
         safe_float=safe_float,
     )
 
@@ -1024,7 +1122,7 @@ def complete_sale_inventory(sales_id):
     return inventory_flow_complete_sale(
         sales_id,
         build_sale_status_maps=build_sale_status_maps,
-        supabase=supabase,
+        supabase=supabase(),
         safe_int=safe_int,
         get_inventory_row=get_inventory_row,
         upsert_inventory_record=upsert_inventory_record,
@@ -1197,7 +1295,7 @@ def sync_prediction_results(prediction_payloads):
         fetch_rows=fetch_rows,
         safe_int=safe_int,
         safe_float=safe_float,
-        supabase=supabase,
+        supabase=supabase(),
         table_exists=table_exists,
     )
 
@@ -1319,12 +1417,12 @@ def promotions_save():
 
     try:
         if promo_id > 0:
-            supabase.table("promotion").update(payload).eq("promo_id", promo_id).execute()
+            supabase().table("promotion").update(payload).eq("promo_id", promo_id).execute()
             linked_count = sync_promotion_products(promo_id, target_category_id, target_product_id)
             sync_promotion_notifications(promo_id)
             set_notice(f"Promotion updated. Linked products: {linked_count}.")
         else:
-            created = supabase.table("promotion").insert(payload).execute().data or []
+            created = supabase().table("promotion").insert(payload).execute().data or []
             if not created:
                 raise ValueError("Promotion was not created.")
             new_promo_id = created[0]["promo_id"]
@@ -1343,9 +1441,9 @@ def promotions_save():
 def promotions_delete(promo_id):
     try:
         if table_exists("notification"):
-            supabase.table("notification").delete().eq("promo_id", promo_id).execute()
-        supabase.table("promo_product").delete().eq("promo_id", promo_id).execute()
-        supabase.table("promotion").delete().eq("promo_id", promo_id).execute()
+            supabase().table("notification").delete().eq("promo_id", promo_id).execute()
+        supabase().table("promo_product").delete().eq("promo_id", promo_id).execute()
+        supabase().table("promotion").delete().eq("promo_id", promo_id).execute()
         set_notice("Promotion deleted successfully.")
     except Exception as exc:
         set_notice(f"Unable to delete promotion: {exc}", "danger")
@@ -1468,7 +1566,7 @@ def pos_checkout():
         return redirect("/pos")
 
     sale = (
-        supabase.table("sales_transaction")
+        supabase().table("sales_transaction")
         .insert(
             {
                 "total_amount": total,
@@ -1482,7 +1580,7 @@ def pos_checkout():
     )
 
     sales_id = sale.data[0]["sales_id"]
-    supabase.table("payment").insert(
+    supabase().table("payment").insert(
         {
             "sales_id": sales_id,
             "payment_method": db_payment_method(payment_method),
@@ -1507,7 +1605,7 @@ def pos_checkout():
     for item in cart:
         discounted_subtotal = safe_float(item["subtotal"], 0)
         (
-            supabase.table("sales_details")
+            supabase().table("sales_details")
             .insert(
                 {
                     "sales_id": sales_id,
@@ -1558,7 +1656,7 @@ def sales_deny(sales_id):
         set_notice("Transaction is already denied.", "warning")
         return redirect("/sales")
 
-    sale_rows = supabase.table("sales_transaction").select("*").eq("sales_id", sales_id).execute().data or []
+    sale_rows = supabase().table("sales_transaction").select("*").eq("sales_id", sales_id).execute().data or []
     if not sale_rows:
         set_notice("Transaction not found.", "danger")
         return redirect("/sales")
@@ -1572,7 +1670,7 @@ def sales_deny(sales_id):
             get_current_user=get_current_user,
             resolve_db_user_row=resolve_db_user_row,
             safe_int=safe_int,
-            supabase=supabase,
+            supabase=supabase(),
             db_payment_status=db_payment_status,
             db_payment_method=db_payment_method,
             sync_sales_summary_entry=sync_sales_summary_entry,
@@ -1609,12 +1707,12 @@ def inventory_add():
     payload = form_data["payload"]
 
     try:
-        created = supabase.table("product").insert(payload).execute().data or []
+        created = supabase().table("product").insert(payload).execute().data or []
         product_id = safe_int((created[0] if created else {}).get("product_id"), 0)
         if product_id > 0:
             upsert_inventory_record(product_id, stock_quantity, payload["reorder_level"])
             if stock_quantity > 0:
-                supabase.table("inventory_log").insert(
+                supabase().table("inventory_log").insert(
                     inventory_build_log_payload(
                         product_id=product_id,
                         quantity_change=stock_quantity,
@@ -1647,11 +1745,11 @@ def inventory_update(product_id):
     try:
         previous_inventory = get_inventory_row(product_id) or {}
         previous_stock = safe_int(previous_inventory.get("stock_quantity"), 0)
-        supabase.table("product").update(payload).eq("product_id", product_id).execute()
+        supabase().table("product").update(payload).eq("product_id", product_id).execute()
         upsert_inventory_record(product_id, stock_quantity, payload["reorder_level"])
         stock_delta = stock_quantity - previous_stock
         if stock_delta != 0:
-            supabase.table("inventory_log").insert(
+            supabase().table("inventory_log").insert(
                 inventory_build_log_payload(
                     product_id=product_id,
                     quantity_change=stock_delta,
@@ -1670,7 +1768,7 @@ def inventory_update(product_id):
 @roles_required("admin", "inventory_staff")
 def inventory_delete(product_id):
     try:
-        result = inventory_flow_delete_product(product_id, supabase=supabase)
+        result = inventory_flow_delete_product(product_id, supabase=supabase())
         if result.get("blocked"):
             set_notice(
                 "This product cannot be deleted because it already has sales history. You can update it instead or set its stock to 0.",
@@ -1693,7 +1791,7 @@ def customers_add():
 
     try:
         payload = form_data["payload"]
-        supabase.table("customers").insert(
+        supabase().table("customers").insert(
             {
                 **payload,
                 "date_registered": datetime.now().date().isoformat(),
@@ -1717,7 +1815,7 @@ def customers_update(customer_id):
     try:
         payload = form_data["payload"]
         existing_customer = (
-            supabase.table("customers")
+            supabase().table("customers")
             .select("customer_id")
             .eq("customer_id", customer_id)
             .limit(1)
@@ -1727,7 +1825,7 @@ def customers_update(customer_id):
             set_notice("Customer record was not found.", "danger")
             return redirect("/customers")
 
-        supabase.table("customers").update(payload).eq("customer_id", customer_id).execute()
+        supabase().table("customers").update(payload).eq("customer_id", customer_id).execute()
         set_notice("Customer updated successfully.")
     except Exception as exc:
         set_notice(f"Unable to update customer: {exc}", "danger")
@@ -1739,7 +1837,7 @@ def customers_update(customer_id):
 @roles_required("admin")
 def customers_delete(customer_id):
     try:
-        result = customer_delete_record(customer_id, supabase=supabase)
+        result = customer_delete_record(customer_id, supabase=supabase())
         if result.get("blocked"):
             set_notice(
                 "This customer cannot be deleted because there is already sales history linked to this record.",
@@ -1763,4 +1861,28 @@ def logout():
 
 
 if __name__ == "__main__":
+    logger.info("=" * 80)
+    logger.info("🚀 Meryl Shoes Enterprise System Starting")
+    logger.info("=" * 80)
+
+    # Log environment status
+    logger.info("📋 Environment Configuration:")
+    url_set = bool(os.getenv("SUPABASE_URL"))
+    key_set = bool(os.getenv("SUPABASE_KEY"))
+    logger.info(f"   • SUPABASE_URL: {'✓ configured' if url_set else '✗ missing'}")
+    logger.info(f"   • SUPABASE_KEY: {'✓ configured' if key_set else '✗ missing'}")
+
+    if url_set and key_set:
+        logger.info("   → Will attempt to initialize Supabase on first request")
+    else:
+        logger.warning("   ⚠️  Supabase is not configured!")
+        logger.warning("   → Application will run but database features will be unavailable")
+        logger.warning("   → Set SUPABASE_URL and SUPABASE_KEY environment variables to enable database functionality")
+
+    logger.info("=" * 80)
+    logger.info("✓ Flask app initialized successfully")
+    logger.info("  → Visit /health to check status")
+    logger.info("  → Visit /login to access the application")
+    logger.info("=" * 80)
+
     app.run(debug=True)
