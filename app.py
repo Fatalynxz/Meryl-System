@@ -155,8 +155,8 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = "secret123"
 
-url = "https://wjrnpbkjrhclgtrxiqfw.supabase.co"
-key = "sb_publishable_yG9OTu8KRrmAqfvEHPcH5Q_j6qYW7Zf"
+url = os.getenv("SUPABASE_URL")
+key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 ADMIN_CREDENTIALS = {
     "username": "admin",
