@@ -293,12 +293,3 @@ INSERT INTO category (category_name) VALUES
 ON CONFLICT (category_name) DO NOTHING;
 
 COMMIT;
-
--- ====================================== ====
--- VERIFICATION QUERIES (Run after migration)
--- ============================================
--- SELECT 'Roles' as table_name, COUNT(*) as count FROM role
--- UNION ALL SELECT 'Users', COUNT(*) FROM "user"
--- UNION ALL SELECT 'Customers', COUNT(*) FROM customer
--- UNION ALL SELECT 'Categories', COUNT(*) FROM category
--- UNION ALL SELECT 'Products', COUNT(*) FROM product;
