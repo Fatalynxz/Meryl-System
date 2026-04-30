@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales | Meryl Shoes Enterprise System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page sales-page">
+    <div class="app-shell dashboard-shell">
+        <header class="topbar">
+            <div class="brand-block">
+                <div class="brand-logo brand-logo-dashboard">Meryl <span>Shoes</span></div>
+                <div>
+                    <h1>Meryl Shoes Enterprise System</h1>
+                    <p>Integrated POS-Driven Inventory System with Data Analytics for Targeting Sales Marketing</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button type="button" class="notification-button" data-notification-button title="Mark notifications as read" aria-label="Mark notifications as read">
+                    <span class="notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 17H9"></path><path d="M18 17H6l1.2-1.6A5 5 0 0 0 8 12.4V10a4 4 0 1 1 8 0v2.4a5 5 0 0 0 .8 2.8L18 17Z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg></span>
+                    <span class="notification-badge" data-notification-count>4</span>
+                </button>
+                <div class="user-chip">
+                    <strong>{{ current_user.name if current_user else 'Administrator' }}</strong>
+                    <span>{{ current_user.role_label if current_user else 'Administrator' }}{% if current_user and current_user.staff_code %} · {{ current_user.staff_code }}{% endif %}</span>
+                </div>
+                <a class="action-button" href="/logout">Logout</a>
+            </div>
+        </header>
+
+                <nav class="navbar">
+            <a href="/"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg></span><span>Dashboard</span></a>
+            <a href="/pos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M3 10h18"></path></svg></span><span>POS</span></a>
+            <a href="/inventory"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5 12 12l8-4.5L12 3Z"></path><path d="M4 7.5V16.5L12 21V12"></path><path d="M20 7.5V16.5L12 21"></path></svg></span><span>Inventory</span></a>
+            <a href="/sales" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="19" r="1.5"></circle><circle cx="18" cy="19" r="1.5"></circle><path d="M3 5h2l2.4 9.5h10.9l2-7.5H6.2"></path></svg></span><span>Sales</span></a>
+            <a href="/customers"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Customers</span></a>
+            <a href="/predictive"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path><path d="M14 7h7v7"></path></svg></span><span>Predictive</span></a>
+            <a href="/promotions"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"></path><circle cx="7.5" cy="7.5" r="1.25"></circle></svg></span><span>Promotions</span></a>
+            <a href="/staff"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Users</span></a>
+            <a href="/reports"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg></span><span>Reports</span></a>
+        </nav>
+
+        <main class="page-content">
+            {% if notice %}
+            <section class="notice-banner notice-{{ notice.tone }}">{{ notice.message }}</section>
+            {% endif %}
+
+            <section class="stats-grid stats-grid-three">
+                <article class="stat-card sales-stat-card">
+                    <div class="stat-card-head">
+                        <h3>Total Revenue</h3>
+                        <span class="stat-icon sales-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><circle cx="9" cy="19" r="1.5"></circle><circle cx="18" cy="19" r="1.5"></circle><path d="M3 5h2l2.4 9.5h10.9l2-7.5H6.2"></path></svg>
+                        </span>
+                    </div>
+                    <p class="stat-value">&#8369;{{ total_revenue|currency }}</p>
+                </article>
+                <article class="stat-card sales-stat-card">
+                    <div class="stat-card-head">
+                        <h3>Today's Sales</h3>
+                        <span class="stat-icon sales-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3v4"></path><path d="M16 3v4"></path><path d="M4 10h16"></path></svg>
+                        </span>
+                    </div>
+                    <p class="stat-value">{{ today_sales }}</p>
+                </article>
+                <article class="stat-card sales-stat-card">
+                    <div class="stat-card-head">
+                        <h3>Pending Orders</h3>
+                        <span class="stat-icon sales-pending-badge">{{ pending_orders }}</span>
+                    </div>
+                    <p class="stat-value">{{ pending_orders }}</p>
+                </article>
+            </section>
+
+            <section class="panel-card admin-table-card sales-records-card">
+                <div class="panel-header">
+                    <h2><span class="section-heading-icon sales-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="19" r="1.5"></circle><circle cx="18" cy="19" r="1.5"></circle><path d="M3 5h2l2.4 9.5h10.9l2-7.5H6.2"></path></svg></span> Sales Records</h2>
+                    <div class="sales-header-actions">
+                        <a href="/sales/export.csv" class="primary-button inventory-add-button sales-record-button sales-export-button"><span>Export CSV</span></a>
+                        <a href="/pos" class="primary-button inventory-add-button sales-record-button"><span class="inventory-button-icon">&#65291;</span><span>Record Sale</span></a>
+                    </div>
+                </div>
+
+                <div class="inventory-search-wrap">
+                    <span class="inventory-search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-4-4"></path>
+                        </svg>
+                    </span>
+                    <input type="text" class="inventory-search" id="salesSearch" placeholder="Search by order ID, customer, or product...">
+                </div>
+
+                <div class="table-shell inventory-table-shell">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Amount</th>
+                                <th>Payment</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTableBody">
+                            {% for row in sales_rows %}
+                            <tr data-search="{{ (row.order_id ~ ' ' ~ row.customer_name ~ ' ' ~ row.product_name ~ ' ' ~ row.reason)|lower }}">
+                                <td>{{ row.order_id }}</td>
+                                <td>{{ row.customer_name }}</td>
+                                <td>{{ row.product_name }}</td>
+                                <td>{{ row.quantity }}</td>
+                                <td>&#8369;{{ row.amount|currency }}</td>
+                                <td>{{ row.payment_method }}</td>
+                                <td>
+                                    <span class="status-pill {{ row.status_tone }}">{{ row.status }}</span>
+                                    {% if row.reason %}
+                                    <div class="sales-reason-snippet">{{ row.reason }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.date }}</td>
+                                <td>
+                                    <div class="sales-actions">
+                                        <button type="button" class="icon-button sales-view-button" data-order-id="{{ row.order_id }}" data-customer="{{ row.customer_name|e }}" data-products="{{ row.product_details|e }}" data-qty="{{ row.quantity }}" data-amount="&#8369;{{ row.amount|currency }}" data-payment="{{ row.payment_method|e }}" data-status="{{ row.status|e }}" data-date="{{ row.date|e }}" data-reason="{{ row.reason|e }}" aria-label="View sale" title="View sale"><span class="sales-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg></span></button>
+                                        {% if row.can_complete %}
+                                        <form method="POST" action="/sales/complete/{{ row.sale_id }}" class="inline-action-form">
+                                            <button type="submit" class="icon-button sales-complete-button">Complete</button>
+                                        </form>
+                                        {% endif %}
+                                        {% if row.can_deny %}
+                                        <button type="button" class="icon-button sales-deny-button" data-sale-id="{{ row.sale_id }}" data-order-id="{{ row.order_id }}" data-customer="{{ row.customer_name|e }}">Deny</button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="sales-detail-modal hidden" id="salesDetailModal" aria-hidden="true">
+                <div class="sales-detail-backdrop" id="salesDetailBackdrop"></div>
+                <section class="panel-card sales-detail-dialog" id="salesDetailCard" role="dialog" aria-modal="true" aria-labelledby="salesDetailTitle">
+                    <div class="panel-header sales-detail-header">
+                        <h2 id="salesDetailTitle">Sale Details</h2>
+                        <button type="button" class="sales-detail-close" id="closeSalesDetail" aria-label="Close sale details">
+                            <span aria-hidden="true">&#10005;</span>
+                        </button>
+                    </div>
+                    <div class="sales-detail-grid" id="salesDetailContent"></div>
+                </section>
+            </div>
+
+
+            <div class="sales-deny-modal hidden" id="salesDenyModal" aria-hidden="true">
+                <div class="sales-deny-backdrop" id="salesDenyBackdrop"></div>
+                <section class="panel-card sales-deny-dialog" role="dialog" aria-modal="true" aria-labelledby="salesDenyTitle">
+                    <div class="panel-header sales-detail-header">
+                        <h2 id="salesDenyTitle">Deny Transaction</h2>
+                        <button type="button" class="sales-detail-close" id="closeSalesDeny" aria-label="Close deny modal">
+                            <span aria-hidden="true">&#10005;</span>
+                        </button>
+                    </div>
+                    <form method="POST" id="salesDenyForm" class="sales-deny-form">
+                        <p class="sales-deny-copy" id="salesDenyCopy">Provide the reason for declining this transaction.</p>
+                        <label class="field">
+                            <span>Reason for Denial</span>
+                            <textarea name="reason" id="salesDenyReason" rows="5" placeholder="Enter the reason why this transaction is denied" required></textarea>
+                        </label>
+                        <div class="sales-deny-actions">
+                            <button type="button" class="icon-button" id="cancelSalesDeny">Cancel</button>
+                            <button type="submit" class="icon-button sales-deny-submit">Submit Denial</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/topbar.js"></script>
+    <script>
+        const salesSearch = document.getElementById('salesSearch');
+        const salesRows = document.querySelectorAll('#salesTableBody tr');
+        const salesDetailModal = document.getElementById('salesDetailModal');
+        const salesDetailTitle = document.getElementById('salesDetailTitle');
+        const salesDetailBackdrop = document.getElementById('salesDetailBackdrop');
+        const closeSalesDetail = document.getElementById('closeSalesDetail');
+        const salesDetailContent = document.getElementById('salesDetailContent');
+        const salesDenyModal = document.getElementById('salesDenyModal');
+        const salesDenyBackdrop = document.getElementById('salesDenyBackdrop');
+        const closeSalesDeny = document.getElementById('closeSalesDeny');
+        const cancelSalesDeny = document.getElementById('cancelSalesDeny');
+        const salesDenyForm = document.getElementById('salesDenyForm');
+        const salesDenyCopy = document.getElementById('salesDenyCopy');
+        const salesDenyReason = document.getElementById('salesDenyReason');
+
+        function formatProductDetails(products) {
+            const items = (products || '')
+                .split('|')
+                .map((item) => item.trim())
+                .filter(Boolean);
+
+            if (!items.length) {
+                return '<strong>No item details</strong>';
+            }
+
+            return `
+                <div class="sales-product-list">
+                    ${items.map((item) => `<strong class="sales-product-item">${item}</strong>`).join('')}
+                </div>
+            `;
+        }
+
+        const closeSalesModal = () => {
+            salesDetailModal?.classList.add('hidden');
+            salesDetailModal?.setAttribute('aria-hidden', 'true');
+        };
+
+        const closeSalesDenyModal = () => {
+            salesDenyModal?.classList.add('hidden');
+            salesDenyModal?.setAttribute('aria-hidden', 'true');
+            if (salesDenyForm) {
+                salesDenyForm.removeAttribute('action');
+            }
+            if (salesDenyReason) {
+                salesDenyReason.value = '';
+            }
+        };
+
+        if (salesSearch) {
+            salesSearch.addEventListener('input', () => {
+                const keyword = salesSearch.value.trim().toLowerCase();
+                salesRows.forEach((row) => {
+                    row.style.display = (row.dataset.search || '').includes(keyword) ? '' : 'none';
+                });
+            });
+        }
+
+        document.querySelectorAll('.sales-view-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                salesDetailContent.innerHTML = `
+                    <div><span>Customer</span><strong>${button.dataset.customer || 'Walk-in Customer'}</strong></div>
+                    <div><span>Products</span>${formatProductDetails(button.dataset.products)}</div>
+                    <div><span>Quantity</span><strong>${button.dataset.qty || '0'}</strong></div>
+                    <div><span>Total Amount</span><strong>${button.dataset.amount || 'PHP 0.00'}</strong></div>
+                    <div><span>Payment Method</span><strong>${button.dataset.payment || 'CASH'}</strong></div>
+                    <div><span>Status</span><strong>${button.dataset.status || 'Pending'}</strong></div>
+                    <div><span>Date</span><strong>${button.dataset.date || 'N/A'}</strong></div>
+                    <div><span>Reason</span><strong>${button.dataset.reason || 'No denial reason'}</strong></div>
+                `;
+                if (salesDetailTitle) {
+                    salesDetailTitle.textContent = `Sale Details - ${button.dataset.orderId || 'Order'}`;
+                }
+                salesDetailModal?.classList.remove('hidden');
+                salesDetailModal?.setAttribute('aria-hidden', 'false');
+            });
+        });
+
+        document.querySelectorAll('.sales-deny-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                if (salesDenyForm) {
+                    salesDenyForm.action = `/sales/deny/${button.dataset.saleId}`;
+                }
+                if (salesDenyCopy) {
+                    salesDenyCopy.textContent = `Provide the reason for denying ${button.dataset.orderId} for ${button.dataset.customer}.`;
+                }
+                salesDenyModal?.classList.remove('hidden');
+                salesDenyModal?.setAttribute('aria-hidden', 'false');
+                salesDenyReason?.focus();
+            });
+        });
+
+        closeSalesDetail?.addEventListener('click', closeSalesModal);
+        salesDetailBackdrop?.addEventListener('click', closeSalesModal);
+        closeSalesDeny?.addEventListener('click', closeSalesDenyModal);
+        cancelSalesDeny?.addEventListener('click', closeSalesDenyModal);
+        salesDenyBackdrop?.addEventListener('click', closeSalesDenyModal);
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && salesDetailModal && !salesDetailModal.classList.contains('hidden')) {
+                closeSalesModal();
+            }
+            if (event.key === 'Escape' && salesDenyModal && !salesDenyModal.classList.contains('hidden')) {
+                closeSalesDenyModal();
+            }
+        });
+    </script>
+</body>
+</html>

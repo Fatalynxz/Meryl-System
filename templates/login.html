@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Meryl Shoes Enterprise System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-page">
+    <main class="login-shell">
+        <section class="login-hero">
+            <div class="brand-showcase">
+                <div class="brand-logo brand-logo-dashboard">Meryl <span>Shoes</span></div>
+                <div>
+                    <h1>Meryl Shoes Enterprise System</h1>
+                    <p>Integrated POS-Driven Inventory System with Data Analytics for Targeting Sales Marketing</p>
+                </div>
+            </div>
+        </section>
+
+        {% if notice %}
+        <section class="login-notice notice-banner notice-{{ notice.tone }}">{{ notice.message }}</section>
+        {% endif %}
+
+        <section class="login-layout">
+            <article class="login-panel login-portal-card">
+                <div class="login-panel-header">
+                    <h2>
+                        <span class="login-panel-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path><path d="M13 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"></path></svg>
+                        </span>
+                        Login Portal
+                    </h2>
+                    <p>Sign in using your assigned username, email, or staff code.</p>
+                </div>
+
+                <form method="POST" class="login-form login-main-form" id="loginForm">
+                    <label class="field">
+                        <span>Username / Email / Staff Code</span>
+                        <div class="login-input-wrap">
+                            <span class="login-input-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            </span>
+                            <input type="text" name="username" id="loginUsername" placeholder="Enter your login ID" required>
+                        </div>
+                    </label>
+
+                    <label class="field">
+                        <span>Password</span>
+                        <div class="login-input-wrap password-field">
+                            <span class="login-input-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 1 1 8 0v3"></path></svg>
+                            </span>
+                            <input type="password" name="password" id="loginPassword" placeholder="Enter password" required>
+                            <button type="button" class="password-toggle login-password-toggle" id="toggleLoginPassword" aria-label="Show password">
+                                <svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+                            </button>
+                        </div>
+                    </label>
+
+                    <button type="submit" class="primary-button login-submit-button">
+                        <span class="login-submit-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path><path d="M13 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"></path></svg>
+                        </span>
+                        <span>Login</span>
+                    </button>
+                </form>
+            </article>
+
+        </section>
+    </main>
+
+    <script>
+        const loginPassword = document.getElementById('loginPassword');
+        const toggleLoginPassword = document.getElementById('toggleLoginPassword');
+
+        toggleLoginPassword?.addEventListener('click', () => {
+            const isHidden = loginPassword?.type === 'password';
+            if (loginPassword) {
+                loginPassword.type = isHidden ? 'text' : 'password';
+            }
+            toggleLoginPassword.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+        });
+    </script>
+</body>
+</html>

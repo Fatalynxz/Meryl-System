@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory | Meryl Shoes Enterprise System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page inventory-page">
+    <div class="app-shell dashboard-shell">
+        <header class="topbar">
+            <div class="brand-block">
+                <div class="brand-logo brand-logo-dashboard">Meryl <span>Shoes</span></div>
+                <div>
+                    <h1>Meryl Shoes Enterprise System</h1>
+                    <p>Integrated POS-Driven Inventory System with Data Analytics for Targeting Sales Marketing</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button type="button" class="notification-button" data-notification-button title="Mark notifications as read" aria-label="Mark notifications as read">
+                    <span class="notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 17H9"></path><path d="M18 17H6l1.2-1.6A5 5 0 0 0 8 12.4V10a4 4 0 1 1 8 0v2.4a5 5 0 0 0 .8 2.8L18 17Z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg></span>
+                    <span class="notification-badge" data-notification-count>4</span>
+                </button>
+                <div class="user-chip">
+                    <strong>{{ current_user.name if current_user else 'Administrator' }}</strong>
+                    <span>{{ current_user.role_label if current_user else 'Administrator' }}{% if current_user and current_user.staff_code %} · {{ current_user.staff_code }}{% endif %}</span>
+                </div>
+                <a class="action-button" href="/logout">Logout</a>
+            </div>
+        </header>
+
+                <nav class="navbar">
+            <a href="/"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg></span><span>Dashboard</span></a>
+            <a href="/pos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M3 10h18"></path></svg></span><span>POS</span></a>
+            <a href="/inventory" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5 12 12l8-4.5L12 3Z"></path><path d="M4 7.5V16.5L12 21V12"></path><path d="M20 7.5V16.5L12 21"></path></svg></span><span>Inventory</span></a>
+            <a href="/sales"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="19" r="1.5"></circle><circle cx="18" cy="19" r="1.5"></circle><path d="M3 5h2l2.4 9.5h10.9l2-7.5H6.2"></path></svg></span><span>Sales</span></a>
+            <a href="/customers"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Customers</span></a>
+            <a href="/predictive"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path><path d="M14 7h7v7"></path></svg></span><span>Predictive</span></a>
+            <a href="/promotions"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"></path><circle cx="7.5" cy="7.5" r="1.25"></circle></svg></span><span>Promotions</span></a>
+            <a href="/staff"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Users</span></a>
+            <a href="/reports"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg></span><span>Reports</span></a>
+        </nav>
+
+        <main class="page-content">
+            {% if notice %}
+            <section class="notice-banner notice-{{ notice.tone }}">{{ notice.message }}</section>
+            {% endif %}
+
+            <section class="panel-card inventory-card">
+                <div class="panel-header inventory-header">
+                    <h2><span class="section-heading-icon product-inventory-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 4 7.5 12 12l8-4.5L12 3Z"></path><path d="M4 7.5V16.5L12 21V12"></path><path d="M20 7.5V16.5L12 21"></path></svg></span> Product Inventory</h2>
+                    <button type="button" class="primary-button inventory-add-button" id="openAddProduct">
+                        <span class="inventory-button-icon">&#65291;</span>
+                        <span>Add Product</span>
+                    </button>
+                </div>
+
+                <div class="inventory-search-wrap">
+                    <span class="inventory-search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-4-4"></path>
+                        </svg>
+                    </span>
+                    <input
+                        type="text"
+                        class="inventory-search"
+                        id="inventorySearch"
+                        placeholder="Search products by name, brand, or SKU..."
+                    >
+                </div>
+<div class="inventory-toolbar">
+                    <button type="button" class="inventory-filter-button" id="toggleFilterButton">
+                        <span>🔽 Filters</span>
+                    </button>
+                    <div class="inventory-meta">
+                        <span>{{ total_products }} products</span>
+                        <span>{{ low_stock_count }} low stock</span>
+                    </div>
+                </div>
+
+                <div class="inventory-filter-panel hidden" id="filterPanel">
+                    <div class="inventory-filter-grid">
+                        <label class="field">
+                            <span>Brand</span>
+                            <select id="filterBrand">
+                                <option value="">All Brands</option>
+                                {% for brand in filter_brands %}
+                                    <option value="{{ brand }}">{{ brand }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Category</span>
+                            <select id="filterCategory">
+                                <option value="">All Categories</option>
+                                {% for category in category_options %}
+                                    <option value="{{ category.category_name }}">{{ category.category_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label class="field">
+                            <span>Size</span>
+                            <select id="filterSize">
+                                <option value="">All Sizes</option>
+                                {% for size in filter_sizes %}
+                                    <option value="{{ size }}">{{ size }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                    </div>
+                    <div class="inventory-filter-actions">
+                        <button type="button" class="icon-button" id="clearFiltersButton">Clear All</button>
+                    </div>
+                </div>
+
+                <div class="table-shell inventory-table-shell">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Product</th>
+                                <th>Brand</th>
+                                <th>Category</th>
+                                <th>Size</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                            {% for product in inventory_products %}
+                            <tr
+                                data-search="{{ (product.sku ~ ' ' ~ product.product_name ~ ' ' ~ product.brand ~ ' ' ~ product.category)|lower }}"
+                                data-id="{{ product.product_id }}"
+                                data-sku="{{ product.sku }}"
+                                data-name="{{ product.product_name }}"
+                                data-brand="{{ product.brand }}"
+                                data-category="{{ product.category }}"
+                                data-category-id="{{ product.category_id if product.category_id is defined else '' }}"
+                                data-size="{{ product.size }}"
+                                data-price="{{ product.base_price }}"
+                                data-stock="{{ product.stock_quantity }}"
+                                data-status="{{ product.availability_status }}"
+                            >
+                                <td>{{ product.sku }}</td>
+                                <td>{{ product.product_name }}</td>
+                                <td>{{ product.brand }}</td>
+                                <td>{{ product.category }}</td>
+                                <td>{{ product.size }}</td>
+                                <td>
+                                    <strong>&#8369;{{ product.final_price|currency }}</strong>
+                                    {% if product.promo_name %}
+                                    <div class="inventory-subtext">
+                                        <span class="promo-pill">{{ product.promo_name }}</span>
+                                        <small>Base: &#8369;{{ product.base_price|currency }}</small>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="stock-badge{% if product.stock_quantity <= 10 %} low{% endif %}">
+                                        {{ product.stock_label }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-pill {{ product.availability_tone }}">{{ product.availability_status }}</span>
+                                </td>
+                                <td>
+                                    <div class="inventory-actions">
+                                        <button type="button" class="icon-button inventory-action-button edit-product-button" aria-label="Edit product" title="Edit product">
+                                            <span class="inventory-action-icon" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                            </span>
+                                        </button>
+                                        <form method="POST" action="/inventory/delete/{{ product.product_id }}" onsubmit="return confirm('Delete {{ product.product_name }}?');">
+                                            <button type="submit" class="icon-button danger inventory-action-button" aria-label="Delete product" title="Delete product">
+                                                <span class="inventory-action-icon" aria-hidden="true">
+                                                    <svg viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                                                </span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="inventory-modal hidden" id="inventoryFormModal" aria-hidden="true">
+                <div class="inventory-modal-backdrop" id="inventoryModalBackdrop"></div>
+                <section class="panel-card inventory-modal-dialog" id="inventoryFormCard" role="dialog" aria-modal="true" aria-labelledby="inventoryFormTitle">
+                    <div class="panel-header inventory-modal-header">
+                        <h2 id="inventoryFormTitle">Add Product</h2>
+                        <button type="button" class="inventory-modal-close" id="closeInventoryForm" aria-label="Close product form">
+                            <span aria-hidden="true">&#10005;</span>
+                        </button>
+                    </div>
+                    <form method="POST" action="/inventory/add" id="inventoryForm" class="inventory-editor-form inventory-modal-form">
+                        <div class="form-grid double-grid">
+                            <label class="field">
+                                <span>Product Name *</span>
+                                <input type="text" name="product_name" id="formProductName" required>
+                            </label>
+                            <label class="field">
+                                <span>Brand *</span>
+                                <input type="text" name="brand" id="formBrand" value="Meryl">
+                            </label>
+                            <label class="field">
+                                <span>Category</span>
+                                <select name="category_id" id="formCategoryId" required>
+                                    {% for category in category_options %}
+                                    <option value="{{ category.category_id }}">{{ category.category_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span>Size</span>
+                                <input type="text" name="size" id="formSize" placeholder="e.g. 39">
+                            </label>
+                            <label class="field">
+                                <span>SKU</span>
+                                <div class="static-field" id="formSkuDisplay">Auto-generated after save</div>
+                            </label>
+                            <label class="field">
+                                <span>Stock Quantity</span>
+                                <input type="number" min="0" name="stock_quantity" id="formStockQuantity" required>
+                            </label>
+                            <label class="field">
+                                <span>Status</span>
+                                <select name="availability_status" id="formAvailabilityStatus" required>
+                                    <option value="Available">Available</option>
+                                    <option value="Not Available">Not Available</option>
+                                </select>
+                            </label>
+                            <label class="field">
+                                <span>Price *</span>
+                                <input type="number" step="0.01" min="0" name="cost_price" id="formCostPrice" required>
+                            </label>
+                        </div>
+
+                        <div class="form-actions inventory-modal-actions">
+                            <button type="submit" class="primary-button" id="inventorySubmitButton">Save Product</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/topbar.js"></script>
+    <script>
+        const inventorySearch = document.getElementById('inventorySearch');
+        const inventoryRows = document.querySelectorAll('#inventoryTableBody tr');
+        const inventoryFormCard = document.getElementById('inventoryFormCard');
+        const inventoryFormModal = document.getElementById('inventoryFormModal');
+        const inventoryForm = document.getElementById('inventoryForm');
+        const inventoryFormTitle = document.getElementById('inventoryFormTitle');
+        const inventorySubmitButton = document.getElementById('inventorySubmitButton');
+        const inventoryModalBackdrop = document.getElementById('inventoryModalBackdrop');
+        const formSkuDisplay = document.getElementById('formSkuDisplay');
+        const formAvailabilityStatus = document.getElementById('formAvailabilityStatus');
+        const openAddProduct = document.getElementById('openAddProduct');
+        const closeInventoryForm = document.getElementById('closeInventoryForm');
+        const resetInventoryForm = document.getElementById('resetInventoryForm');
+        const toggleFilterButton = document.getElementById('toggleFilterButton');
+        const filterPanel = document.getElementById('filterPanel');
+        const filterBrand = document.getElementById('filterBrand');
+        const filterCategory = document.getElementById('filterCategory');
+        const filterSize = document.getElementById('filterSize');
+        const clearFiltersButton = document.getElementById('clearFiltersButton');
+        const defaultAction = '/inventory/add';
+
+        if (toggleFilterButton) {
+            toggleFilterButton.innerHTML = '<span class="inventory-filter-button-icon">&#9881;</span><span>Toggle Filters</span>';
+        }
+
+        function resetFormForCreate() {
+            inventoryForm.action = defaultAction;
+            inventoryFormTitle.textContent = 'Add Product';
+            if (inventorySubmitButton) {
+                inventorySubmitButton.textContent = 'Save Product';
+            }
+            inventoryForm.reset();
+            document.getElementById('formBrand').value = 'Meryl';
+            if (formAvailabilityStatus) {
+                formAvailabilityStatus.value = 'Available';
+            }
+            if (formSkuDisplay) {
+                formSkuDisplay.textContent = 'Auto-generated after save';
+            }
+        }
+
+        function showForm() {
+            inventoryFormModal?.classList.remove('hidden');
+            inventoryFormModal?.setAttribute('aria-hidden', 'false');
+        }
+
+        function hideForm() {
+            inventoryFormModal?.classList.add('hidden');
+            inventoryFormModal?.setAttribute('aria-hidden', 'true');
+        }
+
+        function applyFilters() {
+            const selectedBrand = filterBrand.value.toLowerCase();
+            const selectedCategory = filterCategory.value.toLowerCase();
+            const selectedSize = filterSize.value.toLowerCase();
+            const searchKeyword = inventorySearch.value.trim().toLowerCase();
+
+            inventoryRows.forEach((row) => {
+                const rowBrand = row.dataset.brand ? row.dataset.brand.toLowerCase() : '';
+                const rowCategory = row.dataset.category ? row.dataset.category.toLowerCase() : '';
+                const rowSize = row.dataset.size ? row.dataset.size.toLowerCase() : '';
+                const haystack = row.dataset.search || '';
+
+                const matchesSearch = haystack.includes(searchKeyword);
+                const matchesBrand = !selectedBrand || rowBrand.includes(selectedBrand);
+                const matchesCategory = !selectedCategory || rowCategory.includes(selectedCategory);
+                const matchesSize = !selectedSize || rowSize.includes(selectedSize);
+
+                const isVisible = matchesSearch && matchesBrand && matchesCategory && matchesSize;
+                row.style.display = isVisible ? '' : 'none';
+            });
+        }
+
+        if (inventorySearch) {
+            inventorySearch.addEventListener('input', applyFilters);
+        }
+
+        if (filterBrand) {
+            filterBrand.addEventListener('change', applyFilters);
+        }
+
+        if (filterCategory) {
+            filterCategory.addEventListener('change', applyFilters);
+        }
+
+        if (filterSize) {
+            filterSize.addEventListener('change', applyFilters);
+        }
+
+        if (toggleFilterButton) {
+            toggleFilterButton.addEventListener('click', () => {
+                filterPanel.classList.toggle('hidden');
+            });
+        }
+
+        if (clearFiltersButton) {
+            clearFiltersButton.addEventListener('click', () => {
+                filterBrand.value = '';
+                filterCategory.value = '';
+                filterSize.value = '';
+                inventorySearch.value = '';
+                applyFilters();
+            });
+        }
+
+        openAddProduct?.addEventListener('click', () => {
+            resetFormForCreate();
+            showForm();
+        });
+
+        closeInventoryForm?.addEventListener('click', () => {
+            hideForm();
+        });
+
+        resetInventoryForm?.addEventListener('click', () => {
+            resetFormForCreate();
+        });
+
+        inventoryModalBackdrop?.addEventListener('click', () => {
+            hideForm();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && inventoryFormModal && !inventoryFormModal.classList.contains('hidden')) {
+                hideForm();
+            }
+        });
+
+        document.querySelectorAll('.edit-product-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                const row = button.closest('tr');
+                if (!row) return;
+
+                inventoryForm.action = `/inventory/update/${row.dataset.id}`;
+                inventoryFormTitle.textContent = 'Edit Product';
+                if (inventorySubmitButton) {
+                    inventorySubmitButton.textContent = 'Update Product';
+                }
+                document.getElementById('formProductName').value = row.dataset.name || '';
+                document.getElementById('formBrand').value = row.dataset.brand || 'Meryl';
+                document.getElementById('formSize').value = row.dataset.size || '';
+                document.getElementById('formCostPrice').value = row.dataset.price || '0';
+                document.getElementById('formStockQuantity').value = row.dataset.stock || '0';
+                if (formAvailabilityStatus) {
+                    formAvailabilityStatus.value = row.dataset.status || 'Available';
+                }
+                if (formSkuDisplay) {
+                    formSkuDisplay.textContent = row.dataset.sku || 'Auto-generated after save';
+                }
+                const categorySelect = document.getElementById('formCategoryId');
+                const matchingOption = Array.from(categorySelect.options).find(
+                    (option) => option.textContent.trim() === (row.dataset.category || '').trim()
+                );
+                if (matchingOption) {
+                    categorySelect.value = matchingOption.value;
+                }
+
+                showForm();
+            });
+        });
+
+        formAvailabilityStatus?.addEventListener('change', () => {
+            const stockInput = document.getElementById('formStockQuantity');
+            if (!stockInput) return;
+            if (formAvailabilityStatus.value === 'Not Available') {
+                stockInput.value = '0';
+            }
+        });
+    </script>
+</body>
+</html>
+
+

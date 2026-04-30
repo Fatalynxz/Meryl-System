@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings | Meryl Shoes Enterprise System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page settings-page">
+    <div class="app-shell dashboard-shell">
+        <header class="topbar">
+            <div class="brand-block">
+                <div class="brand-logo brand-logo-dashboard">Meryl <span>Shoes</span></div>
+                <div>
+                    <h1>Meryl Shoes Enterprise System</h1>
+                    <p>Integrated POS-Driven Inventory System with Data Analytics for Targeting Sales Marketing</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button type="button" class="notification-button" data-notification-button title="Mark notifications as read" aria-label="Mark notifications as read">
+                    <span class="notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 17H9"></path><path d="M18 17H6l1.2-1.6A5 5 0 0 0 8 12.4V10a4 4 0 1 1 8 0v2.4a5 5 0 0 0 .8 2.8L18 17Z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg></span>
+                    <span class="notification-badge" data-notification-count>{{ current_user.notification_count if current_user else 0 }}</span>
+                </button>
+                <div class="user-chip">
+                    <strong>{{ current_user.name if current_user else account.name }}</strong>
+                    <span>{{ current_user.role_label if current_user else account.role|replace('_', ' ')|title }}{% if account.staff_code %} · {{ account.staff_code }}{% endif %}</span>
+                </div>
+                <a class="action-button topbar-secondary-button" href="{{ '/pos' if current_user and current_user.role == 'sales_staff' else '/inventory' }}">Back</a>
+                <a class="action-button" href="/logout">Logout</a>
+            </div>
+        </header>
+
+        <nav class="navbar">
+            {% for item in nav_items %}
+            <a href="{{ item.href }}" class="{% if item.href == '/account/settings' %}active{% endif %}"><span>{{ item.label }}</span></a>
+            {% endfor %}
+        </nav>
+
+        <main class="page-content">
+            {% if notice %}
+            <section class="notice-banner notice-{{ notice.tone }}">{{ notice.message }}</section>
+            {% endif %}
+
+            <section class="panel-card settings-card">
+                <div class="panel-header settings-card-header">
+                    <h2>My Account Settings</h2>
+                    <div class="settings-staff-code">Staff Code: {{ account.staff_code }}</div>
+                </div>
+                <p class="settings-helper-copy">You can update your own name, username, email, and password here. The administrator will also see your latest details.</p>
+
+                <form method="POST" action="/account/settings/save" class="inventory-editor-form inventory-modal-form settings-form" autocomplete="off">
+                    <div class="form-grid single-grid customer-modal-grid">
+                        <label class="field">
+                            <span>Full Name *</span>
+                            <input type="text" name="name" value="{{ account.name }}" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+                        </label>
+                        <label class="field">
+                            <span>Username *</span>
+                            <input type="text" name="username" value="{{ account.username }}" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+                        </label>
+                        <label class="field">
+                            <span>Email Address *</span>
+                            <input type="email" name="email" value="{{ account.email }}" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+                        </label>
+                        <label class="field">
+                            <span>Password *</span>
+                            <input type="text" name="password" value="{{ account.password }}" required autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false">
+                        </label>
+                        <label class="field">
+                            <span>Role</span>
+                            <input type="text" value="{{ account.role|replace('_', ' ')|title }}" readonly>
+                        </label>
+                        <label class="field">
+                            <span>Status</span>
+                            <input type="text" value="{{ account.status|title }}" readonly>
+                        </label>
+                    </div>
+                    <div class="form-actions inventory-modal-actions">
+                        <button type="submit" class="primary-button">Save My Details</button>
+                    </div>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/topbar.js"></script>
+</body>
+</html>

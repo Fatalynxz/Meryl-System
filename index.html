@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EditWave Studio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="#top">
+        <span class="brand-mark">EW</span>
+        <span class="brand-text">
+          <strong>EditWave</strong>
+          <small>Video Editing Studio</small>
+        </span>
+      </a>
+
+      <nav class="site-nav">
+        <a href="#auth">Login</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#portfolio">Portfolio</a>
+        <a href="#request">Request</a>
+        <a href="#dashboard">Dashboard</a>
+      </nav>
+
+      <div class="session-bar">
+        <span id="sessionLabel">Not logged in</span>
+        <button class="button button-secondary" id="logoutButton" type="button">Logout</button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Fast edits. Clean motion. Clear pricing.</p>
+          <h1>Your edits, ready for clients, creators, and brands.</h1>
+          <p class="hero-text">
+            Offer your editing services with fixed prices, show your best work, and let customers send detailed edit requests in one place.
+          </p>
+
+          <div class="hero-actions">
+            <a class="button button-primary" href="#request">Request an Edit</a>
+            <a class="button button-secondary" href="#portfolio">See My Work</a>
+          </div>
+
+          <ul class="hero-points">
+            <li>Short-form reels and TikToks</li>
+            <li>Gaming montages and highlight edits</li>
+            <li>YouTube content and branded cuts</li>
+          </ul>
+        </div>
+
+        <div class="hero-panel">
+          <div class="hero-card">
+            <span class="card-label">Most Booked</span>
+            <h2>Social Media Edit</h2>
+            <p>Clean pacing, captions, transitions, sound design, and export ready for posting.</p>
+            <div class="price-tag">$25</div>
+            <small>Typical delivery: 1 to 2 days</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="auth">
+        <div class="section-heading">
+          <p class="eyebrow">Access</p>
+          <h2>Customer login and admin access</h2>
+          <p>Create a customer account to send requests and track edits. Use the admin login to manage all orders.</p>
+        </div>
+
+        <div class="auth-grid">
+          <article class="auth-card">
+            <p class="preview-label">Customer Account</p>
+            <form class="auth-form" id="customerRegisterForm">
+              <label>
+                Full Name
+                <input type="text" name="name" placeholder="Your name" required>
+              </label>
+              <label>
+                Email
+                <input type="email" name="email" placeholder="you@example.com" required>
+              </label>
+              <label>
+                Password
+                <input type="password" name="password" placeholder="Create a password" required>
+              </label>
+              <button class="button button-primary" type="submit">Create customer account</button>
+            </form>
+
+            <form class="auth-form compact" id="customerLoginForm">
+              <label>
+                Email
+                <input type="email" name="email" placeholder="you@example.com" required>
+              </label>
+              <label>
+                Password
+                <input type="password" name="password" placeholder="Your password" required>
+              </label>
+              <button class="button button-secondary" type="submit">Customer login</button>
+            </form>
+          </article>
+
+          <article class="auth-card">
+            <p class="preview-label">Admin Login</p>
+            <p class="auth-copy">Demo admin account is already available in the browser.</p>
+            <form class="auth-form compact" id="adminLoginForm">
+              <label>
+                Admin Email
+                <input type="email" name="email" placeholder="admin@editwave.com" required>
+              </label>
+              <label>
+                Password
+                <input type="password" name="password" placeholder="Admin password" required>
+              </label>
+              <button class="button button-primary" type="submit">Admin login</button>
+            </form>
+            <div class="admin-hint">
+              <strong>Demo login</strong>
+              <span>Email: admin@editwave.com</span>
+              <span>Password: admin123</span>
+            </div>
+          </article>
+        </div>
+
+        <p class="status-message" id="authMessage">Create an account or log in to manage edit requests.</p>
+      </section>
+
+      <section class="section" id="pricing">
+        <div class="section-heading">
+          <p class="eyebrow">Pricing</p>
+          <h2>Choose the edit package</h2>
+          <p>Set a price for every service so customers know exactly what they are booking.</p>
+        </div>
+
+        <div class="pricing-grid">
+          <article class="pricing-card" data-package="Basic Cut - $15">
+            <span class="price-type">Basic Cut</span>
+            <h3>$15</h3>
+            <p>Simple trimming, music sync, light transitions, and final export.</p>
+            <ul>
+              <li>Up to 30 seconds</li>
+              <li>1 revision</li>
+              <li>1080p delivery</li>
+            </ul>
+            <button class="button button-secondary package-button" type="button">Select this package</button>
+          </article>
+
+          <article class="pricing-card featured" data-package="Content Creator Pack - $25">
+            <span class="price-type">Content Creator Pack</span>
+            <h3>$25</h3>
+            <p>Best for reels, shorts, and TikToks with captions and smoother motion.</p>
+            <ul>
+              <li>Up to 60 seconds</li>
+              <li>2 revisions</li>
+              <li>Captions included</li>
+            </ul>
+            <button class="button button-primary package-button" type="button">Select this package</button>
+          </article>
+
+          <article class="pricing-card" data-package="Cinematic Edit - $45">
+            <span class="price-type">Cinematic Edit</span>
+            <h3>$45</h3>
+            <p>Stronger storytelling, effects, color mood, and polished pacing.</p>
+            <ul>
+              <li>Up to 2 minutes</li>
+              <li>3 revisions</li>
+              <li>Custom sound design</li>
+            </ul>
+            <button class="button button-secondary package-button" type="button">Select this package</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="portfolio">
+        <div class="section-heading">
+          <p class="eyebrow">Portfolio</p>
+          <h2>Show the edits on your site</h2>
+          <p>Replace the sample projects below with your actual work, YouTube links, or exported previews.</p>
+        </div>
+
+        <div class="portfolio-grid">
+          <article class="work-card">
+            <div class="work-visual visual-one">
+              <div class="work-preview" data-preview="preview-1">
+                <span>Reel Edit</span>
+              </div>
+            </div>
+            <div class="work-copy">
+              <h3>Fashion Promo Reel</h3>
+              <p>Quick cuts, beat sync, captions, and motion overlays for social media promotion.</p>
+              <div class="portfolio-editor">
+                <input class="portfolio-url" type="url" data-target="preview-1" placeholder="Paste YouTube, Drive, or direct video link">
+                <input class="portfolio-file" type="file" data-target="preview-1" accept="video/*">
+                <button class="work-link load-preview-button" type="button" data-target="preview-1">Load sample edit</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="work-card">
+            <div class="work-visual visual-two">
+              <div class="work-preview" data-preview="preview-2">
+                <span>Gaming Montage</span>
+              </div>
+            </div>
+            <div class="work-copy">
+              <h3>FPS Highlight Montage</h3>
+              <p>Impact transitions, kill markers, zoom punches, and cinematic slow motion.</p>
+              <div class="portfolio-editor">
+                <input class="portfolio-url" type="url" data-target="preview-2" placeholder="Paste YouTube, Drive, or direct video link">
+                <input class="portfolio-file" type="file" data-target="preview-2" accept="video/*">
+                <button class="work-link load-preview-button" type="button" data-target="preview-2">Load sample edit</button>
+              </div>
+            </div>
+          </article>
+
+          <article class="work-card">
+            <div class="work-visual visual-three">
+              <div class="work-preview" data-preview="preview-3">
+                <span>YouTube Cut</span>
+              </div>
+            </div>
+            <div class="work-copy">
+              <h3>Talking Head Content</h3>
+              <p>Cleanup cuts, subtitle emphasis, B-roll support, and polished creator pacing.</p>
+              <div class="portfolio-editor">
+                <input class="portfolio-url" type="url" data-target="preview-3" placeholder="Paste YouTube, Drive, or direct video link">
+                <input class="portfolio-file" type="file" data-target="preview-3" accept="video/*">
+                <button class="work-link load-preview-button" type="button" data-target="preview-3">Load sample edit</button>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section request-section" id="request">
+        <div class="section-heading">
+          <p class="eyebrow">Request Form</p>
+          <h2>Let customers send edit requests</h2>
+          <p>The form builds a ready-to-send order message. Update your contact details in the script file.</p>
+        </div>
+
+        <div class="request-layout">
+          <form class="request-form" id="requestForm">
+            <label>
+              Name
+              <input type="text" name="clientName" placeholder="Your name" required>
+            </label>
+
+            <label>
+              Contact
+              <input type="text" name="clientContact" placeholder="Email or social account" required>
+            </label>
+
+            <label>
+              Select Package
+              <select name="packageType" required>
+                <option value="">Choose a package</option>
+                <option value="Basic Cut - $15">Basic Cut - $15</option>
+                <option value="Content Creator Pack - $25">Content Creator Pack - $25</option>
+                <option value="Cinematic Edit - $45">Cinematic Edit - $45</option>
+                <option value="Custom Quote">Custom Quote</option>
+              </select>
+            </label>
+
+            <label>
+              Type of Edit
+              <input type="text" name="editType" placeholder="Example: TikTok edit, montage, vlog" required>
+            </label>
+
+            <label>
+              Deadline
+              <input type="text" name="deadline" placeholder="Example: March 25">
+            </label>
+
+            <label>
+              Reference Link
+              <input type="url" name="referenceLink" placeholder="Paste a YouTube, Drive, or sample link">
+            </label>
+
+            <label>
+              Project Details
+              <textarea name="projectDetails" rows="5" placeholder="Describe the style, effects, music, captions, and anything you want included." required></textarea>
+            </label>
+
+            <div class="form-actions">
+              <button class="button button-primary" type="submit">Generate Request</button>
+              <button class="button button-secondary" type="button" id="copyButton">Copy Message</button>
+            </div>
+            <p class="form-note">Customer login is required to save requests to the dashboard.</p>
+          </form>
+
+          <aside class="request-preview">
+            <p class="preview-label">Customer Message Preview</p>
+            <pre id="requestOutput">Fill out the form to create a request message for your editing service.</pre>
+            <div class="preview-actions">
+              <a class="button button-primary" id="emailLink" href="#">Send by Email</a>
+              <a class="button button-secondary" id="whatsAppLink" href="#" target="_blank" rel="noreferrer">Send by WhatsApp</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="dashboard">
+        <div class="section-heading">
+          <p class="eyebrow">Dashboard</p>
+          <h2>Track edits and manage requests</h2>
+          <p>Customers can review their own requests. Admin can update status, price, and notes for every order.</p>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="dashboard-card">
+            <div class="dashboard-head">
+              <div>
+                <p class="preview-label">Customer Dashboard</p>
+                <h3 id="customerDashboardTitle">Your requests</h3>
+              </div>
+            </div>
+            <div class="dashboard-list" id="customerRequestsList">
+              <p class="empty-state">Log in as a customer to see your request history.</p>
+            </div>
+          </article>
+
+          <article class="dashboard-card admin-panel" id="adminPanel">
+            <div class="dashboard-head">
+              <div>
+                <p class="preview-label">Admin Dashboard</p>
+                <h3>All edit requests</h3>
+              </div>
+            </div>
+            <div class="dashboard-list" id="adminRequestsList">
+              <p class="empty-state">Log in as admin to manage customer orders.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

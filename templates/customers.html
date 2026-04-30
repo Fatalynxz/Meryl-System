@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customers | Meryl Shoes Enterprise System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page customers-page">
+    <div class="app-shell dashboard-shell">
+        <header class="topbar">
+            <div class="brand-block">
+                <div class="brand-logo brand-logo-dashboard">Meryl <span>Shoes</span></div>
+                <div>
+                    <h1>Meryl Shoes Enterprise System</h1>
+                    <p>Integrated POS-Driven Inventory System with Data Analytics for Targeting Sales Marketing</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button type="button" class="notification-button" data-notification-button title="Mark notifications as read" aria-label="Mark notifications as read">
+                    <span class="notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 17H9"></path><path d="M18 17H6l1.2-1.6A5 5 0 0 0 8 12.4V10a4 4 0 1 1 8 0v2.4a5 5 0 0 0 .8 2.8L18 17Z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg></span>
+                    <span class="notification-badge" data-notification-count>4</span>
+                </button>
+                <div class="user-chip">
+                    <strong>{{ current_user.name if current_user else 'Administrator' }}</strong>
+                    <span>{{ current_user.role_label if current_user else 'Administrator' }}{% if current_user and current_user.staff_code %} · {{ current_user.staff_code }}{% endif %}</span>
+                </div>
+                <a class="action-button" href="/logout">Logout</a>
+            </div>
+        </header>
+
+                <nav class="navbar">
+            <a href="/"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg></span><span>Dashboard</span></a>
+            <a href="/pos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M3 10h18"></path></svg></span><span>POS</span></a>
+            <a href="/inventory"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5 12 12l8-4.5L12 3Z"></path><path d="M4 7.5V16.5L12 21V12"></path><path d="M20 7.5V16.5L12 21"></path></svg></span><span>Inventory</span></a>
+            <a href="/sales"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="19" r="1.5"></circle><circle cx="18" cy="19" r="1.5"></circle><path d="M3 5h2l2.4 9.5h10.9l2-7.5H6.2"></path></svg></span><span>Sales</span></a>
+            <a href="/customers" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Customers</span></a>
+            <a href="/predictive"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path><path d="M14 7h7v7"></path></svg></span><span>Predictive</span></a>
+            <a href="/promotions"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"></path><circle cx="7.5" cy="7.5" r="1.25"></circle></svg></span><span>Promotions</span></a>
+            <a href="/staff"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Users</span></a>
+            <a href="/reports"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg></span><span>Reports</span></a>
+        </nav>
+
+        <main class="page-content">
+            {% if notice %}
+            <section class="notice-banner notice-{{ notice.tone }}">{{ notice.message }}</section>
+            {% endif %}
+
+            <section class="stats-grid stats-grid-three">
+                <article class="stat-card customer-stat-card">
+                    <div class="stat-card-head"><h3>Active Customers</h3><span class="stat-icon customer-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span></div>
+                    <p class="stat-value">{{ active_customers }}</p>
+                </article>
+                <article class="stat-card customer-stat-card">
+                    <div class="stat-card-head"><h3>Total Loyalty Points</h3><span class="stat-icon customer-points-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.8 6.7 19.1l1-5.8-4.2-4.1 5.9-.9L12 3Z"></path></svg></span></div>
+                    <p class="stat-value">{{ total_loyalty_points|currency }}</p>
+                </article>
+                <article class="stat-card customer-stat-card">
+                    <div class="stat-card-head"><h3>Top Customer</h3></div>
+                    <p class="stat-value customer-name-card">{{ top_customer.name if top_customer else 'N/A' }}</p>
+                    <small>{{ top_customer.purchases if top_customer else 0 }} purchases</small>
+                </article>
+            </section>
+
+            <section class="panel-card admin-table-card customer-directory-card">
+                <div class="panel-header customer-directory-header">
+                    <h2><span class="section-heading-icon customer-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span> Customer Directory</h2>
+                    <button type="button" class="primary-button inventory-add-button customer-add-button" id="openCustomerForm"><span class="inventory-button-icon">&#65291;</span><span>Add Customer</span></button>
+                </div>
+                <div class="inventory-search-wrap">
+                    <span class="inventory-search-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="M20 20l-4-4"></path>
+                        </svg>
+                    </span>
+                    <input type="text" class="inventory-search" id="customerSearch" placeholder="Search by name, email, or phone...">
+                </div>
+                <div class="table-shell inventory-table-shell">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Contact</th>
+                                <th>Address</th>
+                                <th>Purchases</th>
+                                <th>Last Purchase</th>
+                                <th>Latest Transaction</th>
+                                <th>Loyalty Points</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customerTableBody">
+                            {% for row in customer_rows %}
+                            <tr
+                                data-search="{{ (row.name ~ ' ' ~ row.contact ~ ' ' ~ row.address)|lower }}"
+                                data-id="{{ row.customer_id }}"
+                                data-name="{{ row.name }}"
+                                data-email="{{ '' if row.contact == '-' else row.contact }}"
+                                data-phone="{{ '' if row.phone is not defined or row.phone == '-' else row.phone }}"
+                                data-address="{{ '' if row.address == 'No address' else row.address }}"
+                                data-status="{{ row.status|lower }}"
+                            >
+                                <td>{{ row.name }}</td>
+                                <td>
+                                    <div class="customer-contact-cell">
+                                        <span>{{ row.contact }}</span>
+                                        <span>{{ row.phone if row.phone is defined else row.contact }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ row.address }}</td>
+                                <td>{{ row.purchases }}</td>
+                                <td>{{ row.last_purchase }}</td>
+                                <td><span class="status-pill {{ row.transaction_status_tone }}">{{ row.transaction_status }}</span></td>
+                                <td><span class="stock-badge">{{ row.loyalty_points }} pts</span></td>
+                                <td><span class="status-pill {% if row.status == 'Active' %}success{% else %}muted{% endif %}">{{ row.status }}</span></td>
+                                <td>
+                                    <div class="inventory-actions">
+                                        <button type="button" class="icon-button inventory-action-button edit-customer-button" aria-label="Edit customer" title="Edit customer">
+                                            <span class="inventory-action-icon" aria-hidden="true">
+                                                <svg viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                            </span>
+                                        </button>
+                                        <form method="POST" action="/customers/delete/{{ row.customer_id }}" class="inventory-inline-form customer-delete-form">
+                                            <button type="submit" class="icon-button danger inventory-action-button" aria-label="Delete customer" title="Delete customer">
+                                                <span class="inventory-action-icon" aria-hidden="true">
+                                                    <svg viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                                                </span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="inventory-modal hidden" id="customerFormModal" aria-hidden="true">
+                <div class="inventory-modal-backdrop" id="customerModalBackdrop"></div>
+                <section class="panel-card inventory-modal-dialog customer-modal-dialog" id="customerFormCard" role="dialog" aria-modal="true" aria-labelledby="customerFormTitle">
+                    <div class="panel-header inventory-modal-header">
+                        <h2 id="customerFormTitle">Add Customer</h2>
+                        <button type="button" class="inventory-modal-close" id="closeCustomerForm" aria-label="Close customer form">
+                            <span aria-hidden="true">&#10005;</span>
+                        </button>
+                    </div>
+                    <form method="POST" action="/customers/add" class="inventory-editor-form customer-editor-form inventory-modal-form" id="customerForm">
+                        <div class="form-grid single-grid customer-modal-grid">
+                            <label class="field">
+                                <span>Full Name *</span>
+                                <input type="text" name="name" id="customerName" placeholder="Enter full name" required>
+                            </label>
+                            <label class="field">
+                                <span>Email Address *</span>
+                                <input type="text" name="username" id="customerEmail" placeholder="Enter email address" required>
+                            </label>
+                            <label class="field">
+                                <span>Phone Number *</span>
+                                <input type="text" name="phone" id="customerPhone" placeholder="Enter phone number" required>
+                            </label>
+                            <label class="field">
+                                <span>Address</span>
+                                <input type="text" name="address" id="customerAddress" placeholder="Enter your address">
+                            </label>
+                            <label class="field hidden">
+                                <span>Status</span>
+                                <select name="status" id="customerStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="form-actions inventory-modal-actions">
+                            <button type="submit" class="primary-button" id="customerSubmitButton">Save Customer</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/topbar.js"></script>
+    <script>
+        const customerSearch = document.getElementById('customerSearch');
+        const customerRows = document.querySelectorAll('#customerTableBody tr');
+        const openCustomerForm = document.getElementById('openCustomerForm');
+        const closeCustomerForm = document.getElementById('closeCustomerForm');
+        const customerFormModal = document.getElementById('customerFormModal');
+        const customerModalBackdrop = document.getElementById('customerModalBackdrop');
+        const customerFormCard = document.getElementById('customerFormCard');
+        const customerForm = document.getElementById('customerForm');
+        const customerFormTitle = document.getElementById('customerFormTitle');
+        const customerSubmitButton = document.getElementById('customerSubmitButton');
+        const customerName = document.getElementById('customerName');
+        const customerEmail = document.getElementById('customerEmail');
+        const customerPhone = document.getElementById('customerPhone');
+        const customerAddress = document.getElementById('customerAddress');
+        const customerStatus = document.getElementById('customerStatus');
+
+        function openCustomerModal() {
+            customerFormModal?.classList.remove('hidden');
+            customerFormModal?.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeCustomerModal() {
+            customerFormModal?.classList.add('hidden');
+            customerFormModal?.setAttribute('aria-hidden', 'true');
+        }
+
+        function resetCustomerForm() {
+            customerForm.action = '/customers/add';
+            customerFormTitle.textContent = 'Add Customer';
+            customerSubmitButton.textContent = 'Save Customer';
+            customerForm.reset();
+            if (customerStatus) {
+                customerStatus.value = 'active';
+            }
+        }
+
+        if (customerSearch) {
+            customerSearch.addEventListener('input', () => {
+                const keyword = customerSearch.value.trim().toLowerCase();
+                customerRows.forEach((row) => {
+                    row.style.display = (row.dataset.search || '').includes(keyword) ? '' : 'none';
+                });
+            });
+        }
+        openCustomerForm?.addEventListener('click', () => {
+            resetCustomerForm();
+            openCustomerModal();
+        });
+        closeCustomerForm?.addEventListener('click', () => {
+            closeCustomerModal();
+        });
+        customerModalBackdrop?.addEventListener('click', closeCustomerModal);
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && customerFormModal && !customerFormModal.classList.contains('hidden')) {
+                closeCustomerModal();
+            }
+        });
+
+        document.querySelectorAll('.edit-customer-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                const row = button.closest('tr');
+                if (!row) return;
+                const customerId = row.dataset.id || '';
+                customerForm.action = customerId ? `/customers/update/${customerId}` : '/customers/add';
+                customerFormTitle.textContent = 'Edit Customer';
+                customerSubmitButton.textContent = 'Update Customer';
+                if (customerName) customerName.value = row.dataset.name || '';
+                if (customerEmail) customerEmail.value = row.dataset.email || '';
+                if (customerPhone) customerPhone.value = row.dataset.phone || '';
+                if (customerAddress) customerAddress.value = row.dataset.address || '';
+                if (customerStatus) customerStatus.value = row.dataset.status || 'active';
+                openCustomerModal();
+            });
+        });
+
+        document.querySelectorAll('.customer-delete-form').forEach((form) => {
+            form.addEventListener('submit', (event) => {
+                if (!window.confirm('Delete this customer?')) {
+                    event.preventDefault();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

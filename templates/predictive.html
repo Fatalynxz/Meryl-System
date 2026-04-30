@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive | Meryl Shoes Enterprise System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page predictive-page">
+    <div class="app-shell dashboard-shell">
+        <header class="topbar">
+            <div class="brand-block">
+                <div class="brand-logo brand-logo-dashboard">Meryl <span>Shoes</span></div>
+                <div>
+                    <h1>Meryl Shoes Enterprise System</h1>
+                    <p>Integrated POS-Driven Inventory System with Data Analytics for Targeting Sales Marketing</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button type="button" class="notification-button" data-notification-button title="Mark notifications as read" aria-label="Mark notifications as read">
+                    <span class="notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 17H9"></path><path d="M18 17H6l1.2-1.6A5 5 0 0 0 8 12.4V10a4 4 0 1 1 8 0v2.4a5 5 0 0 0 .8 2.8L18 17Z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg></span>
+                    <span class="notification-badge" data-notification-count>4</span>
+                </button>
+                <div class="user-chip">
+                    <strong>{{ current_user.name if current_user else 'Administrator' }}</strong>
+                    <span>{{ current_user.role_label if current_user else 'Administrator' }}{% if current_user and current_user.staff_code %} · {{ current_user.staff_code }}{% endif %}</span>
+                </div>
+                <a class="action-button" href="/logout">Logout</a>
+            </div>
+        </header>
+
+                <nav class="navbar">
+            <a href="/"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg></span><span>Dashboard</span></a>
+            <a href="/pos"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M3 10h18"></path></svg></span><span>POS</span></a>
+            <a href="/inventory"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5 12 12l8-4.5L12 3Z"></path><path d="M4 7.5V16.5L12 21V12"></path><path d="M20 7.5V16.5L12 21"></path></svg></span><span>Inventory</span></a>
+            <a href="/sales"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="19" r="1.5"></circle><circle cx="18" cy="19" r="1.5"></circle><path d="M3 5h2l2.4 9.5h10.9l2-7.5H6.2"></path></svg></span><span>Sales</span></a>
+            <a href="/customers"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Customers</span></a>
+            <a href="/predictive" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path><path d="M14 7h7v7"></path></svg></span><span>Predictive</span></a>
+            <a href="/promotions"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"></path><circle cx="7.5" cy="7.5" r="1.25"></circle></svg></span><span>Promotions</span></a>
+            <a href="/staff"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Users</span></a>
+            <a href="/reports"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg></span><span>Reports</span></a>
+        </nav>
+
+        <main class="page-content">
+            {% if notice %}
+            <section class="notice-banner notice-{{ notice.tone }}">{{ notice.message }}</section>
+            {% endif %}
+
+            <section class="stats-grid">
+                <article class="stat-card predictive-stat-card">
+                    <div class="stat-card-head">
+                        <h3>Forecast Accuracy</h3>
+                        <span class="predictive-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path><circle cx="12" cy="12" r="9"></circle></svg>
+                        </span>
+                    </div>
+                    <p class="stat-value">{{ forecast_accuracy }}%</p>
+                </article>
+                <article class="stat-card predictive-stat-card">
+                    <div class="stat-card-head">
+                        <h3>Predicted Next Month</h3>
+                        <span class="predictive-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M4 16 10 10l4 4 6-6"></path><path d="M14 8h6v6"></path></svg>
+                        </span>
+                    </div>
+                    <p class="stat-value">&#8369;{{ predicted_next_month|currency }}</p>
+                </article>
+                <article class="stat-card predictive-stat-card">
+                    <div class="stat-card-head">
+                        <h3>Items Need Restock</h3>
+                        <span class="predictive-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M12 3 21 20H3L12 3Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r="1"></circle></svg>
+                        </span>
+                    </div>
+                    <p class="stat-value">{{ items_need_restock }}</p>
+                </article>
+                <article class="stat-card predictive-stat-card">
+                    <div class="stat-card-head">
+                        <h3>Inventory Turnover</h3>
+                        <span class="predictive-stat-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M12 3 4 7.5 12 12l8-4.5L12 3Z"></path><path d="M4 7.5V16.5L12 21V12"></path><path d="M20 7.5V16.5L12 21"></path></svg>
+                        </span>
+                    </div>
+                    <p class="stat-value">{{ inventory_turnover }}x</p>
+                </article>
+            </section>
+
+            <section class="panel-card chart-panel">
+                <div class="panel-header predictive-filter-header">
+                    <h2>
+                        <span class="predictive-section-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M4 16 10 10l4 4 6-6"></path><path d="M14 8h6v6"></path></svg>
+                        </span>
+                        <span>Sales Forecast</span>
+                    </h2>
+                    <form method="GET" class="predictive-filter-form">
+                        <input type="hidden" name="demand_range" value="{{ demand_range }}">
+                        <label class="field">
+                            <span>Forecast Range</span>
+                            <select name="forecast_range" onchange="this.form.submit()">
+                                <option value="last6" {% if forecast_range == 'last6' %}selected{% endif %}>Last 6 Months</option>
+                                <option value="last12" {% if forecast_range == 'last12' %}selected{% endif %}>Last 12 Months</option>
+                                <option value="yearly" {% if forecast_range == 'yearly' %}selected{% endif %}>This Year</option>
+                            </select>
+                        </label>
+                    </form>
+                </div>
+                <div class="forecast-chart-shell">
+                    <div class="forecast-y-axis">
+                        {% for value in sales_forecast.y_axis_labels %}
+                        <span>{{ value }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="forecast-chart-stage" style="--forecast-point-count: {{ sales_forecast.point_count }};">
+                        <div class="forecast-grid-lines">
+                            {% for _ in sales_forecast.y_axis_labels %}
+                            <span></span>
+                            {% endfor %}
+                        </div>
+                        <div class="forecast-month-guides">
+                            {% for month in sales_forecast.months %}
+                            <span></span>
+                            {% endfor %}
+                        </div>
+                        <svg class="forecast-line-chart" viewBox="0 0 1000 360" preserveAspectRatio="none" aria-label="Sales forecast chart">
+                            <polyline class="forecast-line forecast-line-actual" points="{{ sales_forecast.actual_points }}"></polyline>
+                            <polyline class="forecast-line forecast-line-predicted" points="{{ sales_forecast.predicted_points }}"></polyline>
+                            <g class="forecast-points forecast-points-actual">
+                                {% for x in sales_forecast.x_coords %}
+                                <circle cx="{{ x }}" cy="{{ sales_forecast.actual_y_points[loop.index0] }}" r="5"></circle>
+                                {% endfor %}
+                            </g>
+                            <g class="forecast-points forecast-points-predicted">
+                                {% for x in sales_forecast.x_coords %}
+                                <circle cx="{{ x }}" cy="{{ sales_forecast.predicted_y_points[loop.index0] }}" r="5"></circle>
+                                {% endfor %}
+                            </g>
+                        </svg>
+                        <div class="forecast-hover-zones">
+                            {% for month in sales_forecast.months %}
+                            <div class="forecast-hover-zone{% if loop.first %} is-start{% elif loop.last %} is-end{% endif %}" style="left: {{ sales_forecast.point_positions[loop.index0] }}%;">
+                                <span class="forecast-hover-line" aria-hidden="true"></span>
+                                <div class="forecast-chart-tooltip">
+                                    <strong>{{ month }}</strong>
+                                    <span>Actual Sales (PHP) : {{ sales_forecast.actual_values[loop.index0] }}</span>
+                                    <span>Predicted Sales (PHP) : {{ sales_forecast.predicted_values[loop.index0] }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="forecast-x-axis">
+                            {% for month in sales_forecast.months %}
+                            <span>{{ month }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="forecast-chart-legend">
+                    <span><i class="forecast-legend-line actual"></i>Actual Sales (PHP)</span>
+                    <span><i class="forecast-legend-line predicted"></i>Predicted Sales (PHP)</span>
+                </div>
+                <div class="forecast-accuracy-row" style="--forecast-point-count: {{ sales_forecast.point_count }};">
+                    {% for month in sales_forecast.months %}
+                    <div class="forecast-accuracy-item">
+                        <strong>{{ month }}</strong>
+                        <span>{{ sales_forecast.accuracy_values[loop.index0] }}%</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="predictive-method-note">
+                    <strong>Forecast Logic:</strong>
+                    <span>{{ sales_forecast.method_summary }}</span>
+                    <small>Input used: {{ sales_forecast.input_summary }}</small>
+                </div>
+            </section>
+
+            <section class="panel-card chart-panel">
+                <div class="panel-header predictive-filter-header">
+                    <h2>
+                        <span class="predictive-section-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M7 3v4"></path><path d="M17 3v4"></path><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16"></path></svg>
+                        </span>
+                        <span>Product Demand Trends by Category</span>
+                    </h2>
+                    <form method="GET" class="predictive-filter-form">
+                        <input type="hidden" name="forecast_range" value="{{ forecast_range }}">
+                        <label class="field">
+                            <span>Filter Range</span>
+                            <select name="demand_range" onchange="this.form.submit()">
+                                <option value="last30" {% if demand_range == 'last30' %}selected{% endif %}>Last 30 Days</option>
+                                <option value="weekly" {% if demand_range == 'weekly' %}selected{% endif %}>Weekly</option>
+                                <option value="yearly" {% if demand_range == 'yearly' %}selected{% endif %}>Yearly</option>
+                            </select>
+                        </label>
+                    </form>
+                </div>
+                <div class="predictive-category-chart{% if demand_range == 'weekly' %} weekly-layout{% elif demand_range == 'yearly' %} yearly-layout{% endif %}">
+                    {% for group in category_chart %}
+                    <div class="predictive-category-group">
+                        <div class="predictive-chart-tooltip">
+                            <strong>{{ group.label }}</strong>
+                            {% for item in group.series %}
+                            <span>{{ item.category }} : {{ item.value }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="predictive-category-bars">
+                            {% for item in group.series %}
+                            <div class="predictive-category-bar {{ item.tone }}" style="height: {{ item.height }}px;" title="{{ item.category }}: {{ item.value }}"></div>
+                            {% endfor %}
+                        </div>
+                        <span>{{ group.label }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="predictive-legend">
+                    {% for category in chart_categories %}
+                    <span class="predictive-legend-item">
+                        <span class="predictive-legend-dot {{ loop.cycle('cream', 'gold', 'soft', 'pale') }}"></span>
+                        <span>{{ category }}</span>
+                    </span>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="content-grid predictive-grid">
+                <article class="panel-card">
+                    <div class="panel-header">
+                        <h2>
+                            <span class="predictive-section-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M4 16 10 10l4 4 6-6"></path><path d="M14 8h6v6"></path></svg>
+                            </span>
+                            <span>Fast-Moving Products</span>
+                        </h2>
+                    </div>
+                    <div class="table-shell mini-table-shell">
+                        <table>
+                            <thead><tr><th>Product</th><th>Sold (30d)</th><th>Velocity</th><th>Predicted Demand</th></tr></thead>
+                            <tbody>
+                                {% for row in fast_moving %}
+                                <tr>
+                                    <td>{{ row.display_name }}<br><small>{{ row.category }}</small></td>
+                                    <td>{{ row.sold }}</td>
+                                    <td><span class="status-pill success">{{ row.velocity }}/day</span></td>
+                                    <td>{{ row.forecast }} units<br><small>{{ row.method }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+
+                <article class="panel-card">
+                    <div class="panel-header">
+                        <h2>
+                            <span class="predictive-section-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M4 8h6l3 8 4-4h3"></path><path d="M20 16v-6"></path></svg>
+                            </span>
+                            <span>Slow-Moving Products</span>
+                        </h2>
+                    </div>
+                    <div class="table-shell mini-table-shell">
+                        <table>
+                            <thead><tr><th>Product</th><th>Sold (30d)</th><th>Estimated Days</th><th>Promotion Action</th></tr></thead>
+                            <tbody>
+                                {% for row in slow_moving %}
+                                <tr>
+                                    <td>{{ row.display_name }}<br><small>{{ row.category }}</small></td>
+                                    <td>{{ row.sold }}</td>
+                                    <td><span class="status-pill warning">{{ row.days }}d</span></td>
+                                    <td class="predictive-promo-cell">
+                                        <button
+                                            type="button"
+                                            class="stock-badge predictive-promo-button"
+                                            data-promo-product-id="{{ row.target_product_id }}"
+                                            data-promo-product-name="{{ row.product_name }}"
+                                            data-promo-display-name="{{ row.display_name }}"
+                                            data-promo-category="{{ row.category }}"
+                                            data-promo-name="{{ row.suggested_name }}"
+                                            data-promo-type="{{ row.suggested_type }}"
+                                            data-promo-type-label="{{ row.suggested_type_label }}"
+                                            data-promo-discount="{{ row.suggested_discount }}"
+                                            data-promo-days="{{ row.days }}"
+                                            data-promo-duration="{{ row.suggested_duration_days }}"
+                                        >{{ row.action }}</button>
+                                        <small>{{ row.suggested_type_label }} · Suggested {{ row.suggested_discount }}% for {{ row.days }} days estimate</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </section>
+
+            <section class="panel-card admin-table-card">
+                <div class="panel-header">
+                    <h2>
+                        <span class="predictive-section-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M12 3 21 20H3L12 3Z"></path><path d="M12 9v4"></path><circle cx="12" cy="17" r="1"></circle></svg>
+                        </span>
+                        <span>Intelligent Restocking Recommendations</span>
+                    </h2>
+                </div>
+                <div class="table-shell inventory-table-shell">
+                    <table class="inventory-table">
+                        <thead><tr><th>Product</th><th>Current Stock</th><th>Predicted Demand</th><th>Urgency</th><th>Stockout In</th><th>Order Qty</th></tr></thead>
+                        <tbody>
+                            {% for row in restock_rows %}
+                            <tr>
+                                <td>{{ row.display_name }}</td>
+                                <td><span class="stock-badge{% if row.stock <= 10 %} low{% endif %}">{{ row.stock }} units</span></td>
+                                <td>{{ row.forecast }} units<br><small>{{ row.method }}</small></td>
+                                <td><span class="status-pill {% if row.urgency == 'HIGH' %}danger{% else %}warning{% endif %}">{{ row.urgency }}</span></td>
+                                <td>{{ row.stockout_days }} days</td>
+                                <td><span class="status-pill success">Order {{ row.order_qty }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div class="promotion-modal hidden" id="predictivePromotionModal" aria-hidden="true">
+        <div class="promotion-modal-backdrop" data-predictive-promotion-close></div>
+        <section class="promotion-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="predictivePromotionModalTitle">
+            <div class="promotion-modal-header">
+                <h2 id="predictivePromotionModalTitle">Create Suggested Promotion</h2>
+                <button type="button" class="promotion-modal-close" id="closePredictivePromotion" aria-label="Close predictive promotion">&times;</button>
+            </div>
+            <form method="POST" action="/promotions/save" class="promotion-modal-form" id="predictivePromotionForm">
+                <input type="hidden" name="promo_id" value="">
+                <input type="hidden" name="target_product_id" id="predictivePromoProductId">
+                <input type="hidden" name="target_category_id" value="all">
+                <label class="promotion-modal-field promotion-modal-field-full">
+                    <span>Promotion Name *</span>
+                    <input type="text" name="promo_name" id="predictivePromoName" required>
+                </label>
+                <div class="promotion-modal-grid">
+                    <label class="promotion-modal-field">
+                        <span>Promotion Type *</span>
+                        <select name="discount_type" id="predictivePromoType" required>
+                            <option value="percentage">Percentage Discount</option>
+                            <option value="fixed">Fixed Amount</option>
+                            <option value="bogo">Buy One Get One</option>
+                            <option value="flash_sale">Flash Sale</option>
+                            <option value="seasonal_sale">Seasonal Sale</option>
+                            <option value="clearance_sale">Clearance Sale</option>
+                            <option value="markdown_sale">Markdown Sale</option>
+                            <option value="bundle_deal">Bundle Deal</option>
+                        </select>
+                    </label>
+                    <label class="promotion-modal-field">
+                        <span>Discount Value *</span>
+                        <input type="number" step="0.01" min="0" name="discount_value" id="predictivePromoDiscount" required>
+                    </label>
+                </div>
+                <label class="promotion-modal-field promotion-modal-field-full">
+                    <span>Target Product *</span>
+                    <input type="text" id="predictivePromoTarget" readonly>
+                </label>
+                <label class="promotion-modal-field promotion-modal-field-full">
+                    <span>System Suggestion</span>
+                    <textarea id="predictivePromoSuggestion" rows="3" readonly></textarea>
+                </label>
+                <div class="promotion-modal-grid">
+                    <label class="promotion-modal-field">
+                        <span>Start Date *</span>
+                        <input type="date" name="start_date" id="predictivePromoStart" required>
+                    </label>
+                    <label class="promotion-modal-field">
+                        <span>End Date *</span>
+                        <input type="date" name="end_date" id="predictivePromoEnd" required>
+                    </label>
+                </div>
+                <label class="promotion-modal-field promotion-modal-field-full">
+                    <span>Status</span>
+                    <select name="status" id="predictivePromoStatus">
+                        <option value="active">Active</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </label>
+                <div class="promotion-modal-actions">
+                    <button type="submit" class="primary-button">Create Promotion</button>
+                </div>
+            </form>
+        </section>
+    </div>
+    <script src="/static/topbar.js"></script>
+    <script>
+        const predictivePromotionModal = document.getElementById('predictivePromotionModal');
+        const closePredictivePromotion = document.getElementById('closePredictivePromotion');
+        const predictivePromoProductId = document.getElementById('predictivePromoProductId');
+        const predictivePromoName = document.getElementById('predictivePromoName');
+        const predictivePromoType = document.getElementById('predictivePromoType');
+        const predictivePromoDiscount = document.getElementById('predictivePromoDiscount');
+        const predictivePromoTarget = document.getElementById('predictivePromoTarget');
+        const predictivePromoSuggestion = document.getElementById('predictivePromoSuggestion');
+        const predictivePromoStart = document.getElementById('predictivePromoStart');
+        const predictivePromoEnd = document.getElementById('predictivePromoEnd');
+        const predictivePromoStatus = document.getElementById('predictivePromoStatus');
+
+        function formatDateValue(date) {
+            return date.toISOString().slice(0, 10);
+        }
+
+        function openPredictivePromotionModal(button) {
+            const today = new Date();
+            const duration = Number(button.dataset.promoDuration || 14);
+            const endDate = new Date(today);
+            endDate.setDate(endDate.getDate() + duration);
+
+            predictivePromoProductId.value = button.dataset.promoProductId || '';
+            predictivePromoName.value = button.dataset.promoName || '';
+            predictivePromoType.value = button.dataset.promoType || 'percentage';
+            predictivePromoDiscount.value = button.dataset.promoDiscount || 0;
+            predictivePromoTarget.value = button.dataset.promoDisplayName || button.dataset.promoProductName || '';
+            predictivePromoSuggestion.value = `${button.dataset.promoTypeLabel || 'Promotion'} suggested at ${button.dataset.promoDiscount || 0}% because product may take about ${button.dataset.promoDays || 0} days to move.`;
+            predictivePromoStart.value = formatDateValue(today);
+            predictivePromoEnd.value = formatDateValue(endDate);
+            predictivePromoStatus.value = 'active';
+            predictivePromotionModal.classList.remove('hidden');
+            predictivePromotionModal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closePredictivePromotionModal() {
+            predictivePromotionModal.classList.add('hidden');
+            predictivePromotionModal.setAttribute('aria-hidden', 'true');
+        }
+
+        document.querySelectorAll('.predictive-promo-button').forEach((button) => {
+            button.addEventListener('click', () => openPredictivePromotionModal(button));
+        });
+
+        closePredictivePromotion?.addEventListener('click', closePredictivePromotionModal);
+        document.querySelectorAll('[data-predictive-promotion-close]').forEach((element) => {
+            element.addEventListener('click', closePredictivePromotionModal);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && predictivePromotionModal && !predictivePromotionModal.classList.contains('hidden')) {
+                closePredictivePromotionModal();
+            }
+        });
+    </script>
+</body>
+</html>

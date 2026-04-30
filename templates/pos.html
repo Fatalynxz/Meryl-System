@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Point of Sale | Meryl Shoes Enterprise System</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page pos-page">
+    <div class="app-shell dashboard-shell">
+        <header class="topbar">
+            <div class="brand-block">
+                <div class="brand-logo brand-logo-dashboard">Meryl <span>Shoes</span></div>
+                <div>
+                    <h1>Meryl Shoes Enterprise System</h1>
+                    <p>Integrated POS-Driven Inventory System with Data Analytics for Targeting Sales Marketing</p>
+                </div>
+            </div>
+            <div class="topbar-actions">
+                <button type="button" class="notification-button" data-notification-button title="Mark notifications as read" aria-label="Mark notifications as read">
+                    <span class="notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 17H9"></path><path d="M18 17H6l1.2-1.6A5 5 0 0 0 8 12.4V10a4 4 0 1 1 8 0v2.4a5 5 0 0 0 .8 2.8L18 17Z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg></span>
+                    <span class="notification-badge" data-notification-count>4</span>
+                </button>
+                <div class="user-chip">
+                    <strong>{{ current_user.name if current_user else 'Administrator' }}</strong>
+                    <span>{{ current_user.role_label if current_user else 'Administrator' }}{% if current_user and current_user.staff_code %} · {{ current_user.staff_code }}{% endif %}</span>
+                </div>
+                <a class="action-button" href="/logout">Logout</a>
+            </div>
+        </header>
+
+                <nav class="navbar">
+            <a href="/"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg></span><span>Dashboard</span></a>
+            <a href="/pos" class="active"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M3 10h18"></path></svg></span><span>POS</span></a>
+            <a href="/inventory"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7.5 12 12l8-4.5L12 3Z"></path><path d="M4 7.5V16.5L12 21V12"></path><path d="M20 7.5V16.5L12 21"></path></svg></span><span>Inventory</span></a>
+            <a href="/sales"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="19" r="1.5"></circle><circle cx="18" cy="19" r="1.5"></circle><path d="M3 5h2l2.4 9.5h10.9l2-7.5H6.2"></path></svg></span><span>Sales</span></a>
+            <a href="/customers"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Customers</span></a>
+            <a href="/predictive"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path><path d="M14 7h7v7"></path></svg></span><span>Predictive</span></a>
+            <a href="/promotions"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"></path><circle cx="7.5" cy="7.5" r="1.25"></circle></svg></span><span>Promotions</span></a>
+            <a href="/staff"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Users</span></a>
+            <a href="/reports"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg></span><span>Reports</span></a>
+        </nav>
+
+        <main class="page-content">
+            <script id="posProductCatalog" type="application/json">{{ product_groups|tojson }}</script>
+            {% if notice %}
+            <section class="notice-banner notice-{{ notice.tone }}">{{ notice.message }}</section>
+            {% endif %}
+
+            <div class="pos-layout">
+                <section class="pos-main">
+                    <article class="panel-card pos-section">
+                        <div class="panel-header">
+                            <h2><span class="section-heading-icon product-selection-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 4 7.5 12 12l8-4.5L12 3Z"></path><path d="M4 7.5V16.5L12 21V12"></path><path d="M20 7.5V16.5L12 21"></path></svg></span> Product Selection</h2>
+                        </div>
+                        <button type="button" class="pos-filter-header" aria-expanded="true" aria-controls="posFilterCard">
+                            <span class="pos-filter-header-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M4 6.5C4 5.672 4.672 5 5.5 5h13c.828 0 1.5.672 1.5 1.5 0 .398-.158.779-.439 1.061L14 13.121V17.5c0 .497-.246.961-.658 1.237l-2 1.333A1.5 1.5 0 0 1 9 18.833v-5.712L4.439 7.561A1.5 1.5 0 0 1 4 6.5Z" />
+                                </svg>
+                            </span>
+                            <p class="section-label">Filters</p>
+                        </button>
+
+                        <section class="pos-filter-card" id="posFilterCard">
+                            <div class="pos-filter-grid">
+                                <label class="field">
+                                    <span>Brand</span>
+                                    <div class="pos-dropdown" data-filter-key="brand" data-default-label="All Brands">
+                                        <button type="button" class="pos-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                            <span>All Brands</span>
+                                        </button>
+                                        <div class="pos-dropdown-menu" role="listbox" aria-label="Filter by brand">
+                                            <button type="button" class="pos-dropdown-option is-selected" data-value="">All Brands</button>
+                                            {% for brand in brand_options %}
+                                            <button type="button" class="pos-dropdown-option" data-value="{{ brand }}">{{ brand }}</button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <label class="field">
+                                    <span>Category</span>
+                                    <div class="pos-dropdown" data-filter-key="category" data-default-label="All Categories">
+                                        <button type="button" class="pos-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                            <span>All Categories</span>
+                                        </button>
+                                        <div class="pos-dropdown-menu" role="listbox" aria-label="Filter by category">
+                                            <button type="button" class="pos-dropdown-option is-selected" data-value="">All Categories</button>
+                                            {% for category in category_options %}
+                                            <button type="button" class="pos-dropdown-option" data-value="{{ category }}">{{ category }}</button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <label class="field">
+                                    <span>Size</span>
+                                    <div class="pos-dropdown" data-filter-key="size" data-default-label="All Sizes">
+                                        <button type="button" class="pos-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                            <span>All Sizes</span>
+                                        </button>
+                                        <div class="pos-dropdown-menu" role="listbox" aria-label="Filter by size">
+                                            <button type="button" class="pos-dropdown-option is-selected" data-value="">All Sizes</button>
+                                            {% for size in size_options %}
+                                            <button type="button" class="pos-dropdown-option" data-value="{{ size }}">{{ size }}</button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="pos-filter-actions">
+                                <button type="button" class="pos-clear-button">Clear All</button>
+                            </div>
+                        </section>
+
+                        <form method="POST" action="/pos/add" class="pos-form">
+                            <div class="form-grid">
+                                <label class="field field-wide">
+                                    <span>Select Product</span>
+                                    <select name="product_group" id="product_group" required>
+                                        <option value="" disabled selected>Choose a product</option>
+                                        {% for p in product_groups %}
+                                        <option value="{{ p.group_key }}" data-brand="{{ p.brand }}" data-category="{{ p.category }}" data-sizes="{{ p.size_labels|join('|') }}">
+                                            {{ p.product_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+
+                                <label class="field">
+                                    <span>Select Size</span>
+                                    <select name="size" id="size" required disabled>
+                                        <option value="" selected>Choose a size</option>
+                                    </select>
+                                </label>
+
+                                <label class="field">
+                                    <span>Price</span>
+                                    <input type="text" id="selected_price" value="Select a size first" readonly>
+                                </label>
+                            </div>
+
+                            <div class="form-grid pos-form-grid-actions align-end">
+                                <label class="field">
+                                    <span>Quantity</span>
+                                    <input type="text" id="quantity" name="quantity" value="1" inputmode="numeric" pattern="[0-9]*" required>
+                                </label>
+
+                                <label class="field">
+                                    <span>Discount (%)</span>
+                                    <input type="text" id="discount" name="discount" value="0" inputmode="numeric" pattern="[0-9]*">
+                                </label>
+
+                                <button type="submit" class="primary-button">&#65291; Add to Cart</button>
+                            </div>
+                        </form>
+                    </article>
+
+                    <article class="panel-card pos-section">
+                        <div class="panel-header">
+                            <h2><span class="section-heading-icon cart-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18"></path></svg></span> Shopping Cart</h2>
+                        </div>
+
+                        {% if cart %}
+                        <div class="table-shell">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Qty</th>
+                                        <th>Price</th>
+                                        <th>Subtotal</th>
+                                        <th>Discount</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in cart %}
+                                    <tr>
+                                        <td><div class="cart-product-copy"><strong>{{ item.product_name }}</strong><small>Size {{ item.size }}</small></div></td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>&#8369;{{ item.price|currency }}</td>
+                                        <td>&#8369;{{ item.subtotal|currency }}</td>
+                                        <td>-&#8369;{{ item.discount_amount|currency }}</td>
+                                        <td>
+                                            <form method="POST" action="/pos/remove/{{ loop.index0 }}">
+                                                <button type="submit" class="icon-button danger">Remove</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="cart-empty">
+                            <p>Cart is empty. Add products to begin transaction.</p>
+                        </div>
+                        {% endif %}
+                    </article>
+                </section>
+
+                <aside class="pos-sidebar">
+                    <article class="panel-card pos-section summary-card">
+                        <div class="panel-header">
+                            <h2>&#8369;&nbsp; Transaction Summary</h2>
+                        </div>
+
+                        <div class="summary-lines">
+                            <div><span>Subtotal:</span><strong>&#8369;{{ subtotal|currency }}</strong></div>
+                            <div><span>Total Discount:</span><strong>-&#8369;{{ discount_total|currency }}</strong></div>
+                            <div class="summary-total"><span>Total:</span><strong>&#8369;{{ total|currency }}</strong></div>
+                        </div>
+
+                        <form method="POST" action="/pos/checkout" class="checkout-form">
+                            <label class="field">
+                                <span>Select Existing Customer</span>
+                                <select id="customer_id" name="customer_id">
+                                    <option value="">Walk-in / New Customer</option>
+                                    {% for customer in customer_options %}
+                                    <option value="{{ customer.customer_id }}">{{ customer.customer_name }}{% if customer.email %} - {{ customer.email }}{% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+
+                            <label class="field">
+                                <span>Customer Name (Optional)</span>
+                                <input type="text" id="customer_name" name="customer_name" placeholder="Enter customer name if not in the list">
+                            </label>
+
+                            <label class="field">
+                                <span>Payment Method</span>
+                                <select id="payment_method" name="payment_method">
+                                    <option value="cash">Cash</option>
+                                    <option value="gcash">GCash</option>
+                                </select>
+                            </label>
+
+                            <button type="submit" class="checkout-button">Complete Payment</button>
+                        </form>
+                    </article>
+
+                    <article class="panel-card pos-section metrics-card">
+                        <div class="mini-metric">
+                            <span>Items in Cart:</span>
+                            <strong>{{ cart_count }}</strong>
+                        </div>
+                        <div class="mini-metric">
+                            <span>Total Units:</span>
+                            <strong>{{ total_units }}</strong>
+                        </div>
+                    </article>
+                </aside>
+            </div>
+
+            {% if receipt %}
+            <div class="pos-receipt-modal" id="posReceiptModal" aria-hidden="false">
+                <div class="pos-receipt-backdrop" data-receipt-close></div>
+                <section class="pos-receipt-dialog" role="dialog" aria-modal="true" aria-labelledby="posReceiptTitle">
+                    <button type="button" class="pos-receipt-close" data-receipt-close aria-label="Close receipt modal">&times;</button>
+                    <header class="pos-receipt-header">
+                        <p class="pos-receipt-kicker" id="posReceiptTitle">Transaction Receipt</p>
+                        <h2>Meryl Shoes</h2>
+                        <p>{{ receipt.date }}</p>
+                        <p>Receipt: {{ receipt.receipt_number }}</p>
+                    </header>
+
+                    <div class="pos-receipt-meta">
+                        <p>Customer: {{ receipt.customer_name }}</p>
+                        <p>Cashier: {{ receipt.cashier_name }}</p>
+                        <p>Status: {{ receipt.status or "Completed" }}</p>
+                    </div>
+
+                    <div class="pos-receipt-items">
+                        {% for item in receipt["items"] %}
+                        <div class="pos-receipt-item">
+                            <div>
+                                <strong>{{ item.product_name }}</strong>
+                                <span>Size {{ item.size }} | {{ item.quantity }} x &#8369;{{ item.price|currency }}</span>
+                            </div>
+                            <strong>&#8369;{{ item.subtotal|currency }}</strong>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="pos-receipt-totals">
+                        <div><span>Subtotal:</span><strong>&#8369;{{ receipt.subtotal|currency }}</strong></div>
+                        <div><span>Discount:</span><strong>-&#8369;{{ receipt.discount_total|currency }}</strong></div>
+                        <div class="pos-receipt-grand-total"><span>Total:</span><strong>&#8369;{{ receipt.total|currency }}</strong></div>
+                        <div><span>Payment Method:</span><strong>{{ receipt.payment_method }}</strong></div>
+                    </div>
+
+                    <p class="pos-receipt-thanks">Transaction submitted for admin approval.</p>
+
+                    <div class="pos-receipt-actions">
+                        <button type="button" class="print-btn" onclick="window.open('/pos/receipt', '_blank', 'noopener')">Print Receipt</button>
+                    </div>
+                </section>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <script src="/static/topbar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropdowns = Array.from(document.querySelectorAll('.pos-dropdown'));
+            const clearButton = document.querySelector('.pos-clear-button');
+            const filterHeader = document.querySelector('.pos-filter-header');
+            const filterCard = document.getElementById('posFilterCard');
+            const productSelect = document.getElementById('product_group');
+            const sizeSelect = document.getElementById('size');
+            const selectedPriceInput = document.getElementById('selected_price');
+            const productCatalog = JSON.parse(document.getElementById('posProductCatalog')?.textContent || '[]');
+            const catalogByGroup = Object.fromEntries(productCatalog.map((item) => [item.group_key, item]));
+            const receiptModal = document.getElementById('posReceiptModal');
+            if (!productSelect || !sizeSelect) {
+                return;
+            }
+
+            const placeholderOption = productSelect.querySelector('option[value=""]');
+            const productOptions = Array.from(productSelect.querySelectorAll('option[data-brand]'));
+            const activeFilters = { brand: '', category: '', size: '' };
+
+            const setFilterCardOpen = (isOpen) => {
+                if (!filterHeader || !filterCard) {
+                    return;
+                }
+                filterCard.classList.toggle('is-collapsed', !isOpen);
+                filterHeader.setAttribute('aria-expanded', String(isOpen));
+            };
+
+            const closeDropdowns = (except) => {
+                dropdowns.forEach((dropdown) => {
+                    if (dropdown === except) {
+                        return;
+                    }
+                    dropdown.classList.remove('is-open');
+                    const trigger = dropdown.querySelector('.pos-dropdown-trigger');
+                    if (trigger) {
+                        trigger.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            };
+
+            const updateSelectedPrice = () => {
+                if (!selectedPriceInput) {
+                    return;
+                }
+                const groupKey = productSelect.value;
+                const selectedSize = sizeSelect.value;
+                if (!groupKey || !selectedSize || !catalogByGroup[groupKey]) {
+                    selectedPriceInput.value = groupKey ? 'Select a size first' : 'Select a product first';
+                    return;
+                }
+
+                const matchedSize = (catalogByGroup[groupKey].sizes || []).find((item) => String(item.size) === selectedSize);
+                if (!matchedSize) {
+                    selectedPriceInput.value = 'Price unavailable';
+                    return;
+                }
+
+                const formattedPrice = Number(matchedSize.price || 0).toLocaleString('en-PH', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+                selectedPriceInput.value = `₱${formattedPrice}`;
+            };
+
+            const populateSizeOptions = (groupKey, preserveValue = false) => {
+                const selectedValue = preserveValue ? sizeSelect.value : '';
+                sizeSelect.innerHTML = '';
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = groupKey ? 'Choose a size' : 'Select a product first';
+                placeholder.selected = true;
+                sizeSelect.appendChild(placeholder);
+
+                if (!groupKey || !catalogByGroup[groupKey]) {
+                    sizeSelect.disabled = true;
+                    updateSelectedPrice();
+                    return;
+                }
+
+                const sizes = (catalogByGroup[groupKey].sizes || []).filter((item) => {
+                    return !activeFilters.size || String(item.size) === activeFilters.size;
+                });
+                if (!sizes.length) {
+                    placeholder.textContent = 'No sizes match the selected filters';
+                    sizeSelect.disabled = true;
+                    updateSelectedPrice();
+                    return;
+                }
+
+                sizes.forEach((item) => {
+                    const option = document.createElement('option');
+                    option.value = item.size;
+                    option.textContent = `Size ${item.size} [Stock: ${item.stock_quantity}]`;
+                    if (preserveValue && selectedValue === item.size) {
+                        option.selected = true;
+                        placeholder.selected = false;
+                    }
+                    sizeSelect.appendChild(option);
+                });
+                sizeSelect.disabled = false;
+                updateSelectedPrice();
+            };
+
+            const updateProductOptions = () => {
+                let firstVisible = null;
+
+                productOptions.forEach((option) => {
+                    const sizeValues = (option.dataset.sizes || '').split('|').filter(Boolean);
+                    const matches =
+                        (!activeFilters.brand || option.dataset.brand === activeFilters.brand) &&
+                        (!activeFilters.category || option.dataset.category === activeFilters.category) &&
+                        (!activeFilters.size || sizeValues.includes(activeFilters.size));
+
+                    option.hidden = !matches;
+                    if (matches && !firstVisible) {
+                        firstVisible = option;
+                    }
+                });
+
+                if (placeholderOption) {
+                    const hasVisibleOptions = Boolean(firstVisible);
+                    placeholderOption.textContent = hasVisibleOptions ? 'Choose a product' : 'No products match the selected filters';
+                    if (!productSelect.value || productSelect.selectedOptions[0]?.hidden) {
+                        placeholderOption.selected = true;
+                    }
+                }
+
+                if (!productSelect.value || productSelect.selectedOptions[0]?.hidden) {
+                    productSelect.value = '';
+                }
+                populateSizeOptions(productSelect.value, true);
+            };
+
+            productSelect.addEventListener('change', () => {
+                populateSizeOptions(productSelect.value, false);
+            });
+
+            sizeSelect.addEventListener('change', updateSelectedPrice);
+
+            dropdowns.forEach((dropdown) => {
+                const key = dropdown.dataset.filterKey;
+                const defaultLabel = dropdown.dataset.defaultLabel || 'Select';
+                const trigger = dropdown.querySelector('.pos-dropdown-trigger');
+                const triggerLabel = trigger ? trigger.querySelector('span') : null;
+                const options = Array.from(dropdown.querySelectorAll('.pos-dropdown-option'));
+
+                if (!trigger || !triggerLabel || !key) {
+                    return;
+                }
+
+                trigger.addEventListener('click', () => {
+                    const nextOpen = !dropdown.classList.contains('is-open');
+                    closeDropdowns(dropdown);
+                    dropdown.classList.toggle('is-open', nextOpen);
+                    trigger.setAttribute('aria-expanded', String(nextOpen));
+                });
+
+                options.forEach((option) => {
+                    option.addEventListener('click', () => {
+                        activeFilters[key] = option.dataset.value || '';
+                        options.forEach((item) => item.classList.remove('is-selected'));
+                        option.classList.add('is-selected');
+                        triggerLabel.textContent = option.textContent.trim() || defaultLabel;
+                        dropdown.classList.remove('is-open');
+                        trigger.setAttribute('aria-expanded', 'false');
+                        updateProductOptions();
+                    });
+                });
+            });
+
+            if (filterHeader && filterCard) {
+                filterHeader.addEventListener('click', () => {
+                    const isOpen = !filterCard.classList.contains('is-collapsed');
+                    if (isOpen) {
+                        closeDropdowns();
+                    }
+                    setFilterCardOpen(!isOpen);
+                });
+            }
+
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('.pos-dropdown')) {
+                    closeDropdowns();
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeDropdowns();
+                }
+            });
+
+            if (clearButton) {
+                clearButton.addEventListener('click', () => {
+                    Object.keys(activeFilters).forEach((key) => {
+                        activeFilters[key] = '';
+                    });
+
+                    dropdowns.forEach((dropdown) => {
+                        const defaultLabel = dropdown.dataset.defaultLabel || 'Select';
+                        const trigger = dropdown.querySelector('.pos-dropdown-trigger');
+                        const triggerLabel = trigger ? trigger.querySelector('span') : null;
+                        dropdown.querySelectorAll('.pos-dropdown-option').forEach((option, index) => {
+                            option.classList.toggle('is-selected', index === 0);
+                        });
+                        dropdown.classList.remove('is-open');
+                        if (trigger) {
+                            trigger.setAttribute('aria-expanded', 'false');
+                        }
+                        if (triggerLabel) {
+                            triggerLabel.textContent = defaultLabel;
+                        }
+                    });
+
+                    productSelect.value = '';
+                    updateProductOptions();
+                });
+            }
+
+            updateProductOptions();
+            updateSelectedPrice();
+
+            if (receiptModal) {
+                const closeReceiptModal = () => {
+                    receiptModal.classList.add('hidden');
+                    receiptModal.setAttribute('aria-hidden', 'true');
+                };
+
+                receiptModal.querySelectorAll('[data-receipt-close]').forEach((element) => {
+                    element.addEventListener('click', closeReceiptModal);
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && !receiptModal.classList.contains('hidden')) {
+                        closeReceiptModal();
+                    }
+                });
+            }
+        });
+
+        function adjustNumber(id, delta, minValue) {
+            const input = document.getElementById(id);
+            if (!input) return;
+            const current = parseInt(input.value, 10);
+            const safeValue = Number.isNaN(current) ? minValue : current;
+            input.value = Math.max(minValue, safeValue + delta);
+        }
+
+        document.querySelectorAll('.number-input input').forEach((input) => {
+            input.addEventListener('input', () => {
+                input.value = input.value.replace(/[^0-9]/g, '');
+                if (!input.value) {
+                    input.value = input.id === 'quantity' ? '1' : '0';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
