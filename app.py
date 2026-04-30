@@ -11,7 +11,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, Response, redirect, render_template, request, session, url_for, g
-from supabase import create_client, ClientOptions
+from supabase import create_client
 from app_modules.auth.app_auth_store import (
     find_auth_account as store_find_auth_account,
     generate_staff_code as store_generate_staff_code,
@@ -191,14 +191,7 @@ def get_supabase():
         raise RuntimeError(error_msg)
 
     try:
-        # Initialize with options to avoid proxy parameter issues
-        from supabase import ClientOptions
-        options = ClientOptions(
-            persist_session=False,
-            auto_refresh_token=True,
-            detect_session_in_url=True
-        )
-        _supabase_client = create_client(url, key, options)
+        _supabase_client = create_client(url, key)
         logger.info("✓ Supabase client initialized successfully")
         return _supabase_client
     except Exception as e:
