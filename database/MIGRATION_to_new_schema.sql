@@ -7,8 +7,9 @@
 BEGIN;
 
 -- ============================================
--- STEP 1: DROP ALL OLD TABLES
+-- STEP 1: SAFE DROP OLD TABLES (if they exist)
 -- ============================================
+-- These use IF EXISTS to avoid errors if tables don't exist
 DROP TABLE IF EXISTS notification CASCADE;
 DROP TABLE IF EXISTS prediction_history CASCADE;
 DROP TABLE IF EXISTS payment CASCADE;
@@ -24,7 +25,9 @@ DROP TABLE IF EXISTS sales_transaction CASCADE;
 DROP TABLE IF EXISTS promo_product CASCADE;
 DROP TABLE IF EXISTS promotion CASCADE;
 DROP TABLE IF EXISTS product CASCADE;
+DROP TABLE IF EXISTS "customer" CASCADE;
 DROP TABLE IF EXISTS customers CASCADE;
+DROP TABLE IF EXISTS "user" CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS role CASCADE;
 DROP TABLE IF EXISTS category CASCADE;
@@ -34,7 +37,7 @@ DROP TABLE IF EXISTS category CASCADE;
 -- ============================================
 
 -- 1. ROLE TABLE
-CREATE TABLE role (
+CREATE TABLE IF NOT EXISTS role (
   role_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   role_name VARCHAR(50) NOT NULL UNIQUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -42,7 +45,7 @@ CREATE TABLE role (
 );
 
 -- 2. USER TABLE
-CREATE TABLE "user" (
+CREATE TABLE IF NOT EXISTS "user" (
   user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(100) NOT NULL,
   username VARCHAR(50) NOT NULL UNIQUE,
@@ -55,7 +58,7 @@ CREATE TABLE "user" (
 );
 
 -- 3. CUSTOMER TABLE
-CREATE TABLE customer (
+CREATE TABLE IF NOT EXISTS customer (
   customer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100),
@@ -66,7 +69,7 @@ CREATE TABLE customer (
 );
 
 -- 4. CATEGORY TABLE
-CREATE TABLE category (
+CREATE TABLE IF NOT EXISTS category (
   category_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category_name VARCHAR(100) NOT NULL UNIQUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -74,7 +77,7 @@ CREATE TABLE category (
 );
 
 -- 5. PRODUCT TABLE
-CREATE TABLE product (
+CREATE TABLE IF NOT EXISTS product (
   product_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_name VARCHAR(150) NOT NULL,
   category_id UUID NOT NULL REFERENCES category(category_id) ON DELETE RESTRICT,
@@ -88,7 +91,7 @@ CREATE TABLE product (
 );
 
 -- 6. INVENTORY TABLE
-CREATE TABLE inventory (
+CREATE TABLE IF NOT EXISTS inventory (
   inventory_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID NOT NULL UNIQUE REFERENCES product(product_id) ON DELETE CASCADE,
   stock_quantity INT NOT NULL DEFAULT 0,
@@ -97,7 +100,7 @@ CREATE TABLE inventory (
 );
 
 -- 7. INVENTORY_LOG TABLE
-CREATE TABLE inventory_log (
+CREATE TABLE IF NOT EXISTS inventory_log (
   inventory_log_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
   quantity_change INT NOT NULL,
@@ -107,7 +110,7 @@ CREATE TABLE inventory_log (
 );
 
 -- 8. SALES_TRANSACTION TABLE
-CREATE TABLE sales_transaction (
+CREATE TABLE IF NOT EXISTS sales_transaction (
   sales_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   total_amount DECIMAL(12, 2) NOT NULL,
@@ -118,7 +121,7 @@ CREATE TABLE sales_transaction (
 );
 
 -- 9. SALES_DETAILS TABLE
-CREATE TABLE sales_details (
+CREATE TABLE IF NOT EXISTS sales_details (
   sales_detail_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sales_id UUID NOT NULL REFERENCES sales_transaction(sales_id) ON DELETE CASCADE,
   product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE RESTRICT,
@@ -130,7 +133,7 @@ CREATE TABLE sales_details (
 );
 
 -- 10. PAYMENT TABLE
-CREATE TABLE payment (
+CREATE TABLE IF NOT EXISTS payment (
   payment_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sales_id UUID NOT NULL UNIQUE REFERENCES sales_transaction(sales_id) ON DELETE CASCADE,
   payment_method VARCHAR(50) CHECK (payment_method IN ('cash', 'card', 'online', 'check')) NOT NULL,
@@ -142,7 +145,7 @@ CREATE TABLE payment (
 );
 
 -- 11. RETURNS TABLE
-CREATE TABLE returns (
+CREATE TABLE IF NOT EXISTS returns (
   return_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sales_id UUID NOT NULL REFERENCES sales_transaction(sales_id) ON DELETE RESTRICT,
   user_id UUID NOT NULL REFERENCES "user"(user_id) ON DELETE RESTRICT,
@@ -152,7 +155,7 @@ CREATE TABLE returns (
 );
 
 -- 12. RETURN_DETAILS TABLE
-CREATE TABLE return_details (
+CREATE TABLE IF NOT EXISTS return_details (
   return_detail_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   return_id UUID NOT NULL REFERENCES returns(return_id) ON DELETE CASCADE,
   product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE RESTRICT,
@@ -163,7 +166,7 @@ CREATE TABLE return_details (
 );
 
 -- 13. PROMOTION TABLE
-CREATE TABLE promotion (
+CREATE TABLE IF NOT EXISTS promotion (
   promo_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   promo_name VARCHAR(150) NOT NULL,
   discount_type VARCHAR(20) CHECK (discount_type IN ('percentage', 'fixed')) NOT NULL,
@@ -176,7 +179,7 @@ CREATE TABLE promotion (
 );
 
 -- 14. PROMO_PRODUCT TABLE
-CREATE TABLE promo_product (
+CREATE TABLE IF NOT EXISTS promo_product (
   promo_product_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   promo_id UUID NOT NULL REFERENCES promotion(promo_id) ON DELETE CASCADE,
   product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
@@ -184,7 +187,7 @@ CREATE TABLE promo_product (
 );
 
 -- 15. NOTIFICATION TABLE
-CREATE TABLE notification (
+CREATE TABLE IF NOT EXISTS notification (
   notification_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID NOT NULL REFERENCES customer(customer_id) ON DELETE CASCADE,
   promo_id UUID NOT NULL REFERENCES promotion(promo_id) ON DELETE CASCADE,
@@ -194,7 +197,7 @@ CREATE TABLE notification (
 );
 
 -- 16. SALES_ANALYTICS TABLE
-CREATE TABLE sales_analytics (
+CREATE TABLE IF NOT EXISTS sales_analytics (
   analytics_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
   total_sales DECIMAL(12, 2) NOT NULL DEFAULT 0,
@@ -208,7 +211,7 @@ CREATE TABLE sales_analytics (
 );
 
 -- 17. SALES_SUMMARY TABLE
-CREATE TABLE sales_summary (
+CREATE TABLE IF NOT EXISTS sales_summary (
   summary_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   total_revenue DECIMAL(12, 2) NOT NULL,
   total_transaction INT NOT NULL,
@@ -218,7 +221,7 @@ CREATE TABLE sales_summary (
 );
 
 -- 18. PREDICTION TABLE
-CREATE TABLE prediction (
+CREATE TABLE IF NOT EXISTS prediction (
   prediction_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID NOT NULL REFERENCES product(product_id) ON DELETE CASCADE,
   predicted_demand INT NOT NULL,
@@ -229,7 +232,7 @@ CREATE TABLE prediction (
 );
 
 -- 19. PREDICTION_HISTORY TABLE
-CREATE TABLE prediction_history (
+CREATE TABLE IF NOT EXISTS prediction_history (
   history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   prediction_id UUID NOT NULL REFERENCES prediction(prediction_id) ON DELETE CASCADE,
   actual_sales INT,
