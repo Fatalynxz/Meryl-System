@@ -55,12 +55,12 @@ def sync_staff_user_record(
         "status": db_user_status(account.get("status", "active")),
     }
     try:
-        existing_rows = fetch_rows("users")
+        existing_rows = fetch_rows("user")
         if previous_username and previous_username.strip().lower() != username.lower():
             for row in existing_rows:
                 if str(row.get("username", "")).strip().lower() == previous_username.strip().lower():
-                    supabase.table("users").delete().eq("user_id", row.get("user_id")).execute()
-            existing_rows = fetch_rows("users")
+                    supabase.table("user").delete().eq("user_id", row.get("user_id")).execute()
+            existing_rows = fetch_rows("user")
         existing_user = next(
             (
                 row
@@ -71,14 +71,14 @@ def sync_staff_user_record(
         )
         if existing_user and safe_int(existing_user.get("user_id"), 0) > 0:
             return (
-                supabase.table("users")
+                supabase.table("user")
                 .update(payload)
                 .eq("user_id", existing_user.get("user_id"))
                 .execute()
                 .data
                 or [existing_user]
             )[0]
-        created = supabase.table("users").insert(payload).execute().data or []
+        created = supabase.table("user").insert(payload).execute().data or []
         return created[0] if created else None
     except Exception:
         return None
@@ -163,7 +163,7 @@ def build_staff_rows(
     }
     seen_usernames = set()
 
-    for user in fetch_rows("users"):
+    for user in fetch_rows("user"):
         role = canonical_app_role_name(user.get("role"))
         if role not in {"admin", "sales_staff", "inventory_staff"}:
             continue

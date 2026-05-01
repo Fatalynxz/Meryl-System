@@ -14,7 +14,7 @@ def get_or_create_customer(
     normalized_name = (customer_name or "").strip() or "Walk-in Customer"
     normalized_email = (email or "").strip().lower()
     normalized_phone = (phone or "").strip()
-    customers = fetch_rows("customers")
+    customers = fetch_rows("customer")
     existing_customer = next(
         (
             row
@@ -33,14 +33,14 @@ def get_or_create_customer(
         "contact_number": normalized_phone or None,
         "date_registered": datetime.now().date().isoformat(),
     }
-    created = supabase.table("customers").insert(payload).execute().data or []
+    created = supabase.table("customer").insert(payload).execute().data or []
     if created:
         return normalize_customer_rows(created)[0]
     return payload
 
 
 def build_customer_lookup(*, fetch_rows):
-    return {row["customer_id"]: row for row in fetch_rows("customers")}
+    return {row["customer_id"]: row for row in fetch_rows("customer")}
 
 
 def build_customer_rows(
@@ -52,7 +52,7 @@ def build_customer_rows(
     parse_iso_datetime,
     datetime_cls,
 ):
-    customers = fetch_rows("customers")
+    customers = fetch_rows("customer")
     sales_transactions = fetch_rows("sales_transaction")
     sales_details = fetch_rows("sales_details")
     completed_sales, denied_sales = build_sale_status_maps()
@@ -157,7 +157,7 @@ def delete_customer_record(customer_id, *, supabase):
         return {"blocked": True, "deleted": False, "missing": False}
 
     delete_result = (
-        supabase.table("customers")
+        supabase.table("customer")
         .delete()
         .eq("customer_id", customer_id)
         .execute()

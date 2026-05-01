@@ -9,7 +9,7 @@ def build_dashboard_context(
 ):
     sales_rows = build_sales_rows()
     inventory_products = normalize_inventory_products(fetch_rows("product"))
-    customers_rows = fetch_rows("customers")
+    customers_rows = fetch_rows("customer")
     analytics = sorted(
         fetch_rows("sales_analytics"),
         key=lambda item: safe_float(item.get("total_sales"), 0),
@@ -52,7 +52,7 @@ def build_dashboard_context(
         "revenue": revenue,
         "revenue_growth": revenue_growth,
         "total_products": total_products,
-        "customers": customers,
+        "customer": customers,
         "customer_growth": customer_growth,
         "low_stock": low_stock,
         "recent_sales": recent_sales,

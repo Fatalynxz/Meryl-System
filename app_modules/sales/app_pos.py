@@ -156,7 +156,7 @@ def build_pos_page_context(
     products = normalize_inventory_products(fetch_rows("product"))
     product_groups = build_pos_catalog(products)
     filter_options = build_filter_options(products)
-    customer_options = sorted(fetch_rows("customers"), key=lambda item: str(item.get("customer_name", "")).lower())
+    customer_options = sorted(fetch_rows("customer"), key=lambda item: str(item.get("customer_name", "")).lower())
     cart = normalize_cart_items(session_obj.get("cart", []))
     session_obj["cart"] = cart
     receipt = session_obj.pop("receipt", None)

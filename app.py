@@ -260,7 +260,7 @@ def resolve_db_user_row(current_user=None):
         return None
 
     existing_user = next(
-        (row for row in fetch_rows("users") if str(row.get("username", "")).strip().lower() == username.lower()),
+        (row for row in fetch_rows("user") if str(row.get("username", "")).strip().lower() == username.lower()),
         None,
     )
     if existing_user:
@@ -429,9 +429,9 @@ def fetch_rows(table_name, query="*"):
     source_table = {"return_transaction": "returns"}.get(table_name, table_name)
     rows = fetch_raw_rows(source_table, query)
 
-    if table_name == "users":
+    if table_name == "user":
         return normalize_user_rows(rows)
-    if table_name == "customers":
+    if table_name == "customer":
         return normalize_customer_rows(rows)
     if table_name == "product":
         return normalize_product_rows(rows)
@@ -546,7 +546,7 @@ def build_system_notifications(current_user=None):
 
 
 def ensure_core_role_accounts():
-    if not table_exists("users"):
+    if not table_exists("user"):
         return
     defaults = [
         ("admin", ADMIN_CREDENTIALS["name"], ADMIN_CREDENTIALS["username"], ADMIN_CREDENTIALS["password"], "active"),
@@ -555,7 +555,7 @@ def ensure_core_role_accounts():
     ]
     for role, name, username, password, status in defaults:
         existing = next(
-            (row for row in fetch_rows("users") if str(row.get("username", "")).strip().lower() == username.lower()),
+            (row for row in fetch_rows("user") if str(row.get("username", "")).strip().lower() == username.lower()),
             None,
         )
         if existing:
@@ -645,7 +645,7 @@ def send_otp_email(recipient_email, otp_code, display_name):
 
 def create_user_profile(name, username, role, password=None, status="active"):
     try:
-        existing_rows = fetch_rows("users")
+        existing_rows = fetch_rows("user")
         existing_user = next(
             (
                 row
@@ -662,7 +662,7 @@ def create_user_profile(name, username, role, password=None, status="active"):
             return None
 
         created = (
-            supabase().table("users")
+            supabase().table("user")
             .insert(
                 {
                     "name": name,
@@ -1209,7 +1209,7 @@ def build_product_lookup():
 
 
 def build_user_lookup():
-    return {row["user_id"]: row for row in fetch_rows("users")}
+    return {row["user_id"]: row for row in fetch_rows("user")}
 
 
 def build_customer_lookup():
@@ -1551,7 +1551,7 @@ def pos_checkout():
 
     selected_customer_id = safe_int(request.form.get("customer_id"), 0)
     manual_customer_name = (request.form.get("customer_name") or "").strip()
-    customer_rows = fetch_rows("customers")
+    customer_rows = fetch_rows("customer")
     selected_customer = next((row for row in customer_rows if safe_int(row.get("customer_id"), 0) == selected_customer_id), None)
     customer_name = (selected_customer.get("customer_name") if selected_customer else manual_customer_name) or "Walk-in Customer"
     payment_method = request.form.get("payment_method") or "cash"
@@ -1791,7 +1791,7 @@ def customers_add():
 
     try:
         payload = form_data["payload"]
-        supabase().table("customers").insert(
+        supabase().table("customer").insert(
             {
                 **payload,
                 "date_registered": datetime.now().date().isoformat(),
@@ -1815,7 +1815,7 @@ def customers_update(customer_id):
     try:
         payload = form_data["payload"]
         existing_customer = (
-            supabase().table("customers")
+            supabase().table("customer")
             .select("customer_id")
             .eq("customer_id", customer_id)
             .limit(1)
@@ -1825,7 +1825,7 @@ def customers_update(customer_id):
             set_notice("Customer record was not found.", "danger")
             return redirect("/customers")
 
-        supabase().table("customers").update(payload).eq("customer_id", customer_id).execute()
+        supabase().table("customer").update(payload).eq("customer_id", customer_id).execute()
         set_notice("Customer updated successfully.")
     except Exception as exc:
         set_notice(f"Unable to update customer: {exc}", "danger")
