@@ -23,17 +23,34 @@
 }
 
 html {
+    height: 100%;
     scroll-behavior: smooth;
+    overflow: hidden;
+    overscroll-behavior: none;
 }
+
+/* hide any browser scrollbars at page root */
+html::-webkit-scrollbar { display: none; }
 
 body {
     margin: 0;
-    min-height: 100vh;
+    height: 100%;
     font-family: "Trebuchet MS", "Segoe UI", sans-serif;
     background:
         radial-gradient(circle at top left, rgba(255, 218, 79, 0.14), transparent 22%),
         linear-gradient(180deg, #b82424 0%, #d93434 16%, #ea4a4a 100%);
     color: var(--text);
+    overflow: hidden;
+}
+
+/* Hide scrollbars while keeping functionality */
+body::-webkit-scrollbar {
+    display: none;
+}
+
+body {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 
 a {
@@ -61,14 +78,15 @@ select {
     flex-direction: column;
     flex: 1;
     width: calc(100% - 280px);
+    max-width: 1480px;
     margin-left: 280px;
 }
 
 .topbar,
 .page-header {
-    background: linear-gradient(180deg, #ca2d2d 0%, #bc2626 100%);
+    background: linear-gradient(180deg, var(--dashboard-red) 0%, var(--dashboard-red-deep) 100%);
     border: 1px solid var(--panel-border);
-    border-radius: 20px;
+    border-radius: 12px;
     box-shadow: var(--shadow);
     margin: 16px;
 }
@@ -494,6 +512,10 @@ select {
     z-index: 100;
 }
 
+/* visually hide navbar scrollbar while keeping scrollability */
+.navbar::-webkit-scrollbar { width: 0; height: 0; }
+.navbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 
 .navbar a {
     display: flex;
@@ -690,16 +712,18 @@ select {
     color: #ffeaa3;
 }
 
-.dashboard-shell {
-    width: min(1480px, calc(100% - 40px));
+.dashboard-page .dashboard-shell {
+    width: calc(100% - 280px);
+    max-width: 1480px;
+    margin-left: 280px;
     padding-top: 10px;
 }
 
 .dashboard-page .topbar {
     padding: 10px 22px;
-    border-radius: 0;
+    border-radius: 12px;
     border: 1px solid rgba(126, 0, 0, 0.45);
-    background: linear-gradient(180deg, #bf2626 0%, #b32424 100%);
+    background: linear-gradient(180deg, var(--dashboard-red) 0%, var(--dashboard-red-dark) 100%);
     box-shadow: none;
 }
 
