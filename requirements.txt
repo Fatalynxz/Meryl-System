@@ -1,5 +1,5 @@
 flask==3.0.0
 python-dotenv==1.0.0
 supabase==1.2.0
-postgrest==0.10.0
+postgrest==0.10.8
 gunicorn==21.2.0
