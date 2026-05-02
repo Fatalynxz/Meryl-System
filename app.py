@@ -8,6 +8,7 @@ import random
 import smtplib
 from email.message import EmailMessage
 from pathlib import Path
+import re
 
 from dotenv import load_dotenv
 from flask import Flask, Response, redirect, render_template, request, session, url_for, g
@@ -325,6 +326,28 @@ def adapt_product_payload_for_schema(payload, error):
             updated_payload["status"] = "inactive"
             adapted = True
             adaptation_notes.append("status_mapped")
+
+    return updated_payload, adapted, adaptation_notes
+
+
+def adapt_customer_payload_for_schema(payload, error):
+    """
+    Gracefully handle legacy customer schemas that may not include
+    newer columns like `address` or `status`.
+    """
+    error_text = str(error)
+    updated_payload = dict(payload)
+    adapted = False
+    adaptation_notes = []
+
+    # Example error: Could not find the 'address' column of 'customer' in the schema cache
+    match = re.search(r"Could not find the '([^']+)' column of 'customer'", error_text)
+    if match:
+        missing_column = match.group(1)
+        if missing_column in updated_payload:
+            updated_payload.pop(missing_column, None)
+            adapted = True
+            adaptation_notes.append(f"missing_{missing_column}_column")
 
     return updated_payload, adapted, adaptation_notes
 
@@ -1884,13 +1907,39 @@ def customers_add():
 
     try:
         payload = form_data["payload"]
-        supabase().table("customer").insert(
-            {
-                **payload,
-                "date_registered": datetime.now().date().isoformat(),
-            }
-        ).execute()
-        set_notice("Customer added successfully.")
+        create_payload = {
+            **payload,
+            "date_registered": datetime.now().date().isoformat(),
+        }
+        address_missing = False
+        status_missing = False
+        try:
+            supabase().table("customer").insert(create_payload).execute()
+        except Exception as exc:
+            compatible_payload, was_adapted, adaptation_notes = adapt_customer_payload_for_schema(create_payload, exc)
+            address_missing = "missing_address_column" in adaptation_notes
+            status_missing = "missing_status_column" in adaptation_notes
+            if not was_adapted:
+                raise
+            supabase().table("customer").insert(compatible_payload).execute()
+
+        if address_missing and status_missing:
+            set_notice(
+                "Customer added, but address and status were not saved because your database is missing customer.address and customer.status columns.",
+                "warning",
+            )
+        elif address_missing:
+            set_notice(
+                "Customer added, but address was not saved because your database is missing the customer.address column.",
+                "warning",
+            )
+        elif status_missing:
+            set_notice(
+                "Customer added, but status was not saved because your database is missing the customer.status column.",
+                "warning",
+            )
+        else:
+            set_notice("Customer added successfully.")
     except Exception as exc:
         set_notice(f"Unable to add customer: {exc}", "danger")
     return redirect("/customers")
@@ -1918,8 +1967,35 @@ def customers_update(customer_id):
             set_notice("Customer record was not found.", "danger")
             return redirect("/customers")
 
-        supabase().table("customer").update(payload).eq("customer_id", customer_id).execute()
-        set_notice("Customer updated successfully.")
+        address_missing = False
+        status_missing = False
+        try:
+            supabase().table("customer").update(payload).eq("customer_id", customer_id).execute()
+        except Exception as exc:
+            compatible_payload, was_adapted, adaptation_notes = adapt_customer_payload_for_schema(payload, exc)
+            address_missing = "missing_address_column" in adaptation_notes
+            status_missing = "missing_status_column" in adaptation_notes
+            if not was_adapted:
+                raise
+            supabase().table("customer").update(compatible_payload).eq("customer_id", customer_id).execute()
+
+        if address_missing and status_missing:
+            set_notice(
+                "Customer updated, but address and status were not saved because your database is missing customer.address and customer.status columns.",
+                "warning",
+            )
+        elif address_missing:
+            set_notice(
+                "Customer updated, but address was not saved because your database is missing the customer.address column.",
+                "warning",
+            )
+        elif status_missing:
+            set_notice(
+                "Customer updated, but status was not saved because your database is missing the customer.status column.",
+                "warning",
+            )
+        else:
+            set_notice("Customer updated successfully.")
     except Exception as exc:
         set_notice(f"Unable to update customer: {exc}", "danger")
     return redirect("/customers")
