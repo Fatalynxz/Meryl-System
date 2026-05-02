@@ -1094,11 +1094,17 @@ def account_settings_save():
 @login_required
 @roles_required("admin")
 def predictive():
-    demand_range = (request.args.get("demand_range") or "last30").strip().lower()
+    demand_range = (request.args.get("demand_range") or "week").strip().lower()
     forecast_range = (request.args.get("forecast_range") or "last6").strip().lower()
+    demand_day = (request.args.get("demand_day") or "").strip()
+    demand_week = (request.args.get("demand_week") or "").strip()
+    demand_month = (request.args.get("demand_month") or "").strip()
     context = page_build_predictive_context(
         demand_range=demand_range,
         forecast_range=forecast_range,
+        demand_day=demand_day,
+        demand_week=demand_week,
+        demand_month=demand_month,
         build_predictive_context=build_predictive_context,
         safe_float=safe_float,
         round_fn=round,
@@ -1376,10 +1382,13 @@ def sync_prediction_results(prediction_payloads):
     )
 
 
-def build_predictive_context(demand_range="last30", forecast_range="last6"):
+def build_predictive_context(demand_range="week", forecast_range="last6", demand_day=None, demand_week=None, demand_month=None):
     return predictive_build_context(
         demand_range,
         forecast_range,
+        demand_day=demand_day,
+        demand_week=demand_week,
+        demand_month=demand_month,
         build_product_lookup=build_product_lookup,
         fetch_rows=fetch_rows,
         build_sale_status_maps=build_sale_status_maps,

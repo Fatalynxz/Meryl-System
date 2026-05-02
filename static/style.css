@@ -4709,11 +4709,19 @@ select:focus {
 
 .predictive-filter-form {
     margin-left: auto;
-    min-width: 220px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(148px, auto));
+    gap: 12px;
+    align-items: end;
 }
 
 .predictive-filter-form .field {
     gap: 8px;
+}
+
+.predictive-filter-form .icon-button {
+    min-height: 40px;
+    padding: 0 14px;
 }
 
 @media (max-width: 920px) {
@@ -4729,6 +4737,7 @@ select:focus {
     .predictive-filter-form {
         margin-left: 0;
         width: 100%;
+        grid-template-columns: 1fr 1fr;
     }
 }
 

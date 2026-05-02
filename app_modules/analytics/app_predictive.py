@@ -4,8 +4,11 @@ import math
 
 
 def build_predictive_context(
-    demand_range="last30",
+    demand_range="week",
     forecast_range="last6",
+    demand_day=None,
+    demand_week=None,
+    demand_month=None,
     *,
     build_product_lookup,
     fetch_rows,
@@ -33,10 +36,85 @@ def build_predictive_context(
         details_by_sale[safe_int(detail.get("sales_id"), 0)].append(detail)
         details_by_sale_raw[str(detail.get("sales_id") or "").strip()].append(detail)
 
-    normalized_range, demand_buckets = build_demand_range_buckets(demand_range)
+    today = datetime.now().date()
     normalized_forecast_range, forecast_periods = build_forecast_periods(forecast_range)
 
-    today = datetime.now().date()
+    def parse_iso_day(day_value):
+        try:
+            return datetime.strptime(str(day_value or ""), "%Y-%m-%d").date()
+        except ValueError:
+            return today
+
+    def parse_iso_week(week_value):
+        try:
+            return datetime.strptime(f"{str(week_value or '')}-1", "%G-W%V-%u").date()
+        except ValueError:
+            return today - timedelta(days=today.weekday())
+
+    def parse_iso_month(month_value):
+        try:
+            parsed = datetime.strptime(str(month_value or ""), "%Y-%m")
+            return parsed.date().replace(day=1)
+        except ValueError:
+            return today.replace(day=1)
+
+    def build_day_buckets(selected_day):
+        return [
+            {
+                "label": (selected_day - timedelta(days=offset)).strftime("%b %d"),
+                "start": selected_day - timedelta(days=offset),
+                "end": selected_day - timedelta(days=offset),
+            }
+            for offset in range(6, -1, -1)
+        ]
+
+    def build_week_buckets(week_start):
+        return [
+            {
+                "label": (week_start + timedelta(days=offset)).strftime("%a"),
+                "start": week_start + timedelta(days=offset),
+                "end": week_start + timedelta(days=offset),
+            }
+            for offset in range(7)
+        ]
+
+    def build_month_buckets(month_start):
+        next_month = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        month_end = next_month - timedelta(days=1)
+        cursor = month_start
+        week_index = 1
+        buckets = []
+        while cursor <= month_end:
+            span_end = min(cursor + timedelta(days=6), month_end)
+            buckets.append(
+                {
+                    "label": f"Week {week_index}",
+                    "start": cursor,
+                    "end": span_end,
+                }
+            )
+            cursor = span_end + timedelta(days=1)
+            week_index += 1
+        return buckets
+
+    requested_mode = (demand_range or "week").strip().lower()
+    if requested_mode in {"last30", "weekly", "yearly"}:
+        requested_mode = {"last30": "day", "weekly": "week", "yearly": "month"}[requested_mode]
+    if requested_mode not in {"day", "week", "month"}:
+        requested_mode = "week"
+
+    selected_day_value = parse_iso_day(demand_day)
+    selected_week_start = parse_iso_week(demand_week)
+    selected_month_start = parse_iso_month(demand_month)
+
+    if requested_mode == "day":
+        demand_buckets = build_day_buckets(selected_day_value)
+    elif requested_mode == "month":
+        demand_buckets = build_month_buckets(selected_month_start)
+    else:
+        demand_buckets = build_week_buckets(selected_week_start)
+
+    normalized_range = requested_mode
     forecast_month_keys = [period.strftime("%Y-%m") for period in forecast_periods]
     forecast_labels = [period.strftime("%b") for period in forecast_periods]
     monthly_sales = {month_key: 0.0 for month_key in forecast_month_keys}
@@ -410,6 +488,9 @@ def build_predictive_context(
         sales_forecast,
         normalized_range,
         normalized_forecast_range,
+        selected_day_value.isoformat(),
+        f"{selected_week_start.isocalendar().year}-W{selected_week_start.isocalendar().week:02d}",
+        selected_month_start.strftime("%Y-%m"),
     )
 
 

@@ -103,6 +103,9 @@
                     </h2>
                     <form method="GET" class="predictive-filter-form">
                         <input type="hidden" name="demand_range" value="{{ demand_range }}">
+                        <input type="hidden" name="demand_day" value="{{ selected_demand_day }}">
+                        <input type="hidden" name="demand_week" value="{{ selected_demand_week }}">
+                        <input type="hidden" name="demand_month" value="{{ selected_demand_month }}">
                         <label class="field">
                             <span>Forecast Range</span>
                             <select name="forecast_range" onchange="this.form.submit()">
@@ -193,16 +196,32 @@
                     <form method="GET" class="predictive-filter-form">
                         <input type="hidden" name="forecast_range" value="{{ forecast_range }}">
                         <label class="field">
-                            <span>Filter Range</span>
-                            <select name="demand_range" onchange="this.form.submit()">
-                                <option value="last30" {% if demand_range == 'last30' %}selected{% endif %}>Last 30 Days</option>
-                                <option value="weekly" {% if demand_range == 'weekly' %}selected{% endif %}>Weekly</option>
-                                <option value="yearly" {% if demand_range == 'yearly' %}selected{% endif %}>Yearly</option>
+                            <span>Period</span>
+                            <select name="demand_range" id="demandRangeSelect">
+                                <option value="day" {% if demand_range == 'day' %}selected{% endif %}>Day</option>
+                                <option value="week" {% if demand_range == 'week' %}selected{% endif %}>Week</option>
+                                <option value="month" {% if demand_range == 'month' %}selected{% endif %}>Month</option>
                             </select>
+                        </label>
+                        <label class="field" id="demandDayField">
+                            <span>Selected Day</span>
+                            <input type="date" name="demand_day" value="{{ selected_demand_day }}">
+                        </label>
+                        <label class="field" id="demandWeekField">
+                            <span>Selected Week</span>
+                            <input type="week" name="demand_week" value="{{ selected_demand_week }}">
+                        </label>
+                        <label class="field" id="demandMonthField">
+                            <span>Selected Month</span>
+                            <input type="month" name="demand_month" value="{{ selected_demand_month }}">
+                        </label>
+                        <label class="field">
+                            <span>&nbsp;</span>
+                            <button type="submit" class="icon-button">Apply Filter</button>
                         </label>
                     </form>
                 </div>
-                <div class="predictive-category-chart{% if demand_range == 'weekly' %} weekly-layout{% elif demand_range == 'yearly' %} yearly-layout{% endif %}">
+                <div class="predictive-category-chart{% if demand_range == 'week' %} weekly-layout{% elif demand_range == 'month' %} yearly-layout{% endif %}">
                     {% for group in category_chart %}
                     <div class="predictive-category-group">
                         <div class="predictive-chart-tooltip">
@@ -423,6 +442,21 @@
     </div>
     <script src="/static/topbar.js"></script>
     <script>
+        const demandRangeSelect = document.getElementById('demandRangeSelect');
+        const demandDayField = document.getElementById('demandDayField');
+        const demandWeekField = document.getElementById('demandWeekField');
+        const demandMonthField = document.getElementById('demandMonthField');
+
+        function syncDemandFields() {
+            const mode = demandRangeSelect?.value || 'week';
+            if (demandDayField) demandDayField.style.display = mode === 'day' ? '' : 'none';
+            if (demandWeekField) demandWeekField.style.display = mode === 'week' ? '' : 'none';
+            if (demandMonthField) demandMonthField.style.display = mode === 'month' ? '' : 'none';
+        }
+
+        demandRangeSelect?.addEventListener('change', syncDemandFields);
+        syncDemandFields();
+
         const predictivePromotionModal = document.getElementById('predictivePromotionModal');
         const closePredictivePromotion = document.getElementById('closePredictivePromotion');
         const predictivePromoProductId = document.getElementById('predictivePromoProductId');

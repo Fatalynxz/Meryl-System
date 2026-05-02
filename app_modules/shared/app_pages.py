@@ -153,7 +153,17 @@ def build_reports_page_context(*, build_reports_context):
     }
 
 
-def build_predictive_page_context(*, demand_range, forecast_range, build_predictive_context, safe_float, round_fn=round):
+def build_predictive_page_context(
+    *,
+    demand_range,
+    forecast_range,
+    demand_day,
+    demand_week,
+    demand_month,
+    build_predictive_context,
+    safe_float,
+    round_fn=round,
+):
     (
         category_totals,
         category_chart,
@@ -166,7 +176,16 @@ def build_predictive_page_context(*, demand_range, forecast_range, build_predict
         sales_forecast,
         demand_range,
         forecast_range,
-    ) = build_predictive_context(demand_range, forecast_range)
+        selected_demand_day,
+        selected_demand_week,
+        selected_demand_month,
+    ) = build_predictive_context(
+        demand_range,
+        forecast_range,
+        demand_day=demand_day,
+        demand_week=demand_week,
+        demand_month=demand_month,
+    )
     predicted_next_month = safe_float(sales_forecast.get("next_month_prediction"), 0)
     return {
         "forecast_accuracy": round_fn(
@@ -186,6 +205,9 @@ def build_predictive_page_context(*, demand_range, forecast_range, build_predict
         "sales_forecast": sales_forecast,
         "demand_range": demand_range,
         "forecast_range": forecast_range,
+        "selected_demand_day": selected_demand_day,
+        "selected_demand_week": selected_demand_week,
+        "selected_demand_month": selected_demand_month,
     }
 
 
