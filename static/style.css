@@ -6129,3 +6129,358 @@ select:-internal-autofill-selected {
         display: none;
     }
 }
+
+/* =========================================================
+   Fintech Dashboard Skin (Flask/Jinja integration layer)
+   Keeps existing backend/routes/features; overrides visuals.
+   ========================================================= */
+
+:root {
+    --fin-bg: #0e0e12;
+    --fin-surface-1: #16161c;
+    --fin-surface-2: #1d1d25;
+    --fin-surface-3: #24242e;
+    --fin-border: rgba(255, 255, 255, 0.06);
+    --fin-text: #f5f5f7;
+    --fin-muted: #8a8a95;
+    --fin-red: #e5202a;
+    --fin-red-deep: #b81820;
+    --fin-red-dark: #7a0f14;
+    --fin-yellow: #ffd60a;
+}
+
+html,
+body {
+    background: radial-gradient(1200px 600px at 10% -10%, rgba(229, 32, 42, 0.18), transparent 55%), var(--fin-bg);
+    color: var(--fin-text);
+}
+
+.dashboard-page,
+.pos-page,
+.sales-page,
+.customers-page,
+.predictive-page,
+.promotions-page,
+.reports-page,
+.inventory-page,
+.staff-page,
+.settings-page,
+.receipt-page {
+    background: radial-gradient(1000px 520px at 90% 0%, rgba(229, 32, 42, 0.14), transparent 58%), var(--fin-bg);
+    color: var(--fin-text);
+}
+
+.dashboard-shell {
+    gap: 12px;
+    padding: 12px;
+    grid-template-columns: 264px minmax(0, 1fr);
+}
+
+.navbar,
+.dashboard-page .navbar {
+    width: 264px;
+    height: calc(100vh - 24px);
+    border-radius: 22px;
+    border: 1px solid var(--fin-border);
+    background: linear-gradient(180deg, var(--fin-surface-1) 0%, #131319 100%);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.44);
+    padding: 14px 12px 14px;
+}
+
+.navbar a,
+.dashboard-page .navbar a {
+    min-height: 44px;
+    border-radius: 999px;
+    color: var(--fin-text);
+    font-weight: 700;
+}
+
+.navbar a.active,
+.dashboard-page .navbar a.active {
+    position: relative;
+    background: linear-gradient(135deg, var(--fin-red) 0%, var(--fin-red-deep) 100%);
+    color: #ffffff;
+}
+
+.navbar a.active::after,
+.dashboard-page .navbar a.active::after {
+    content: "";
+    position: absolute;
+    right: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--fin-yellow);
+    box-shadow: 0 0 0 4px rgba(255, 214, 10, 0.2);
+}
+
+.sidebar-account {
+    background: linear-gradient(180deg, rgba(255, 214, 10, 0.2) 0%, rgba(255, 214, 10, 0.08) 100%);
+    border: 1px solid rgba(255, 214, 10, 0.3);
+}
+
+.sidebar-account strong,
+.sidebar-account span {
+    color: #1a1a22;
+}
+
+.sidebar-logout {
+    background: linear-gradient(135deg, var(--fin-red) 0%, var(--fin-red-deep) 100%);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.topbar,
+.dashboard-page .topbar,
+.page-header {
+    border-radius: 20px;
+    border: 1px solid var(--fin-border);
+    background: linear-gradient(180deg, var(--fin-surface-2) 0%, #17171f 100%);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36);
+}
+
+.brand-block h1,
+.page-header h1,
+.dashboard-page .brand-block h1 {
+    color: var(--fin-text);
+    font-weight: 800;
+}
+
+.brand-block p,
+.dashboard-page .brand-block p,
+.page-kicker {
+    color: var(--fin-muted);
+}
+
+.user-chip,
+.action-button,
+.dashboard-page .user-chip,
+.dashboard-page .action-button {
+    background: var(--fin-surface-3);
+    border: 1px solid var(--fin-border);
+    color: var(--fin-text);
+}
+
+.action-button,
+.dashboard-page .action-button {
+    background: linear-gradient(135deg, var(--fin-red) 0%, var(--fin-red-deep) 100%);
+    color: #fff;
+}
+
+.page-content,
+.dashboard-page .page-content {
+    border-radius: 22px;
+    border: 1px solid var(--fin-border);
+    background: linear-gradient(180deg, rgba(24, 24, 32, 0.96) 0%, rgba(17, 17, 23, 0.98) 100%);
+    padding: 16px;
+}
+
+.panel-card,
+.stat-card,
+.dashboard-page .panel-card,
+.dashboard-page .stat-card {
+    border-radius: 18px;
+    border: 1px solid var(--fin-border);
+    background: linear-gradient(180deg, var(--fin-surface-1) 0%, #14141b 100%);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.34);
+}
+
+.stat-card h3,
+.panel-header h2,
+.dashboard-page .stat-card h3,
+.dashboard-page .panel-header h2,
+th {
+    color: var(--fin-text);
+}
+
+.stat-value,
+.dashboard-page .stat-value {
+    color: #fff;
+}
+
+.field span,
+.section-label,
+.empty-text,
+small {
+    color: var(--fin-muted);
+}
+
+input,
+select,
+textarea,
+.pos-page input,
+.pos-page select,
+.pos-page textarea,
+.sales-page input,
+.sales-page select,
+.sales-page textarea,
+.customers-page input,
+.customers-page select,
+.customers-page textarea,
+.predictive-page input,
+.predictive-page select,
+.predictive-page textarea,
+.promotions-page input,
+.promotions-page select,
+.promotions-page textarea,
+.reports-page input,
+.reports-page select,
+.reports-page textarea,
+.inventory-page input,
+.inventory-page select,
+.inventory-page textarea {
+    background: var(--fin-surface-2);
+    border: 1px solid var(--fin-border);
+    color: var(--fin-text);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--fin-muted);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: rgba(229, 32, 42, 0.65);
+    box-shadow: 0 0 0 3px rgba(229, 32, 42, 0.16);
+}
+
+.table-shell,
+.inventory-table-shell,
+.mini-table-shell {
+    border-radius: 16px;
+    border: 1px solid var(--fin-border);
+    background: var(--fin-surface-1);
+}
+
+table thead th,
+.inventory-table thead th {
+    background: var(--fin-surface-2);
+    color: var(--fin-text);
+    border-bottom: 1px solid var(--fin-border);
+}
+
+table tbody tr,
+.inventory-table tbody tr {
+    background: rgba(255, 255, 255, 0.01);
+}
+
+table tbody tr:nth-child(even),
+.inventory-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+table tbody tr:hover,
+.inventory-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* hidden scrollbars while keeping scroll behavior */
+.table-shell,
+.inventory-table-shell,
+.mini-table-shell,
+.navbar,
+.notification-panel-list {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.table-shell::-webkit-scrollbar,
+.inventory-table-shell::-webkit-scrollbar,
+.mini-table-shell::-webkit-scrollbar,
+.navbar::-webkit-scrollbar,
+.notification-panel-list::-webkit-scrollbar {
+    display: none;
+}
+
+/* status badge system */
+.status-pill {
+    border: 1px solid transparent;
+    font-weight: 700;
+}
+
+.status-pill.success {
+    background: rgba(34, 197, 94, 0.16);
+    color: #4ade80;
+    border-color: rgba(34, 197, 94, 0.34);
+}
+
+.status-pill.warning {
+    background: rgba(255, 214, 10, 0.16);
+    color: var(--fin-yellow);
+    border-color: rgba(255, 214, 10, 0.34);
+}
+
+.status-pill.danger {
+    background: rgba(229, 32, 42, 0.16);
+    color: #ff6b72;
+    border-color: rgba(229, 32, 42, 0.36);
+}
+
+.status-pill.muted {
+    background: rgba(59, 130, 246, 0.16);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.36);
+}
+
+.stock-badge {
+    background: rgba(255, 214, 10, 0.16);
+    color: var(--fin-yellow);
+    border: 1px solid rgba(255, 214, 10, 0.34);
+}
+
+.stock-badge.low {
+    background: rgba(229, 32, 42, 0.16);
+    color: #ff6b72;
+    border-color: rgba(229, 32, 42, 0.36);
+}
+
+/* login split-panel feel */
+.login-page {
+    background: var(--fin-bg);
+}
+
+.login-shell {
+    width: min(1240px, calc(100% - 28px));
+}
+
+.login-layout {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 18px;
+}
+
+.login-side-stack .login-panel {
+    background: linear-gradient(135deg, var(--fin-red) 0%, var(--fin-red-deep) 60%, var(--fin-red-dark) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.login-side-stack .login-panel h2,
+.login-side-stack .login-panel p,
+.login-side-stack .login-panel span,
+.login-side-stack .login-panel strong {
+    color: #fff;
+}
+
+.login-portal-card,
+.login-extra-card,
+.login-panel {
+    border-radius: 22px;
+    border: 1px solid var(--fin-border);
+    background: linear-gradient(180deg, var(--fin-surface-1) 0%, #13131a 100%);
+}
+
+.login-submit-button {
+    background: linear-gradient(135deg, var(--fin-red) 0%, var(--fin-red-deep) 100%);
+    color: #fff;
+}
+
+.quick-login-card {
+    background: var(--fin-surface-2);
+    border: 1px solid var(--fin-border);
+}
+
+.quick-login-copy strong {
+    color: var(--fin-yellow);
+}
