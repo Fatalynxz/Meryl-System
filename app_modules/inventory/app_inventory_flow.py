@@ -51,7 +51,7 @@ def complete_sale_inventory(
             {
                 "product_id": product_id,
                 "quantity_change": -quantity,
-                "transaction_type": "Sale",
+                "transaction_type": "sale",
                 "reference_id": sales_id,
                 "date_updated": timestamp,
             }

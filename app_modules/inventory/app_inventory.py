@@ -329,10 +329,26 @@ def build_inventory_log_payload(
     timestamp,
     reference_id=None,
 ):
+    normalized_type = str(transaction_type or "").strip().lower().replace("_", " ")
+    transaction_type_map = {
+        "sale": "sale",
+        "sold": "sale",
+        "return": "return",
+        "returned": "return",
+        "adjustment": "adjustment",
+        "adjust": "adjustment",
+        "stock in": "restock",
+        "stockin": "restock",
+        "restock": "restock",
+        "stock out": "adjustment",
+        "stockout": "adjustment",
+    }
+    db_transaction_type = transaction_type_map.get(normalized_type, "adjustment")
+
     payload = {
         "product_id": product_id,
         "quantity_change": quantity_change,
-        "transaction_type": transaction_type,
+        "transaction_type": db_transaction_type,
         "date_updated": timestamp,
     }
     if reference_id is not None:

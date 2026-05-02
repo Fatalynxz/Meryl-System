@@ -1756,7 +1756,7 @@ def inventory_add():
                     inventory_build_log_payload(
                         product_id=product_id,
                         quantity_change=stock_quantity,
-                        transaction_type="Stock In",
+                        transaction_type="restock",
                         timestamp=datetime.now().isoformat(),
                     )
                 ).execute()
@@ -1799,7 +1799,7 @@ def inventory_update(product_id):
                 inventory_build_log_payload(
                     product_id=product_id,
                     quantity_change=stock_delta,
-                    transaction_type="Stock In" if stock_delta > 0 else "Stock Out",
+                    transaction_type="restock" if stock_delta > 0 else "adjustment",
                     timestamp=datetime.now().isoformat(),
                 )
             ).execute()
