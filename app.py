@@ -313,6 +313,15 @@ def adapt_product_payload_for_schema(payload, error):
         updated_payload.pop("brand", None)
         adapted = True
 
+    if "product_status_check" in error_text or "violates check constraint" in error_text:
+        current_status = str(updated_payload.get("status") or "").strip().lower()
+        if current_status in ("available", "active", ""):
+            updated_payload["status"] = "active"
+            adapted = True
+        elif current_status in ("not available", "not_available", "inactive", "discontinued"):
+            updated_payload["status"] = "inactive"
+            adapted = True
+
     return updated_payload, adapted
 
 
