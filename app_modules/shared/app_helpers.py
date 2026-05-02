@@ -128,19 +128,26 @@ def db_user_status(status):
 
 def db_payment_method(value):
     normalized = str(value or "").strip().lower()
-    mapping = {"cash": "Cash", "gcash": "GCash", "card": "Card"}
-    return mapping.get(normalized, "Cash")
+    mapping = {
+        "cash": "cash",
+        "card": "card",
+        "gcash": "online",
+        "online": "online",
+        "check": "check",
+    }
+    return mapping.get(normalized, "cash")
 
 
 def db_payment_status(value):
     normalized = str(value or "").strip().lower()
     mapping = {
-        "pending": "Pending",
-        "paid": "Paid",
-        "failed": "Failed",
-        "refunded": "Refunded",
+        "pending": "pending",
+        "paid": "completed",
+        "completed": "completed",
+        "failed": "failed",
+        "refunded": "failed",
     }
-    return mapping.get(normalized, "Pending")
+    return mapping.get(normalized, "pending")
 
 
 def db_product_status(value):
