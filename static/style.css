@@ -1020,7 +1020,8 @@ select {
 .pos-page .page-content {
     padding: 16px;
     overflow-y: auto;
-    height: calc(100vh - 190px);
+    height: auto;
+    min-height: 0;
 }
 
 .pos-page .pos-layout {

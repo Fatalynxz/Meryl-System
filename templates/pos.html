@@ -233,7 +233,7 @@
                             </label>
 
                             <label class="field">
-                                <span>Customer Name (Optional)</span>
+                                <span>Customer Name</span>
                                 <input type="text" id="customer_name" name="customer_name" placeholder="Enter customer name if not in the list">
                             </label>
 
@@ -313,6 +313,12 @@
     <script src="/static/topbar.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const posStorageKeys = {
+                customerId: 'meryl_pos_customer_id',
+                customerName: 'meryl_pos_customer_name',
+                paymentMethod: 'meryl_pos_payment_method',
+            };
+
             const dropdowns = Array.from(document.querySelectorAll('.pos-dropdown'));
             const clearButton = document.querySelector('.pos-clear-button');
             const filterHeader = document.querySelector('.pos-filter-header');
@@ -320,6 +326,9 @@
             const productSelect = document.getElementById('product_group');
             const sizeSelect = document.getElementById('size');
             const selectedPriceInput = document.getElementById('selected_price');
+            const customerIdSelect = document.getElementById('customer_id');
+            const customerNameInput = document.getElementById('customer_name');
+            const paymentMethodSelect = document.getElementById('payment_method');
             const productCatalog = JSON.parse(document.getElementById('posProductCatalog')?.textContent || '[]');
             const catalogByGroup = Object.fromEntries(productCatalog.map((item) => [item.group_key, item]));
             const receiptModal = document.getElementById('posReceiptModal');
@@ -533,6 +542,41 @@
 
             updateProductOptions();
             updateSelectedPrice();
+
+            const restorePersistedCustomerFields = () => {
+                if (customerIdSelect) {
+                    const savedCustomerId = localStorage.getItem(posStorageKeys.customerId) || '';
+                    if (savedCustomerId) {
+                        customerIdSelect.value = savedCustomerId;
+                    }
+                }
+                if (customerNameInput) {
+                    customerNameInput.value = localStorage.getItem(posStorageKeys.customerName) || '';
+                }
+                if (paymentMethodSelect) {
+                    const savedPaymentMethod = localStorage.getItem(posStorageKeys.paymentMethod) || '';
+                    if (savedPaymentMethod) {
+                        paymentMethodSelect.value = savedPaymentMethod;
+                    }
+                }
+            };
+
+            const persistCustomerFields = () => {
+                if (customerIdSelect) {
+                    localStorage.setItem(posStorageKeys.customerId, customerIdSelect.value || '');
+                }
+                if (customerNameInput) {
+                    localStorage.setItem(posStorageKeys.customerName, customerNameInput.value || '');
+                }
+                if (paymentMethodSelect) {
+                    localStorage.setItem(posStorageKeys.paymentMethod, paymentMethodSelect.value || '');
+                }
+            };
+
+            restorePersistedCustomerFields();
+            customerIdSelect?.addEventListener('change', persistCustomerFields);
+            customerNameInput?.addEventListener('input', persistCustomerFields);
+            paymentMethodSelect?.addEventListener('change', persistCustomerFields);
 
             if (receiptModal) {
                 const closeReceiptModal = () => {
