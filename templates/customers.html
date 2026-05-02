@@ -60,10 +60,6 @@
                     <p class="stat-value">{{ active_customers }}</p>
                 </article>
                 <article class="stat-card customer-stat-card">
-                    <div class="stat-card-head"><h3>Total Loyalty Points</h3><span class="stat-icon customer-points-badge" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.8 6.7 19.1l1-5.8-4.2-4.1 5.9-.9L12 3Z"></path></svg></span></div>
-                    <p class="stat-value">{{ total_loyalty_points|currency }}</p>
-                </article>
-                <article class="stat-card customer-stat-card">
                     <div class="stat-card-head"><h3>Top Customer</h3></div>
                     <p class="stat-value customer-name-card">{{ top_customer.name if top_customer else 'N/A' }}</p>
                     <small>{{ top_customer.purchases if top_customer else 0 }} purchases</small>
@@ -94,7 +90,6 @@
                                 <th>Purchases</th>
                                 <th>Last Purchase</th>
                                 <th>Latest Transaction</th>
-                                <th>Loyalty Points</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -121,7 +116,6 @@
                                 <td>{{ row.purchases }}</td>
                                 <td>{{ row.last_purchase }}</td>
                                 <td><span class="status-pill {{ row.transaction_status_tone }}">{{ row.transaction_status }}</span></td>
-                                <td><span class="stock-badge">{{ row.loyalty_points }} pts</span></td>
                                 <td><span class="status-pill {% if row.status == 'Active' %}success{% else %}muted{% endif %}">{{ row.status }}</span></td>
                                 <td>
                                     <div class="inventory-actions">

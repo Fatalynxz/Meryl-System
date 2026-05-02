@@ -52,6 +52,9 @@ def build_customer_rows(
     parse_iso_datetime,
     datetime_cls,
 ):
+    def normalize_id(value):
+        return str(value or "").strip()
+
     customers = fetch_rows("customer")
     sales_transactions = fetch_rows("sales_transaction")
     sales_details = fetch_rows("sales_details")
@@ -59,41 +62,43 @@ def build_customer_rows(
     sales_by_customer = {}
     quantity_by_sale = {}
     for sale in sales_transactions:
-        sales_by_customer.setdefault(sale.get("customer_id"), []).append(sale)
+        customer_id = normalize_id(sale.get("customer_id"))
+        if customer_id:
+            sales_by_customer.setdefault(customer_id, []).append(sale)
     for detail in sales_details:
-        sale_id = safe_int(detail.get("sales_id"), 0)
-        if sale_id <= 0:
+        sale_id = normalize_id(detail.get("sales_id"))
+        if not sale_id:
             continue
         quantity_by_sale[sale_id] = quantity_by_sale.get(sale_id, 0) + safe_int(detail.get("quantity"), 0)
 
     customer_rows = []
     for customer in customers:
-        customer_sales = sales_by_customer.get(customer.get("customer_id"), [])
+        customer_sales = sales_by_customer.get(normalize_id(customer.get("customer_id")), [])
         latest_sale = max(
             customer_sales,
             key=lambda sale: parse_iso_datetime(sale.get("transaction_date")) or datetime_cls.min,
             default=None,
         )
-        completed_customer_sales = [
+        counted_customer_sales = [
             sale
             for sale in customer_sales
-            if safe_int(sale.get("sales_id"), 0) in completed_sales
+            if normalize_id(sale.get("sales_id")) not in denied_sales
         ]
-        total_spent = sum(safe_float(sale.get("total_amount"), 0) for sale in completed_customer_sales)
+        total_spent = sum(safe_float(sale.get("total_amount"), 0) for sale in counted_customer_sales)
         purchase_count = sum(
-            quantity_by_sale.get(safe_int(sale.get("sales_id"), 0), 0)
-            for sale in completed_customer_sales
+            quantity_by_sale.get(normalize_id(sale.get("sales_id")), 0)
+            for sale in counted_customer_sales
         )
-        latest_completed_sale = max(
-            completed_customer_sales,
+        latest_counted_sale = max(
+            counted_customer_sales,
             key=lambda sale: parse_iso_datetime(sale.get("transaction_date")) or datetime_cls.min,
             default=None,
         )
-        last_sale = parse_iso_datetime(latest_completed_sale.get("transaction_date")) if latest_completed_sale else None
-        latest_sale_id = safe_int(latest_sale.get("sales_id"), 0) if latest_sale else 0
+        last_sale = parse_iso_datetime(latest_counted_sale.get("transaction_date")) if latest_counted_sale else None
+        latest_sale_id = normalize_id(latest_sale.get("sales_id")) if latest_sale else ""
         transaction_status = "No transaction"
         transaction_status_tone = "muted"
-        if latest_sale_id > 0:
+        if latest_sale_id:
             if latest_sale_id in denied_sales:
                 transaction_status = "Denied"
                 transaction_status_tone = "danger"

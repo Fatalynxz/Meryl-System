@@ -78,12 +78,10 @@ def build_sales_page_context(*, build_sales_rows, datetime_cls, safe_float):
 def build_customers_page_context(*, build_customer_rows, safe_int):
     customer_rows = build_customer_rows()
     active_customers = sum(1 for row in customer_rows if row.get("status") == "Active")
-    total_loyalty_points = sum(safe_int(row.get("loyalty_points"), 0) for row in customer_rows)
     top_customer = max(customer_rows, key=lambda row: safe_int(row.get("purchases"), 0), default=None)
     return {
         "customer_rows": customer_rows,
         "active_customers": active_customers,
-        "total_loyalty_points": total_loyalty_points,
         "top_customer": top_customer,
     }
 
