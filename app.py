@@ -1673,7 +1673,7 @@ def pos_checkout():
         return redirect("/pos")
 
 
-@app.route("/sales/complete/<int:sales_id>", methods=["POST"])
+@app.route("/sales/complete/<sales_id>", methods=["POST"])
 @login_required
 @roles_required("admin")
 def sales_complete(sales_id):
@@ -1685,7 +1685,7 @@ def sales_complete(sales_id):
     return redirect("/sales")
 
 
-@app.route("/sales/deny/<int:sales_id>", methods=["POST"])
+@app.route("/sales/deny/<sales_id>", methods=["POST"])
 @login_required
 @roles_required("admin")
 def sales_deny(sales_id):

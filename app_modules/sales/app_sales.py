@@ -7,8 +7,8 @@ def build_sale_status_maps(*, fetch_rows, safe_int, parse_iso_datetime, datetime
         transaction_type = str(row.get("transaction_type", "")).strip().lower()
         if transaction_type not in {"sale", "sale_completed"}:
             continue
-        sales_id = safe_int(row.get("reference_id"), 0)
-        if sales_id > 0:
+        sales_id = str(row.get("reference_id") or "").strip()
+        if sales_id:
             completed_sales.add(sales_id)
 
     denied_sales = {}
@@ -18,8 +18,8 @@ def build_sale_status_maps(*, fetch_rows, safe_int, parse_iso_datetime, datetime
         reverse=True,
     )
     for row in return_rows:
-        sales_id = safe_int(row.get("sales_id"), 0)
-        if sales_id <= 0 or sales_id in denied_sales:
+        sales_id = str(row.get("sales_id") or "").strip()
+        if not sales_id or sales_id in denied_sales:
             continue
         reason = str(row.get("reason") or "").strip()
         if reason and reason.lower() != "return processed":
@@ -129,6 +129,9 @@ def build_sales_rows(
     safe_int,
     safe_float,
 ):
+    def normalize_id(value):
+        return str(value or "").strip()
+
     product_lookup = build_product_lookup()
     customer_lookup = build_customer_lookup()
     completed_sales, denied_sales = build_sale_status_maps()
@@ -141,11 +144,15 @@ def build_sales_rows(
     sales_details = fetch_rows("sales_details")
     details_by_sale = {}
     for detail in sales_details:
-        details_by_sale.setdefault(detail.get("sales_id"), []).append(detail)
+        sale_id_key = normalize_id(detail.get("sales_id"))
+        if sale_id_key:
+            details_by_sale.setdefault(sale_id_key, []).append(detail)
 
     sales_rows = []
     for index, sale in enumerate(sales_transactions, start=1):
-        sales_id = safe_int(sale.get("sales_id"), 0)
+        sales_id = normalize_id(sale.get("sales_id"))
+        if not sales_id:
+            continue
         sale_details = details_by_sale.get(sales_id, [])
         customer = customer_lookup.get(sale.get("customer_id"), {})
         sale_date = parse_iso_datetime(sale.get("transaction_date"))
@@ -177,7 +184,7 @@ def build_sales_rows(
         sales_rows.append(
             {
                 "sale_id": sales_id,
-                "order_id": f"ORD-{safe_int(sale.get('sales_id'), index):03d}",
+                "order_id": f"ORD-{index:03d}",
                 "customer_name": customer.get("customer_name", "Walk-in Customer"),
                 "product_name": product_name,
                 "product_details": " | ".join(detail_summaries) if detail_summaries else "No item details",

@@ -135,14 +135,16 @@
                                 <td>
                                     <div class="sales-actions">
                                         <button type="button" class="icon-button sales-view-button" data-order-id="{{ row.order_id }}" data-customer="{{ row.customer_name|e }}" data-products="{{ row.product_details|e }}" data-qty="{{ row.quantity }}" data-amount="&#8369;{{ row.amount|currency }}" data-payment="{{ row.payment_method|e }}" data-status="{{ row.status|e }}" data-date="{{ row.date|e }}" data-reason="{{ row.reason|e }}" aria-label="View sale" title="View sale"><span class="sales-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg></span></button>
-                                        {% if row.can_complete %}
-                                        <form method="POST" action="/sales/complete/{{ row.sale_id }}" class="inline-action-form">
-                                            <button type="submit" class="icon-button sales-complete-button">Complete</button>
-                                        </form>
-                                        {% endif %}
-                                        {% if row.can_deny %}
-                                        <button type="button" class="icon-button sales-deny-button" data-sale-id="{{ row.sale_id }}" data-order-id="{{ row.order_id }}" data-customer="{{ row.customer_name|e }}">Deny</button>
-                                        {% endif %}
+                                        <div class="sales-decision-actions">
+                                            {% if row.can_complete %}
+                                            <form method="POST" action="/sales/complete/{{ row.sale_id }}" class="inline-action-form">
+                                                <button type="submit" class="icon-button sales-complete-button">Complete</button>
+                                            </form>
+                                            {% endif %}
+                                            {% if row.can_deny %}
+                                            <button type="button" class="icon-button sales-deny-button" data-sale-id="{{ row.sale_id }}" data-order-id="{{ row.order_id }}" data-customer="{{ row.customer_name|e }}">Deny</button>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </td>
                             </tr>

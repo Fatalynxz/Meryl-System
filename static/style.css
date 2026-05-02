@@ -4413,10 +4413,10 @@ select:focus {
 }
 
 .sales-actions {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 34px minmax(86px, 1fr);
+    align-items: start;
     gap: 10px;
-    flex-wrap: wrap;
 }
 
 .sales-actions .icon-button,
@@ -4440,6 +4440,12 @@ select:focus {
 
 .inline-action-form {
     margin: 0;
+}
+
+.sales-decision-actions {
+    display: grid;
+    gap: 10px;
+    width: 100%;
 }
 
 .sales-view-button {
@@ -4478,6 +4484,7 @@ select:focus {
 .sales-complete-button,
 .sales-deny-button,
 .sales-deny-submit {
+    width: 100%;
     min-width: 86px;
     justify-content: center;
     color: #7a2100 !important;
