@@ -352,6 +352,26 @@ def adapt_customer_payload_for_schema(payload, error):
     return updated_payload, adapted, adaptation_notes
 
 
+def execute_customer_write_with_schema_fallback(operation, payload):
+    """
+    Execute a customer insert/update operation with compatibility retries for
+    legacy schemas missing one or more columns.
+    """
+    working_payload = dict(payload)
+    adaptation_notes = []
+
+    while True:
+        try:
+            operation(working_payload)
+            return adaptation_notes
+        except Exception as exc:
+            compatible_payload, was_adapted, new_notes = adapt_customer_payload_for_schema(working_payload, exc)
+            if not was_adapted:
+                raise
+            working_payload = compatible_payload
+            adaptation_notes.extend(new_notes)
+
+
 def normalize_user_rows(rows):
     role_lookup = {}
     if table_exists("role"):
@@ -1911,17 +1931,12 @@ def customers_add():
             **payload,
             "date_registered": datetime.now().date().isoformat(),
         }
-        address_missing = False
-        status_missing = False
-        try:
-            supabase().table("customer").insert(create_payload).execute()
-        except Exception as exc:
-            compatible_payload, was_adapted, adaptation_notes = adapt_customer_payload_for_schema(create_payload, exc)
-            address_missing = "missing_address_column" in adaptation_notes
-            status_missing = "missing_status_column" in adaptation_notes
-            if not was_adapted:
-                raise
-            supabase().table("customer").insert(compatible_payload).execute()
+        adaptation_notes = execute_customer_write_with_schema_fallback(
+            lambda write_payload: supabase().table("customer").insert(write_payload).execute(),
+            create_payload,
+        )
+        address_missing = "missing_address_column" in adaptation_notes
+        status_missing = "missing_status_column" in adaptation_notes
 
         if address_missing and status_missing:
             set_notice(
@@ -1967,17 +1982,12 @@ def customers_update(customer_id):
             set_notice("Customer record was not found.", "danger")
             return redirect("/customers")
 
-        address_missing = False
-        status_missing = False
-        try:
-            supabase().table("customer").update(payload).eq("customer_id", customer_id).execute()
-        except Exception as exc:
-            compatible_payload, was_adapted, adaptation_notes = adapt_customer_payload_for_schema(payload, exc)
-            address_missing = "missing_address_column" in adaptation_notes
-            status_missing = "missing_status_column" in adaptation_notes
-            if not was_adapted:
-                raise
-            supabase().table("customer").update(compatible_payload).eq("customer_id", customer_id).execute()
+        adaptation_notes = execute_customer_write_with_schema_fallback(
+            lambda write_payload: supabase().table("customer").update(write_payload).eq("customer_id", customer_id).execute(),
+            payload,
+        )
+        address_missing = "missing_address_column" in adaptation_notes
+        status_missing = "missing_status_column" in adaptation_notes
 
         if address_missing and status_missing:
             set_notice(
