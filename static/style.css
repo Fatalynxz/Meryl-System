@@ -2712,14 +2712,73 @@ select:focus {
     margin-bottom: 22px;
 }
 
+.customers-page .inventory-table-shell {
+    overflow-x: hidden;
+}
+
+.customers-page .inventory-table {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.customers-page .inventory-table thead th {
+    white-space: normal;
+    line-height: 1.2;
+}
+
 .customers-page .inventory-table thead th,
 .customers-page .inventory-table td {
     padding: 18px 20px;
     font-size: 0.98rem;
+    vertical-align: middle;
+    word-break: break-word;
+}
+
+.customers-page .inventory-table th:nth-child(1),
+.customers-page .inventory-table td:nth-child(1) {
+    width: 12%;
+}
+
+.customers-page .inventory-table th:nth-child(2),
+.customers-page .inventory-table td:nth-child(2) {
+    width: 16%;
+}
+
+.customers-page .inventory-table th:nth-child(3),
+.customers-page .inventory-table td:nth-child(3) {
+    width: 10%;
+}
+
+.customers-page .inventory-table th:nth-child(4),
+.customers-page .inventory-table td:nth-child(4) {
+    width: 8%;
+}
+
+.customers-page .inventory-table th:nth-child(5),
+.customers-page .inventory-table td:nth-child(5) {
+    width: 11%;
+}
+
+.customers-page .inventory-table th:nth-child(6),
+.customers-page .inventory-table td:nth-child(6) {
+    width: 14%;
+}
+
+.customers-page .inventory-table th:nth-child(7),
+.customers-page .inventory-table td:nth-child(7) {
+    width: 11%;
+}
+
+.customers-page .inventory-table th:nth-child(8),
+.customers-page .inventory-table td:nth-child(8) {
+    width: 8%;
+    text-align: center;
 }
 
 .customers-page .inventory-actions {
     gap: 14px;
+    justify-content: center;
 }
 
 .customer-contact-cell {
@@ -2742,12 +2801,12 @@ select:focus {
 }
 
 .customers-page .status-pill {
-    min-width: 124px;
-    padding: 8px 16px;
+    min-width: 110px;
+    padding: 8px 12px;
     font-size: 0.9rem;
     line-height: 1;
     text-align: center;
-    white-space: nowrap;
+    white-space: normal;
 }
 
 @media (max-width: 920px) {
