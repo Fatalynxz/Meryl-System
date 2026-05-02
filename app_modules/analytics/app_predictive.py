@@ -28,8 +28,10 @@ def build_predictive_context(
     completed_sales, _ = build_sale_status_maps()
 
     details_by_sale = defaultdict(list)
+    details_by_sale_raw = defaultdict(list)
     for detail in sales_details:
         details_by_sale[safe_int(detail.get("sales_id"), 0)].append(detail)
+        details_by_sale_raw[str(detail.get("sales_id") or "").strip()].append(detail)
 
     normalized_range, demand_buckets = build_demand_range_buckets(demand_range)
     normalized_forecast_range, forecast_periods = build_forecast_periods(forecast_range)
@@ -280,6 +282,107 @@ def build_predictive_context(
         "linear_forecast": round(global_linear_forecast, 2),
     }
 
+    completed_sales_ids = {str(item).strip() for item in completed_sales}
+    customer_rows = fetch_rows("customer")
+    customer_lookup = {
+        str(row.get("customer_id") or "").strip(): row
+        for row in customer_rows
+    }
+    customer_segment_map = defaultdict(
+        lambda: {
+            "transactions": 0,
+            "total_spent": 0.0,
+            "last_purchase": None,
+            "category_counts": defaultdict(int),
+            "used_promo_count": 0,
+        }
+    )
+    active_promo_lookup = {}
+    for product in products.values():
+        product_name = str(product.get("product_name") or "").strip().lower()
+        promo_name = str(product.get("promo_name") or "").strip()
+        if product_name:
+            active_promo_lookup[product_name] = bool(promo_name)
+
+    for sale in sales_transactions:
+        sale_id = str(sale.get("sales_id") or "").strip()
+        if sale_id not in completed_sales_ids:
+            continue
+
+        customer_id = str(sale.get("customer_id") or "").strip()
+        if not customer_id:
+            continue
+
+        sale_date = parse_iso_datetime(sale.get("transaction_date"))
+        sale_amount = safe_float(sale.get("total_amount"), 0)
+        entry = customer_segment_map[customer_id]
+        entry["transactions"] += 1
+        entry["total_spent"] += sale_amount
+        if sale_date and (not entry["last_purchase"] or sale_date > entry["last_purchase"]):
+            entry["last_purchase"] = sale_date
+
+        for detail in details_by_sale_raw.get(sale_id, []):
+            product_id = safe_int(detail.get("product_id"), 0)
+            category = products.get(product_id, {}).get("category", "General")
+            quantity = safe_int(detail.get("quantity"), 0)
+            entry["category_counts"][category] += quantity
+            product_name = str(products.get(product_id, {}).get("product_name") or "").strip().lower()
+            if product_name and active_promo_lookup.get(product_name):
+                entry["used_promo_count"] += 1
+
+    customer_segments = []
+    for customer_id, summary in customer_segment_map.items():
+        customer = customer_lookup.get(customer_id, {})
+        category_counts = summary["category_counts"]
+        preferred_category = (
+            max(category_counts.items(), key=lambda item: item[1])[0]
+            if category_counts
+            else "General"
+        )
+        transactions = summary["transactions"]
+        total_spent = summary["total_spent"]
+        promo_ratio = summary["used_promo_count"] / max(transactions, 1)
+        recency_days = (
+            (today - summary["last_purchase"].date()).days
+            if summary["last_purchase"]
+            else 999
+        )
+        avg_ticket = total_spent / max(transactions, 1)
+
+        if recency_days > 45:
+            segment = "Inactive Buyers"
+            campaign = "Win-back promo"
+        elif transactions >= 4 and total_spent >= 5000:
+            segment = "Loyal High Spenders"
+            campaign = "VIP early access"
+        elif promo_ratio >= 0.4:
+            segment = "Discount Responders"
+            campaign = "Limited-time discount"
+        elif preferred_category and preferred_category != "General":
+            segment = f"{preferred_category} Buyers"
+            campaign = "Category bundle offer"
+        else:
+            segment = "Frequent Buyers"
+            campaign = "Loyalty points booster"
+
+        customer_segments.append(
+            {
+                "name": customer.get("customer_name", "Walk-in Customer"),
+                "segment": segment,
+                "campaign": campaign,
+                "preferred_category": preferred_category,
+                "transactions": transactions,
+                "avg_ticket": round(avg_ticket, 2),
+                "total_spent": round(total_spent, 2),
+                "recency_days": recency_days,
+            }
+        )
+
+    customer_segments = sorted(
+        customer_segments,
+        key=lambda item: (item["recency_days"], -item["transactions"], -item["total_spent"]),
+    )[:8]
+
     if forecast_rows:
         sync_prediction_results(
             [
@@ -302,6 +405,7 @@ def build_predictive_context(
         fast_moving,
         slow_moving,
         restock_rows,
+        customer_segments,
         chart_categories,
         sales_forecast,
         normalized_range,
