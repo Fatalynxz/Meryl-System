@@ -3442,7 +3442,7 @@ select:focus {
 
 .predictive-page .mini-table-shell th,
 .predictive-page .mini-table-shell td {
-    padding: 14px 12px;
+    padding: 11px 12px;
     font-size: 0.95rem;
     vertical-align: middle;
 }
@@ -3468,6 +3468,16 @@ select:focus {
 .predictive-fast-card .mini-table-shell table th:nth-child(4),
 .predictive-fast-card .mini-table-shell table td:nth-child(4) { width: 28%; }
 
+.predictive-fast-card .mini-table-shell tbody td {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.predictive-fast-card .mini-table-shell td:nth-child(2),
+.predictive-fast-card .mini-table-shell td:nth-child(3) {
+    text-align: center;
+}
+
 .predictive-slow-card .mini-table-shell table th:nth-child(1),
 .predictive-slow-card .mini-table-shell table td:nth-child(1) { width: 32%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(2),
@@ -3479,8 +3489,9 @@ select:focus {
 
 .predictive-slow-card .mini-table-shell th,
 .predictive-slow-card .mini-table-shell td {
-    padding-top: 12px;
-    padding-bottom: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    vertical-align: top;
 }
 
 .predictive-slow-card .mini-table-shell td:nth-child(2),
@@ -3517,6 +3528,11 @@ select:focus {
 
 .predictive-slow-card .predictive-promo-cell small {
     max-width: none;
+    margin-top: 2px;
+}
+
+.predictive-slow-card .mini-table-shell tbody tr + tr td {
+    border-top: 1px solid rgba(255, 190, 88, 0.16);
 }
 
 .promotions-page .page-content {
