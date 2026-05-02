@@ -2713,51 +2713,75 @@ select:focus {
 }
 
 .customers-page .inventory-table-shell {
-    overflow-x: hidden;
+    overflow-x: auto;
 }
 
 .customers-page .inventory-table {
-    min-width: 0;
+    min-width: 860px;
     width: 100%;
-    table-layout: auto;
+    table-layout: fixed;
 }
 
 .customers-page .inventory-table thead th {
     white-space: nowrap;
     line-height: 1.2;
+    font-size: 0.9rem;
 }
 
 .customers-page .inventory-table thead th,
 .customers-page .inventory-table td {
-    padding: 18px 20px;
-    font-size: 0.98rem;
+    padding: 14px 12px;
+    font-size: 0.92rem;
     vertical-align: middle;
     word-break: normal;
 }
 
+.customers-page .inventory-table th:nth-child(1),
+.customers-page .inventory-table td:nth-child(1) { width: 9%; }
+.customers-page .inventory-table th:nth-child(2),
+.customers-page .inventory-table td:nth-child(2) { width: 20%; }
+.customers-page .inventory-table th:nth-child(3),
+.customers-page .inventory-table td:nth-child(3) { width: 10%; }
+.customers-page .inventory-table th:nth-child(4),
+.customers-page .inventory-table td:nth-child(4) { width: 8%; }
+.customers-page .inventory-table th:nth-child(5),
+.customers-page .inventory-table td:nth-child(5) { width: 11%; }
+.customers-page .inventory-table th:nth-child(6),
+.customers-page .inventory-table td:nth-child(6) { width: 15%; }
+.customers-page .inventory-table th:nth-child(7),
+.customers-page .inventory-table td:nth-child(7) { width: 10%; }
+.customers-page .inventory-table th:nth-child(8),
+.customers-page .inventory-table td:nth-child(8) {
+    width: 7%;
+    text-align: center;
+}
+
 .customers-page .inventory-actions {
-    gap: 14px;
-    justify-content: flex-start;
+    gap: 8px;
+    justify-content: center;
 }
 
 .customer-contact-cell {
     display: grid;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
 }
 
 .customer-contact-cell span {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
-    line-height: 1.25;
-    font-size: 0.96rem;
+    line-height: 1.15;
+    font-size: 0.84rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .customer-contact-cell span:last-child {
     color: #ffe3a8;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .customer-contact-cell span:first-child::before,
@@ -2776,9 +2800,9 @@ select:focus {
 }
 
 .customers-page .status-pill {
-    min-width: 110px;
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    min-width: 92px;
+    padding: 6px 10px;
+    font-size: 0.84rem;
     line-height: 1;
     text-align: center;
     white-space: nowrap;
