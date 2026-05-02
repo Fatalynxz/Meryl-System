@@ -13,15 +13,24 @@ def build_sale_status_maps(*, fetch_rows, safe_int, parse_iso_datetime, datetime
 
     denied_sales = {}
     return_rows = sorted(
-        fetch_rows("return_transaction"),
+        fetch_rows("returns"),
         key=lambda item: parse_iso_datetime(item.get("return_date")) or datetime_cls.min,
         reverse=True,
     )
+    return_detail_rows = fetch_rows("return_details")
+    reason_by_return_id = {}
+    for detail in return_detail_rows:
+        return_id = str(detail.get("return_id") or "").strip()
+        reason = str(detail.get("reason") or "").strip()
+        if return_id and reason and return_id not in reason_by_return_id:
+            reason_by_return_id[return_id] = reason
+
     for row in return_rows:
         sales_id = str(row.get("sales_id") or "").strip()
+        return_id = str(row.get("return_id") or "").strip()
         if not sales_id or sales_id in denied_sales:
             continue
-        reason = str(row.get("reason") or "").strip()
+        reason = reason_by_return_id.get(return_id, "").strip()
         if reason and reason.lower() != "return processed":
             denied_sales[sales_id] = reason
 
@@ -41,6 +50,9 @@ def sync_sales_summary_entry(
     parse_iso_datetime,
     supabase,
 ):
+    def normalize_id(value):
+        return str(value or "").strip()
+
     if not table_exists("sales_summary"):
         return
 
@@ -58,14 +70,16 @@ def sync_sales_summary_entry(
     sales_details = fetch_rows("sales_details")
     details_by_sale = defaultdict_cls(list)
     for detail in sales_details:
-        details_by_sale[safe_int(detail.get("sales_id"), 0)].append(detail)
+        sale_id = normalize_id(detail.get("sales_id"))
+        if sale_id:
+            details_by_sale[sale_id].append(detail)
 
     total_revenue = 0.0
     total_transactions = 0
     total_item_sold = 0
     target_string = target_date.strftime("%Y-%m-%d")
     for sale in sales_transactions:
-        sales_id = safe_int(sale.get("sales_id"), 0)
+        sales_id = normalize_id(sale.get("sales_id"))
         if sales_id not in completed_sales:
             continue
         sale_date = parse_iso_datetime(sale.get("transaction_date"))

@@ -16,8 +16,8 @@ def deny_sale_transaction(
 ):
     current_user = get_current_user() or {}
     db_user = resolve_db_user_row(current_user)
-    user_id = safe_int((db_user or {}).get("user_id"), 0)
-    if user_id <= 0:
+    user_id = str((db_user or {}).get("user_id") or "").strip()
+    if not user_id:
         raise ValueError("Unable to resolve the administrator account in the database.")
 
     return_record = (
@@ -32,7 +32,7 @@ def deny_sale_transaction(
         )
         .execute()
     )
-    return_id = safe_int((return_record.data or [{}])[0].get("return_id"), 0)
+    return_id = str((return_record.data or [{}])[0].get("return_id") or "").strip()
     detail_rows = (
         supabase.table("sales_details")
         .select("product_id")
@@ -42,7 +42,7 @@ def deny_sale_transaction(
         .data
         or []
     )
-    if return_id > 0 and detail_rows:
+    if return_id and detail_rows:
         supabase.table("return_details").insert(
             {
                 "return_id": return_id,
