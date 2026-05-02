@@ -94,25 +94,30 @@
             </section>
 
             <section class="panel-card chart-panel">
-                <div class="panel-header predictive-filter-header">
+                <div class="panel-header predictive-filter-header forecast-range-header">
                     <h2>
                         <span class="predictive-section-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><path d="M4 16 10 10l4 4 6-6"></path><path d="M14 8h6v6"></path></svg>
                         </span>
                         <span>Sales Forecast</span>
                     </h2>
-                    <form method="GET" class="predictive-filter-form">
+                    <form method="GET" class="predictive-filter-form forecast-range-form">
                         <input type="hidden" name="demand_range" value="{{ demand_range }}">
                         <input type="hidden" name="demand_day" value="{{ selected_demand_day }}">
                         <input type="hidden" name="demand_week" value="{{ selected_demand_week }}">
                         <input type="hidden" name="demand_month" value="{{ selected_demand_month }}">
-                        <label class="field">
+                        <label class="field forecast-range-field">
                             <span>Forecast Range</span>
-                            <select name="forecast_range" onchange="this.form.submit()">
-                                <option value="last6" {% if forecast_range == 'last6' %}selected{% endif %}>Last 6 Months</option>
-                                <option value="last12" {% if forecast_range == 'last12' %}selected{% endif %}>Last 12 Months</option>
-                                <option value="yearly" {% if forecast_range == 'yearly' %}selected{% endif %}>This Year</option>
-                            </select>
+                            <div class="forecast-range-select-wrap">
+                                <select name="forecast_range" onchange="this.form.submit()">
+                                    <option value="last6" {% if forecast_range == 'last6' %}selected{% endif %}>Last 6 Months</option>
+                                    <option value="last12" {% if forecast_range == 'last12' %}selected{% endif %}>Last 12 Months</option>
+                                    <option value="yearly" {% if forecast_range == 'yearly' %}selected{% endif %}>This Year</option>
+                                </select>
+                                <span class="forecast-range-select-button" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"></path></svg>
+                                </span>
+                            </div>
                         </label>
                     </form>
                 </div>

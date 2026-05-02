@@ -3502,15 +3502,16 @@ select:focus {
 
 .predictive-slow-card .mini-table-shell th,
 .predictive-slow-card .mini-table-shell td {
-    padding-top: 8px;
-    padding-bottom: 8px;
-    vertical-align: middle;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    vertical-align: top;
 }
 
 .predictive-slow-card .mini-table-shell td:nth-child(2),
 .predictive-slow-card .mini-table-shell td:nth-child(3),
 .predictive-slow-card .mini-table-shell td:nth-child(4) {
     text-align: center;
+    vertical-align: middle;
 }
 
 .predictive-slow-card .mini-table-shell td:nth-child(1) {
@@ -3523,7 +3524,7 @@ select:focus {
 
 .predictive-promo-cell {
     display: grid;
-    gap: 8px;
+    gap: 10px;
     align-content: start;
     justify-items: start;
 }
@@ -3531,7 +3532,7 @@ select:focus {
 .predictive-promo-cell .predictive-promo-button {
     width: fit-content;
     min-width: 132px;
-    min-height: 34px;
+    min-height: 36px;
     padding: 6px 14px;
     border-radius: 999px;
     display: inline-flex;
@@ -3542,9 +3543,9 @@ select:focus {
 }
 
 .predictive-slow-card .predictive-promo-cell .predictive-promo-button {
-    min-width: 112px;
+    min-width: 132px;
     justify-self: start;
-    margin-bottom: 4px;
+    margin-bottom: 0;
 }
 
 .predictive-slow-card .predictive-promo-cell small {
@@ -4875,6 +4876,69 @@ select:focus {
     padding: 0 14px;
 }
 
+.forecast-range-header {
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.forecast-range-form {
+    grid-template-columns: minmax(220px, 260px);
+    justify-content: end;
+}
+
+.forecast-range-field {
+    min-width: 0;
+}
+
+.forecast-range-select-wrap {
+    position: relative;
+}
+
+.forecast-range-select-wrap select {
+    width: 100%;
+    min-height: 52px;
+    padding: 0 54px 0 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 188, 83, 0.34);
+    background: linear-gradient(180deg, rgba(164, 31, 31, 0.86) 0%, rgba(140, 24, 24, 0.94) 100%);
+    color: #fff4cb;
+    font-weight: 700;
+    appearance: none;
+}
+
+.forecast-range-select-wrap select:focus {
+    outline: none;
+    border-color: rgba(255, 213, 93, 0.6);
+    box-shadow: 0 0 0 3px rgba(255, 214, 104, 0.14);
+}
+
+.forecast-range-select-button {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    width: 38px;
+    height: 38px;
+    transform: translateY(-50%);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 204, 104, 0.3);
+    background: linear-gradient(180deg, #ffd84f 0%, #f2be1a 100%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #7b1f00;
+    pointer-events: none;
+}
+
+.forecast-range-select-button svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 @media (max-width: 920px) {
     .pos-page .pos-form-grid-actions {
         grid-template-columns: 1fr;
@@ -4889,6 +4953,10 @@ select:focus {
         margin-left: 0;
         width: 100%;
         grid-template-columns: 1fr 1fr;
+    }
+
+    .forecast-range-form {
+        grid-template-columns: 1fr;
     }
 }
 
