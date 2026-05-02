@@ -3442,9 +3442,9 @@ select:focus {
 
 .predictive-page .mini-table-shell th,
 .predictive-page .mini-table-shell td {
-    padding: 11px 12px;
+    padding: 10px 12px;
     font-size: 0.95rem;
-    vertical-align: middle;
+    vertical-align: top;
 }
 
 .predictive-page .mini-table-shell thead th {
@@ -3471,14 +3471,22 @@ select:focus {
 .predictive-fast-card .mini-table-shell table td:nth-child(5) { width: 30%; }
 
 .predictive-fast-card .mini-table-shell tbody td {
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 8px;
+    padding-bottom: 8px;
 }
 
 .predictive-fast-card .mini-table-shell td:nth-child(2),
 .predictive-fast-card .mini-table-shell td:nth-child(3),
 .predictive-fast-card .mini-table-shell td:nth-child(4) {
     text-align: center;
+    vertical-align: middle;
+}
+
+.predictive-fast-card .mini-table-shell td:nth-child(2),
+.predictive-slow-card .mini-table-shell td:nth-child(2) {
+    font-weight: 700;
+    color: #ffe9a8;
+    white-space: nowrap;
 }
 
 .predictive-slow-card .mini-table-shell table th:nth-child(1),
@@ -3494,8 +3502,8 @@ select:focus {
 
 .predictive-slow-card .mini-table-shell th,
 .predictive-slow-card .mini-table-shell td {
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding-top: 8px;
+    padding-bottom: 8px;
     vertical-align: top;
 }
 
@@ -3503,6 +3511,7 @@ select:focus {
 .predictive-slow-card .mini-table-shell td:nth-child(3),
 .predictive-slow-card .mini-table-shell td:nth-child(4) {
     text-align: center;
+    vertical-align: middle;
 }
 
 .predictive-slow-card .mini-table-shell td:nth-child(1) {
@@ -3530,15 +3539,28 @@ select:focus {
 .predictive-slow-card .predictive-promo-cell .predictive-promo-button {
     min-width: 112px;
     justify-self: start;
+    margin-bottom: 4px;
 }
 
 .predictive-slow-card .predictive-promo-cell small {
     max-width: none;
     margin-top: 2px;
+    font-size: 0.82rem;
+    line-height: 1.25;
 }
 
 .predictive-slow-card .mini-table-shell tbody tr + tr td {
     border-top: 1px solid rgba(255, 190, 88, 0.16);
+}
+
+.predictive-fast-card .mini-table-shell tbody tr,
+.predictive-slow-card .mini-table-shell tbody tr {
+    height: 76px;
+}
+
+.predictive-fast-card .mini-table-shell td:nth-child(1) small,
+.predictive-slow-card .mini-table-shell td:nth-child(1) small {
+    margin-top: 2px;
 }
 
 .promotions-page .page-content {
