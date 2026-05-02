@@ -250,32 +250,6 @@
             </section>
 
             <section class="content-grid predictive-grid">
-                <article class="panel-card predictive-target-card">
-                    <div class="panel-header">
-                        <h2>
-                            <span class="predictive-section-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg>
-                            </span>
-                            <span>Customer Promotion Targets</span>
-                        </h2>
-                    </div>
-                    <div class="table-shell mini-table-shell">
-                        <table>
-                            <thead><tr><th>Customer</th><th>Segment</th><th>Behavior</th><th>Recommended Campaign</th></tr></thead>
-                            <tbody>
-                                {% for row in customer_segments %}
-                                <tr>
-                                    <td>{{ row.name }}</td>
-                                    <td><span class="status-pill warning">{{ row.segment }}</span></td>
-                                    <td>{{ row.transactions }} txns · &#8369;{{ row.avg_ticket|currency }} avg</td>
-                                    <td>{{ row.campaign }}<br><small>{{ row.preferred_category }} · {{ row.recency_days }}d since last purchase</small></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </article>
-
                 <article class="panel-card predictive-fast-card">
                     <div class="panel-header">
                         <h2>
@@ -513,6 +487,7 @@
     </script>
 </body>
 </html>
+
 
 
 
