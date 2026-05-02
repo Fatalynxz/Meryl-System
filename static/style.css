@@ -5468,7 +5468,7 @@ select:-internal-autofill-selected {
 .settings-page .navbar,
 .receipt-page .navbar,
 .tab-strip {
-    background: rgba(126, 22, 22, 0.28);
+    background: #d10010;
     border-color: rgba(122, 24, 24, 0.48);
 }
 
