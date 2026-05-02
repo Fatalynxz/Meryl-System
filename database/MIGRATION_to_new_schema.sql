@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS customer (
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100),
   contact_number VARCHAR(15),
+  address VARCHAR(255),
+  status VARCHAR(20) CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
   date_registered TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
