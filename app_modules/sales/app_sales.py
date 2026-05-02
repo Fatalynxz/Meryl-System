@@ -206,10 +206,14 @@ def build_sales_rows(
         elif sales_id in completed_sales:
             status = "Completed"
 
+        compact_order_id = sales_id.replace("-", "").upper()[:8]
+        if not compact_order_id:
+            compact_order_id = f"{index:03d}"
+
         sales_rows.append(
             {
                 "sale_id": sales_id,
-                "order_id": f"ORD-{index:03d}",
+                "order_id": f"ORD-{compact_order_id}",
                 "customer_name": customer.get("customer_name", "Walk-in Customer"),
                 "product_name": product_name,
                 "product_details": " | ".join(detail_summaries) if detail_summaries else "No item details",
@@ -219,7 +223,7 @@ def build_sales_rows(
                 "status": status,
                 "reason": reason,
                 "status_tone": "success" if status == "Completed" else "danger" if status == "Denied" else "warning",
-                "date": sale_date.strftime("%Y-%m-%d") if sale_date else "N/A",
+                "date": sale_date.strftime("%b %d, %Y") if sale_date else "N/A",
                 "can_complete": status == "Pending",
                 "can_deny": status == "Pending",
             }

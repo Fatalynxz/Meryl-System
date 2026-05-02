@@ -119,7 +119,7 @@
                         <tbody id="salesTableBody">
                             {% for row in sales_rows %}
                             <tr data-search="{{ (row.order_id ~ ' ' ~ row.customer_name ~ ' ' ~ row.product_name ~ ' ' ~ row.reason)|lower }}">
-                                <td>{{ row.order_id }}</td>
+                                <td><span class="sales-order-id">{{ row.order_id }}</span></td>
                                 <td>{{ row.customer_name }}</td>
                                 <td>{{ row.product_name }}</td>
                                 <td>{{ row.quantity }}</td>
@@ -131,7 +131,7 @@
                                     <div class="sales-reason-snippet">{{ row.reason }}</div>
                                     {% endif %}
                                 </td>
-                                <td>{{ row.date }}</td>
+                                <td><span class="sales-date">{{ row.date }}</span></td>
                                 <td>
                                     <div class="sales-actions">
                                         <button type="button" class="icon-button sales-view-button" data-order-id="{{ row.order_id }}" data-customer="{{ row.customer_name|e }}" data-products="{{ row.product_details|e }}" data-qty="{{ row.quantity }}" data-amount="&#8369;{{ row.amount|currency }}" data-payment="{{ row.payment_method|e }}" data-status="{{ row.status|e }}" data-date="{{ row.date|e }}" data-reason="{{ row.reason|e }}" aria-label="View sale" title="View sale"><span class="sales-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg></span></button>

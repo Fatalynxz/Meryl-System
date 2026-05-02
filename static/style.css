@@ -4497,6 +4497,24 @@ select:focus {
     line-height: 1.4;
 }
 
+.sales-page .inventory-table th,
+.sales-page .inventory-table td {
+    vertical-align: middle;
+}
+
+.sales-order-id {
+    display: inline-block;
+    min-width: 126px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.sales-date {
+    display: inline-block;
+    min-width: 110px;
+    white-space: nowrap;
+}
+
 .sales-deny-modal {
     position: fixed;
     inset: 0;
