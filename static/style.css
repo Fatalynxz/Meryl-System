@@ -3461,22 +3461,21 @@ select:focus {
 }
 
 .predictive-fast-card .mini-table-shell table th:nth-child(1),
-.predictive-fast-card .mini-table-shell table td:nth-child(1) { width: 30%; }
+.predictive-fast-card .mini-table-shell table td:nth-child(1) { width: 32%; }
 .predictive-fast-card .mini-table-shell table th:nth-child(2),
 .predictive-fast-card .mini-table-shell table td:nth-child(2) { width: 12%; }
 .predictive-fast-card .mini-table-shell table th:nth-child(3),
-.predictive-fast-card .mini-table-shell table td:nth-child(3) { width: 12%; }
+.predictive-fast-card .mini-table-shell table td:nth-child(3) { width: 10%; }
 .predictive-fast-card .mini-table-shell table th:nth-child(4),
-.predictive-fast-card .mini-table-shell table td:nth-child(4) { width: 16%; }
+.predictive-fast-card .mini-table-shell table td:nth-child(4) { width: 14%; }
 .predictive-fast-card .mini-table-shell table th:nth-child(5),
-.predictive-fast-card .mini-table-shell table td:nth-child(5) { width: 30%; }
+.predictive-fast-card .mini-table-shell table td:nth-child(5) { width: 32%; }
 
 .predictive-fast-card .mini-table-shell tbody td {
     padding-top: 8px;
     padding-bottom: 8px;
 }
 
-.predictive-fast-card .mini-table-shell td:nth-child(2),
 .predictive-fast-card .mini-table-shell td:nth-child(3),
 .predictive-fast-card .mini-table-shell td:nth-child(4) {
     text-align: center;
@@ -3487,24 +3486,26 @@ select:focus {
     font-weight: 700;
     color: #ffe9a8;
     white-space: nowrap;
+    text-align: left;
+    padding-left: 16px;
 }
 
 .predictive-slow-card .mini-table-shell table th:nth-child(1),
-.predictive-slow-card .mini-table-shell table td:nth-child(1) { width: 28%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(1) { width: 30%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(2),
-.predictive-slow-card .mini-table-shell table td:nth-child(2) { width: 10%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(2) { width: 12%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(3),
-.predictive-slow-card .mini-table-shell table td:nth-child(3) { width: 12%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(3) { width: 10%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(4),
-.predictive-slow-card .mini-table-shell table td:nth-child(4) { width: 18%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(4) { width: 15%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(5),
-.predictive-slow-card .mini-table-shell table td:nth-child(5) { width: 32%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(5) { width: 33%; }
 
 .predictive-slow-card .mini-table-shell th,
 .predictive-slow-card .mini-table-shell td {
     padding-top: 12px;
     padding-bottom: 12px;
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 .predictive-slow-card .mini-table-shell td:nth-child(2),
