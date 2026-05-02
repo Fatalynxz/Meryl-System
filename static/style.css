@@ -2742,13 +2742,29 @@ select:focus {
 
 .customer-contact-cell {
     display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.customer-contact-cell span {
+    display: inline-flex;
+    align-items: center;
     gap: 8px;
+    min-width: 0;
+    line-height: 1.25;
+    font-size: 0.96rem;
+}
+
+.customer-contact-cell span:last-child {
+    color: #ffe3a8;
+    font-weight: 700;
 }
 
 .customer-contact-cell span:first-child::before,
 .customer-contact-cell span:last-child::before {
     color: var(--dashboard-gold);
-    margin-right: 6px;
+    margin-right: 0;
+    flex: 0 0 auto;
 }
 
 .customer-contact-cell span:first-child::before {
