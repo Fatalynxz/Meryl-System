@@ -38,7 +38,15 @@
             <a href="/predictive"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"></path><path d="M14 7h7v7"></path></svg></span><span>Predictive</span></a>
             <a href="/promotions"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"></path><circle cx="7.5" cy="7.5" r="1.25"></circle></svg></span><span>Promotions</span></a>
             <a href="/staff"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19a4 4 0 0 0-8 0"></path><circle cx="12" cy="11" r="3"></circle><path d="M22 19a4 4 0 0 0-3-3.87"></path><path d="M18 8.13A3 3 0 0 1 18 14"></path></svg></span><span>Users</span></a>
-            <a href="/reports"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg></span><span>Reports</span></a>
+            <a href="/returns"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h18v2H3zm-1 9h20a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2z"></path><path d="M9 3a2 2 0 0 1 2 2v4h2V5a2 2 0 0 1 2-2v2a4 4 0 0 0-4 4v4h-2V9a4 4 0 0 0-4-4v2z"></path></svg></span><span>Returns</span></a>
+            ><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20V8"></path></svg></span><span>Reports</span></a>
+                    <div class="sidebar-footer">
+                <div class="sidebar-account">
+                    <strong>{{ current_user.name if current_user else 'Administrator' }}</strong>
+                    <span>{{ current_user.role_label if current_user else 'Administrator' }}</span>
+                </div>
+                <a class="sidebar-logout" href="/logout">Logout</a>
+            </div>
         </nav>
 
         <main class="page-content">
@@ -269,3 +277,5 @@
     </script>
 </body>
 </html>
+
+

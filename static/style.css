@@ -66,7 +66,7 @@ select {
 
 .app-shell {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     min-height: 100vh;
     padding: 0;
     margin: 0;
@@ -74,12 +74,16 @@ select {
 }
 
 .dashboard-shell {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+        "sidebar topbar"
+        "sidebar content";
     flex: 1;
-    width: calc(100% - 280px);
-    max-width: 1480px;
-    margin-left: 280px;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
 }
 
 .topbar,
@@ -92,6 +96,7 @@ select {
 }
 
 .topbar {
+    grid-area: topbar;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -497,19 +502,25 @@ select {
 }
 
 .navbar {
+    grid-area: sidebar;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    width: 280px;
-    min-height: 100vh;
-    padding: 16px 8px;
-    background: rgba(172, 0, 4, 0.9);
-    border-right: 1px solid var(--panel-border);
-    position: fixed;
+    gap: 6px;
+    width: 270px;
+    height: calc(100vh - 32px);
+    margin: 0 0 16px 16px;
+    padding: 14px 10px 12px;
+    background: #e40012;
+    border: 1px solid rgba(126, 0, 0, 0.6);
+    position: sticky;
     left: 0;
-    top: 0;
+    top: 16px;
+    overflow-x: hidden;
     overflow-y: auto;
-    z-index: 100;
+    z-index: 50;
+    align-items: stretch;
+    border-radius: 0;
+    box-shadow: none;
 }
 
 /* visually hide navbar scrollbar while keeping scrollability */
@@ -522,16 +533,17 @@ select {
     align-items: center;
     justify-content: flex-start;
     gap: 12px;
-    width: 100%;
-    min-height: 48px;
-    border-radius: 12px;
+    min-height: 42px;
+    border-radius: 10px;
     color: var(--text-strong);
     font-weight: 700;
-    text-align: left;
-    padding: 10px 14px;
+    text-align: center;
+    padding: 8px 12px;
     transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-    white-space: nowrap;
-    font-size: 0.95rem;
+    white-space: normal;
+    font-size: 0.9rem;
+    flex: 0 0 auto;
+    width: 100%;
 }
 
 .navbar a:hover {
@@ -565,9 +577,49 @@ select {
 }
 
 .page-content {
+    grid-area: content;
     flex: 1;
     padding: 16px;
     min-height: auto;
+    overflow-y: auto;
+}
+
+.sidebar-footer {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 197, 30, 0.25);
+    display: grid;
+    gap: 10px;
+}
+
+.sidebar-account {
+    border-radius: 12px;
+    padding: 12px;
+    background: rgba(137, 0, 0, 0.36);
+    border: 1px solid rgba(255, 197, 30, 0.2);
+    color: #ffe78b;
+    display: grid;
+    gap: 4px;
+}
+
+.sidebar-account strong {
+    color: #ffd225;
+}
+
+.sidebar-account span {
+    color: #ffeeb3;
+    font-size: 0.88rem;
+}
+
+.sidebar-logout {
+    min-height: 44px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(112, 10, 10, 0.58);
+    color: #ffd225;
+    font-weight: 800;
 }
 
 .hidden {
@@ -713,9 +765,9 @@ select {
 }
 
 .dashboard-page .dashboard-shell {
-    width: calc(100% - 280px);
-    max-width: 1480px;
-    margin-left: 280px;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
     padding-top: 10px;
 }
 
@@ -825,29 +877,33 @@ select {
 .dashboard-page .navbar {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     margin-top: 0;
-    padding: 20px 8px;
+    padding: 14px 10px 12px;
     border-radius: 0;
-    border: none;
-    background: rgba(172, 0, 4, 0.85);
+    border-bottom: 1px solid rgba(126, 0, 0, 0.6);
+    background: #e40012;
     box-shadow: none;
-    width: 280px;
-    min-height: 100vh;
-    position: fixed;
+    width: 270px;
+    min-height: 0;
+    position: sticky;
     left: 0;
-    top: 0;
+    top: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    align-items: stretch;
+    flex-wrap: nowrap;
 }
 
 .dashboard-page .navbar a {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     justify-content: flex-start;
     gap: 12px;
-    min-height: 48px;
-    padding: 10px 14px;
-    border-radius: 12px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border-radius: 10px;
     color: #ffe98e;
-    font-size: 0.93rem;
+    font-size: 0.9rem;
     width: 100%;
 }
 
@@ -867,7 +923,7 @@ select {
     padding: 16px;
     min-height: auto;
     overflow-y: auto;
-    height: calc(100vh - 190px);
+    height: auto;
 }
 
 .dashboard-page .stats-grid,
@@ -5320,7 +5376,10 @@ select:-internal-autofill-selected {
 .predictive-page,
 .promotions-page,
 .reports-page,
-.inventory-page {
+.inventory-page,
+.staff-page,
+.settings-page,
+.receipt-page {
     background:
         radial-gradient(circle at top center, rgba(255, 214, 84, 0.08), transparent 24%),
         linear-gradient(180deg, #bf2626 0%, #de3d3d 100%);
@@ -5333,13 +5392,19 @@ select:-internal-autofill-selected {
 .promotions-page .topbar,
 .reports-page .topbar,
 .inventory-page .topbar,
+.staff-page .topbar,
+.settings-page .topbar,
+.receipt-page .topbar,
 .pos-page .page-header,
 .sales-page .page-header,
 .customers-page .page-header,
 .predictive-page .page-header,
 .promotions-page .page-header,
 .reports-page .page-header,
-.inventory-page .page-header {
+.inventory-page .page-header,
+.staff-page .page-header,
+.settings-page .page-header,
+.receipt-page .page-header {
     background: linear-gradient(180deg, #bf2626 0%, #b32424 100%);
     border-color: rgba(122, 24, 24, 0.54);
 }
@@ -5351,13 +5416,19 @@ select:-internal-autofill-selected {
 .promotions-page .panel-card,
 .reports-page .panel-card,
 .inventory-page .panel-card,
+.staff-page .panel-card,
+.settings-page .panel-card,
+.receipt-page .panel-card,
 .pos-page .stat-card,
 .sales-page .stat-card,
 .customers-page .stat-card,
 .predictive-page .stat-card,
 .promotions-page .stat-card,
 .reports-page .stat-card,
-.inventory-page .stat-card {
+.inventory-page .stat-card,
+.staff-page .stat-card,
+.settings-page .stat-card,
+.receipt-page .stat-card {
     background: linear-gradient(180deg, #ca2c2c 0%, #ba2525 100%);
     border-color: rgba(122, 24, 24, 0.5);
 }
@@ -5369,6 +5440,9 @@ select:-internal-autofill-selected {
 .promotions-page .navbar,
 .reports-page .navbar,
 .inventory-page .navbar,
+.staff-page .navbar,
+.settings-page .navbar,
+.receipt-page .navbar,
 .tab-strip {
     background: rgba(126, 22, 22, 0.28);
     border-color: rgba(122, 24, 24, 0.48);
@@ -5456,4 +5530,43 @@ select:-internal-autofill-selected {
 .inventory-page .inventory-filter-panel select:focus {
     border-color: rgba(255, 219, 110, 0.28);
     box-shadow: 0 0 0 3px rgba(255, 219, 110, 0.08);
+}
+
+@media (max-width: 1100px) {
+    .dashboard-shell {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .topbar {
+        grid-area: auto;
+    }
+
+    .navbar,
+    .dashboard-page .navbar {
+        grid-area: auto;
+        position: relative;
+        top: auto;
+        width: calc(100% - 32px);
+        height: auto;
+        min-height: 60px;
+        margin: 0 16px;
+        padding: 8px 12px;
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        align-items: center;
+        flex-wrap: nowrap;
+    }
+
+    .navbar a,
+    .dashboard-page .navbar a {
+        width: auto;
+        white-space: nowrap;
+        justify-content: center;
+    }
+
+    .sidebar-footer {
+        display: none;
+    }
 }
