@@ -766,6 +766,8 @@ select {
 
 .dashboard-page .topbar-actions {
     gap: 18px;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
 }
 
 .dashboard-page .notification-button {
@@ -864,6 +866,8 @@ select {
     flex: 1;
     padding: 16px;
     min-height: auto;
+    overflow-y: auto;
+    height: calc(100vh - 190px);
 }
 
 .dashboard-page .stats-grid,
@@ -955,17 +959,47 @@ select {
 }
 
 .pos-page .navbar {
-    margin-top: 18px;
-    gap: 10px;
+    gap: 8px;
 }
 
 .pos-page .page-content {
-    padding-top: 16px;
+    padding: 16px;
+    overflow-y: auto;
+    height: calc(100vh - 190px);
 }
 
 .pos-page .pos-layout {
+    display: grid;
     grid-template-columns: minmax(0, 1.9fr) minmax(340px, 0.92fr);
-    gap: 22px;
+    gap: 20px;
+    align-items: start;
+}
+
+.pos-page .topbar-actions {
+    gap: 12px;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
+.pos-page .user-chip,
+.pos-page .action-button {
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 12px;
+}
+
+.pos-page .user-chip {
+    min-width: auto;
+    flex-basis: auto;
+    font-size: 0.85rem;
+}
+
+.pos-page .user-chip strong {
+    font-size: 0.9rem;
+}
+
+.pos-page .user-chip span {
+    font-size: 0.75rem;
 }
 
 .pos-page .pos-main,
@@ -974,11 +1008,11 @@ select {
 }
 
 .pos-page .pos-section {
-    border-radius: 24px;
+    border-radius: 20px;
     border: 1px solid rgba(124, 0, 0, 0.72);
     background: linear-gradient(180deg, #d10008 0%, #cb0006 100%);
     box-shadow: none;
-    padding: 22px 24px;
+    padding: 18px 20px;
 }
 
 .pos-page .pos-section .panel-header h2 {
@@ -986,14 +1020,14 @@ select {
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    font-size: 1.15rem;
+    font-size: 1rem;
     font-weight: 700;
 }
 
 .pos-page .section-label {
-    margin: 34px 0 18px;
+    margin: 18px 0 12px;
     color: #ffe9a0;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 700;
     text-transform: none;
     letter-spacing: 0;
@@ -1007,16 +1041,16 @@ select {
 
 .pos-page .field span {
     color: var(--dashboard-gold);
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     font-weight: 700;
 }
 
 .pos-page input,
 .pos-page select,
 .pos-page .static-field {
-    min-height: 42px;
+    min-height: 38px;
     border: 1px solid rgba(255, 186, 0, 0.08);
-    border-radius: 12px;
+    border-radius: 10px;
     background: rgba(255, 0, 0, 0.18);
     color: #fff5c8;
     box-shadow: none;
@@ -1232,12 +1266,12 @@ select {
 
 .pos-page .primary-button,
 .pos-page .checkout-button {
-    min-height: 46px;
-    border-radius: 12px;
+    min-height: 42px;
+    border-radius: 10px;
     background: linear-gradient(180deg, #ffcf17 0%, #efb300 100%);
     color: #7a2100;
     box-shadow: none;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 .pos-page .primary-button:hover,
@@ -1246,8 +1280,8 @@ select {
 }
 
 .pos-page .summary-lines {
-    margin: 30px 0 30px;
-    gap: 24px;
+    margin: 20px 0 20px;
+    gap: 16px;
 }
 
 .pos-page .summary-lines span {
