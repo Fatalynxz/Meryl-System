@@ -368,16 +368,17 @@ def normalize_customer_rows(rows):
 def normalize_product_rows(rows):
     inventory_lookup = {}
     if table_exists("inventory"):
-        inventory_lookup = {
-            safe_int(row.get("product_id"), 0): row
-            for row in fetch_raw_rows("inventory")
-            if safe_int(row.get("product_id"), 0) > 0
-        }
+        inventory_lookup = {}
+        for row in fetch_raw_rows("inventory"):
+            row_product_id = str(row.get("product_id") or "").strip()
+            if not row_product_id:
+                continue
+            inventory_lookup[row_product_id] = row
 
     normalized = []
     for index, row in enumerate(rows, start=1):
         normalized_row = dict(row)
-        product_id = safe_int(normalized_row.get("product_id"), 0)
+        product_id = str(normalized_row.get("product_id") or "").strip()
         inventory_row = inventory_lookup.get(product_id, {})
         normalized_row["stock_quantity"] = safe_int(
             normalized_row.get("stock_quantity", inventory_row.get("stock_quantity")),
