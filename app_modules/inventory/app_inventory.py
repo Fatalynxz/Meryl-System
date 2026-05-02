@@ -278,15 +278,8 @@ def get_reorder_level(product, *, safe_int):
 
 
 def build_inventory_form_data(form, *, safe_int, safe_float, db_product_status):
-    availability_status = (form.get("availability_status") or "Available").strip()
     stock_quantity = max(0, safe_int(form.get("stock_quantity"), 0))
-    if availability_status == "Not Available":
-        stock_quantity = 0
-    elif stock_quantity <= 0:
-        return {
-            "error": "Available products must have stock greater than 0.",
-            "error_tone": "warning",
-        }
+    availability_status = "Available" if stock_quantity > 0 else "Not Available"
 
     category_id = str(form.get("category_id") or "").strip()
     if not category_id:
