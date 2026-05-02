@@ -85,9 +85,9 @@ select {
 .page-header {
     background: linear-gradient(180deg, var(--dashboard-red) 0%, var(--dashboard-red-deep) 100%);
     border: 1px solid var(--panel-border);
-    border-radius: 12px;
+    border-radius: 0;
     box-shadow: var(--shadow);
-    margin: 16px;
+    margin: 0;
 }
 
 .topbar {
@@ -102,7 +102,7 @@ select {
 .brand-block {
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 0;
 }
 
 .brand-logo {
@@ -116,6 +116,7 @@ select {
     font-family: "Brush Script MT", cursive;
     font-size: 1.7rem;
     font-weight: 700;
+    display: none;
 }
 
 .brand-block h1,
@@ -131,6 +132,7 @@ select {
 .page-kicker {
     margin: 4px 0 0;
     color: var(--text-muted);
+    display: none;
 }
 
 .page-header {
@@ -502,14 +504,14 @@ select {
     flex-direction: column;
     gap: 6px;
     width: 270px;
-    height: calc(100vh - 32px);
-    margin: 0 0 16px 16px;
+    height: 100vh;
+    margin: 0;
     padding: 14px 10px 12px;
-    background: #e40012;
+    background: #d10010;
     border: 1px solid rgba(126, 0, 0, 0.6);
     position: sticky;
     left: 0;
-    top: 16px;
+    top: 0;
     overflow-x: hidden;
     overflow-y: auto;
     z-index: 50;
@@ -768,7 +770,7 @@ select {
 
 .dashboard-page .topbar {
     padding: 10px 22px;
-    border-radius: 12px;
+    border-radius: 0;
     border: 1px solid rgba(126, 0, 0, 0.45);
     background: linear-gradient(180deg, var(--dashboard-red) 0%, var(--dashboard-red-dark) 100%);
     box-shadow: none;
@@ -786,6 +788,7 @@ select {
     line-height: 0.8;
     transform: skew(-10deg);
     box-shadow: none;
+    display: none;
 }
 
 .dashboard-page .brand-logo-dashboard span {
@@ -809,6 +812,7 @@ select {
 .dashboard-page .brand-block p {
     color: #fff0b1;
     font-size: 0.98rem;
+    display: none;
 }
 
 .dashboard-page .topbar-actions {
@@ -877,13 +881,13 @@ select {
     padding: 14px 10px 12px;
     border-radius: 0;
     border-bottom: 1px solid rgba(126, 0, 0, 0.6);
-    background: #e40012;
+    background: #d10010;
     box-shadow: none;
     width: 270px;
     min-height: 0;
     position: sticky;
     left: 0;
-    top: 16px;
+    top: 0;
     overflow-x: hidden;
     overflow-y: auto;
     align-items: stretch;
@@ -5567,10 +5571,10 @@ select:-internal-autofill-selected {
         grid-area: auto;
         position: relative;
         top: auto;
-        width: calc(100% - 32px);
+        width: 100%;
         height: auto;
         min-height: 60px;
-        margin: 0 16px;
+        margin: 0;
         padding: 8px 12px;
         flex-direction: row;
         overflow-x: auto;
