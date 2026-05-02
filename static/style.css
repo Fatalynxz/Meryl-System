@@ -3460,13 +3460,15 @@ select:focus {
 }
 
 .predictive-fast-card .mini-table-shell table th:nth-child(1),
-.predictive-fast-card .mini-table-shell table td:nth-child(1) { width: 40%; }
+.predictive-fast-card .mini-table-shell table td:nth-child(1) { width: 30%; }
 .predictive-fast-card .mini-table-shell table th:nth-child(2),
-.predictive-fast-card .mini-table-shell table td:nth-child(2) { width: 14%; }
+.predictive-fast-card .mini-table-shell table td:nth-child(2) { width: 12%; }
 .predictive-fast-card .mini-table-shell table th:nth-child(3),
-.predictive-fast-card .mini-table-shell table td:nth-child(3) { width: 18%; }
+.predictive-fast-card .mini-table-shell table td:nth-child(3) { width: 12%; }
 .predictive-fast-card .mini-table-shell table th:nth-child(4),
-.predictive-fast-card .mini-table-shell table td:nth-child(4) { width: 28%; }
+.predictive-fast-card .mini-table-shell table td:nth-child(4) { width: 16%; }
+.predictive-fast-card .mini-table-shell table th:nth-child(5),
+.predictive-fast-card .mini-table-shell table td:nth-child(5) { width: 30%; }
 
 .predictive-fast-card .mini-table-shell tbody td {
     padding-top: 10px;
@@ -3474,18 +3476,21 @@ select:focus {
 }
 
 .predictive-fast-card .mini-table-shell td:nth-child(2),
-.predictive-fast-card .mini-table-shell td:nth-child(3) {
+.predictive-fast-card .mini-table-shell td:nth-child(3),
+.predictive-fast-card .mini-table-shell td:nth-child(4) {
     text-align: center;
 }
 
 .predictive-slow-card .mini-table-shell table th:nth-child(1),
-.predictive-slow-card .mini-table-shell table td:nth-child(1) { width: 32%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(1) { width: 28%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(2),
-.predictive-slow-card .mini-table-shell table td:nth-child(2) { width: 12%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(2) { width: 10%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(3),
-.predictive-slow-card .mini-table-shell table td:nth-child(3) { width: 16%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(3) { width: 12%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(4),
-.predictive-slow-card .mini-table-shell table td:nth-child(4) { width: 40%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(4) { width: 18%; }
+.predictive-slow-card .mini-table-shell table th:nth-child(5),
+.predictive-slow-card .mini-table-shell table td:nth-child(5) { width: 32%; }
 
 .predictive-slow-card .mini-table-shell th,
 .predictive-slow-card .mini-table-shell td {
@@ -3495,7 +3500,8 @@ select:focus {
 }
 
 .predictive-slow-card .mini-table-shell td:nth-child(2),
-.predictive-slow-card .mini-table-shell td:nth-child(3) {
+.predictive-slow-card .mini-table-shell td:nth-child(3),
+.predictive-slow-card .mini-table-shell td:nth-child(4) {
     text-align: center;
 }
 

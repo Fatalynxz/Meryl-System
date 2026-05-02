@@ -261,11 +261,12 @@
                     </div>
                     <div class="table-shell mini-table-shell">
                         <table>
-                            <thead><tr><th>Product</th><th>Sold (30d)</th><th>Velocity</th><th>Predicted Demand</th></tr></thead>
+                            <thead><tr><th>Product</th><th>Size</th><th>Sold (30d)</th><th>Velocity</th><th>Predicted Demand</th></tr></thead>
                             <tbody>
                                 {% for row in fast_moving %}
                                 <tr>
-                                    <td>{{ row.display_name }}<br><small>{{ row.category }}</small></td>
+                                    <td>{{ row.product_name }}<br><small>{{ row.category }}</small></td>
+                                    <td>Size {{ row.size }}</td>
                                     <td>{{ row.sold }}</td>
                                     <td><span class="status-pill success">{{ row.velocity }}/day</span></td>
                                     <td>{{ row.forecast }} units<br><small>{{ row.method }}</small></td>
@@ -287,11 +288,12 @@
                     </div>
                     <div class="table-shell mini-table-shell">
                         <table>
-                            <thead><tr><th>Product</th><th>Sold (30d)</th><th>Estimated Days</th><th>Promotion Action</th></tr></thead>
+                            <thead><tr><th>Product</th><th>Size</th><th>Sold (30d)</th><th>Estimated Days</th><th>Promotion Action</th></tr></thead>
                             <tbody>
                                 {% for row in slow_moving %}
                                 <tr>
-                                    <td>{{ row.display_name }}<br><small>{{ row.category }}</small></td>
+                                    <td>{{ row.product_name }}<br><small>{{ row.category }}</small></td>
+                                    <td>Size {{ row.size }}</td>
                                     <td>{{ row.sold }}</td>
                                     <td><span class="status-pill warning">{{ row.days }}d</span></td>
                                     <td class="predictive-promo-cell">
