@@ -1595,6 +1595,7 @@ def pos_checkout():
     )
     customer_name = (selected_customer.get("customer_name") if selected_customer else manual_customer_name) or "Walk-in Customer"
     payment_method = request.form.get("payment_method") or "cash"
+    cash_received_input = safe_float(request.form.get("cash_received"), 0)
     current_user = get_current_user() or {}
     db_user = resolve_db_user_row(current_user)
     user_id = str((db_user or {}).get("user_id") or "").strip()
@@ -1604,6 +1605,16 @@ def pos_checkout():
     if not user_id:
         set_notice("Unable to resolve the logged-in staff account in the database.", "danger")
         return redirect("/pos")
+
+    if str(payment_method).strip().lower() == "cash":
+        if cash_received_input < total:
+            set_notice("Cash received is less than total amount due.", "warning")
+            return redirect("/pos")
+        amount_paid = cash_received_input
+        change_amount = max(cash_received_input - total, 0)
+    else:
+        amount_paid = total
+        change_amount = 0
 
     try:
         sale = (
@@ -1627,8 +1638,8 @@ def pos_checkout():
             {
                 "sales_id": sales_id,
                 "payment_method": db_payment_method(payment_method),
-                "amount_paid": total,
-                "change_amount": 0,
+                "amount_paid": amount_paid,
+                "change_amount": change_amount,
                 "payment_status": db_payment_status("pending"),
             }
         ).execute()
@@ -1641,6 +1652,8 @@ def pos_checkout():
             subtotal=subtotal,
             discount_total=discount_total,
             total=total,
+            cash_received=amount_paid,
+            change_amount=change_amount,
             cart=cart,
             receipt_timestamp=receipt_timestamp,
         )

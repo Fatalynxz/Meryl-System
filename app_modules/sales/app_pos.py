@@ -200,6 +200,8 @@ def build_receipt_payload(
     subtotal,
     discount_total,
     total,
+    cash_received,
+    change_amount,
     cart,
     receipt_timestamp,
 ):
@@ -211,6 +213,8 @@ def build_receipt_payload(
         "subtotal": subtotal,
         "discount_total": discount_total,
         "total": total,
+        "cash_received": cash_received,
+        "change_amount": change_amount,
         "status": "Pending",
         "items": cart,
         "date": receipt_timestamp.strftime("%m/%d/%Y, %I:%M:%S %p"),
