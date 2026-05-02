@@ -1739,8 +1739,8 @@ def inventory_add():
             return redirect("/inventory")
 
     try:
-        product_id = safe_int((created[0] if created else {}).get("product_id"), 0)
-        if product_id > 0:
+        product_id = str((created[0] if created else {}).get("product_id") or "").strip()
+        if product_id:
             upsert_inventory_record(product_id, stock_quantity, payload["reorder_level"])
             if stock_quantity > 0:
                 supabase().table("inventory_log").insert(
@@ -1757,7 +1757,7 @@ def inventory_add():
     return redirect("/inventory")
 
 
-@app.route("/inventory/update/<int:product_id>", methods=["POST"])
+@app.route("/inventory/update/<product_id>", methods=["POST"])
 @login_required
 @roles_required("admin", "inventory_staff")
 def inventory_update(product_id):
@@ -1800,7 +1800,7 @@ def inventory_update(product_id):
     return redirect("/inventory")
 
 
-@app.route("/inventory/delete/<int:product_id>", methods=["POST"])
+@app.route("/inventory/delete/<product_id>", methods=["POST"])
 @login_required
 @roles_required("admin", "inventory_staff")
 def inventory_delete(product_id):

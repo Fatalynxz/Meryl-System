@@ -1,9 +1,16 @@
 from datetime import datetime
 
 
+def normalize_product_id(product_id):
+    if product_id is None:
+        return ""
+    normalized = str(product_id).strip()
+    return normalized
+
+
 def get_inventory_row(product_id, *, safe_int, table_exists, supabase):
-    product_id = safe_int(product_id, 0)
-    if product_id <= 0 or not table_exists("inventory"):
+    product_id = normalize_product_id(product_id)
+    if not product_id or not table_exists("inventory"):
         return None
     rows = (
         supabase.table("inventory")
@@ -28,8 +35,8 @@ def upsert_inventory_record(
     get_inventory_row,
     supabase,
 ):
-    product_id = safe_int(product_id, 0)
-    if product_id <= 0 or not table_exists("inventory"):
+    product_id = normalize_product_id(product_id)
+    if not product_id or not table_exists("inventory"):
         return None
 
     payload = {

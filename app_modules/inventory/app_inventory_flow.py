@@ -27,9 +27,9 @@ def complete_sale_inventory(
 
     timestamp = datetime.now().isoformat()
     for detail in sale_details:
-        product_id = safe_int(detail.get("product_id"), 0)
+        product_id = str(detail.get("product_id") or "").strip()
         quantity = max(0, safe_int(detail.get("quantity"), 0))
-        if product_id <= 0 or quantity <= 0:
+        if not product_id or quantity <= 0:
             continue
 
         inventory_row = get_inventory_row(product_id) or {}
