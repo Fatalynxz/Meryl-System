@@ -266,6 +266,13 @@
                     </div>
                     <div class="table-shell mini-table-shell">
                         <table>
+                            <colgroup>
+                                <col style="width:32%">
+                                <col style="width:12%">
+                                <col style="width:10%">
+                                <col style="width:14%">
+                                <col style="width:32%">
+                            </colgroup>
                             <thead><tr><th>Product</th><th>Size</th><th>Sold (30d)</th><th>Velocity</th><th>Predicted Demand</th></tr></thead>
                             <tbody>
                                 {% for row in fast_moving %}
@@ -293,6 +300,13 @@
                     </div>
                     <div class="table-shell mini-table-shell">
                         <table>
+                            <colgroup>
+                                <col style="width:30%">
+                                <col style="width:11%">
+                                <col style="width:10%">
+                                <col style="width:14%">
+                                <col style="width:35%">
+                            </colgroup>
                             <thead><tr><th>Product</th><th>Size</th><th>Sold (30d)</th><th>Estimated Days</th><th>Promotion Action</th></tr></thead>
                             <tbody>
                                 {% for row in slow_moving %}
