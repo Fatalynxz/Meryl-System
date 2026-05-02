@@ -297,6 +297,25 @@ def fetch_raw_rows(table_name, query="*"):
     return supabase().table(table_name).select(query).execute().data or []
 
 
+def adapt_product_payload_for_schema(payload, error):
+    """
+    Gracefully handle legacy product schemas that do not yet include
+    newer columns like `brand`.
+    """
+    error_text = str(error)
+    updated_payload = dict(payload)
+    adapted = False
+
+    if (
+        "Could not find the 'brand' column of 'product'" in error_text
+        and "brand" in updated_payload
+    ):
+        updated_payload.pop("brand", None)
+        adapted = True
+
+    return updated_payload, adapted
+
+
 def normalize_user_rows(rows):
     role_lookup = {}
     if table_exists("role"):
@@ -1708,6 +1727,18 @@ def inventory_add():
 
     try:
         created = supabase().table("product").insert(payload).execute().data or []
+    except Exception as exc:
+        compatible_payload, was_adapted = adapt_product_payload_for_schema(payload, exc)
+        if not was_adapted:
+            set_notice(f"Unable to add product: {exc}", "danger")
+            return redirect("/inventory")
+        try:
+            created = supabase().table("product").insert(compatible_payload).execute().data or []
+        except Exception as retry_exc:
+            set_notice(f"Unable to add product: {retry_exc}", "danger")
+            return redirect("/inventory")
+
+    try:
         product_id = safe_int((created[0] if created else {}).get("product_id"), 0)
         if product_id > 0:
             upsert_inventory_record(product_id, stock_quantity, payload["reorder_level"])
@@ -1745,7 +1776,13 @@ def inventory_update(product_id):
     try:
         previous_inventory = get_inventory_row(product_id) or {}
         previous_stock = safe_int(previous_inventory.get("stock_quantity"), 0)
-        supabase().table("product").update(payload).eq("product_id", product_id).execute()
+        try:
+            supabase().table("product").update(payload).eq("product_id", product_id).execute()
+        except Exception as exc:
+            compatible_payload, was_adapted = adapt_product_payload_for_schema(payload, exc)
+            if not was_adapted:
+                raise
+            supabase().table("product").update(compatible_payload).eq("product_id", product_id).execute()
         upsert_inventory_record(product_id, stock_quantity, payload["reorder_level"])
         stock_delta = stock_quantity - previous_stock
         if stock_delta != 0:
