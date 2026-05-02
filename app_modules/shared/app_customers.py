@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 
 
 def get_or_create_customer(
@@ -132,6 +133,8 @@ def build_customer_form_data(form):
     name = (form.get("name") or "").strip()
     email = (form.get("username") or "").strip().lower()
     phone = (form.get("phone") or "").strip()
+    address = (form.get("address") or "").strip()
+    status = (form.get("status") or "active").strip().lower()
 
     if not name:
         return {
@@ -139,13 +142,36 @@ def build_customer_form_data(form):
             "error_tone": "danger",
         }
 
+    if not email:
+        return {
+            "error": "Email address is required.",
+            "error_tone": "danger",
+        }
+
+    if not re.fullmatch(r"[A-Za-z0-9._%+-]+@gmail\.com", email):
+        return {
+            "error": "Email must be a valid Gmail address (example@gmail.com).",
+            "error_tone": "danger",
+        }
+
+    if not re.fullmatch(r"\d{11}", phone):
+        return {
+            "error": "Phone number must contain exactly 11 digits.",
+            "error_tone": "danger",
+        }
+
+    if status not in {"active", "inactive"}:
+        status = "active"
+
     return {
         "error": None,
         "error_tone": None,
         "payload": {
             "name": name,
-            "email": email or None,
-            "contact_number": phone or None,
+            "email": email,
+            "contact_number": phone,
+            "address": address or None,
+            "status": status,
         },
     }
 

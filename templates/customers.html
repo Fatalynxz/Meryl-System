@@ -157,11 +157,11 @@
                             </label>
                             <label class="field">
                                 <span>Email Address *</span>
-                                <input type="text" name="username" id="customerEmail" placeholder="Enter email address" required>
+                                <input type="email" name="username" id="customerEmail" placeholder="example@gmail.com" pattern="[A-Za-z0-9._%+-]+@gmail\.com" title="Use a valid Gmail address (example@gmail.com)" required>
                             </label>
                             <label class="field">
                                 <span>Phone Number *</span>
-                                <input type="text" name="phone" id="customerPhone" placeholder="Enter phone number" required>
+                                <input type="text" name="phone" id="customerPhone" placeholder="11-digit phone number" inputmode="numeric" pattern="\d{11}" minlength="11" maxlength="11" title="Phone number must be exactly 11 digits" required>
                             </label>
                             <label class="field">
                                 <span>Address</span>

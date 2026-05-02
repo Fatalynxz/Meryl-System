@@ -1896,7 +1896,7 @@ def customers_add():
     return redirect("/customers")
 
 
-@app.route("/customers/update/<int:customer_id>", methods=["POST"])
+@app.route("/customers/update/<customer_id>", methods=["POST"])
 @login_required
 @roles_required("admin")
 def customers_update(customer_id):
@@ -1925,7 +1925,7 @@ def customers_update(customer_id):
     return redirect("/customers")
 
 
-@app.route("/customers/delete/<int:customer_id>", methods=["POST"])
+@app.route("/customers/delete/<customer_id>", methods=["POST"])
 @login_required
 @roles_required("admin")
 def customers_delete(customer_id):
