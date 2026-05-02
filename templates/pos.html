@@ -152,12 +152,20 @@
                             <div class="form-grid pos-form-grid-actions align-end">
                                 <label class="field">
                                     <span>Quantity</span>
-                                    <input type="text" id="quantity" name="quantity" value="1" inputmode="numeric" pattern="[0-9]*" required>
+                                    <div class="number-input">
+                                        <button type="button" class="number-step" onclick="adjustNumber('quantity', -1, 1)" aria-label="Decrease quantity">&#9660;</button>
+                                        <input type="text" id="quantity" name="quantity" value="1" inputmode="numeric" pattern="[0-9]*" required>
+                                        <button type="button" class="number-step" onclick="adjustNumber('quantity', 1, 1)" aria-label="Increase quantity">&#9650;</button>
+                                    </div>
                                 </label>
 
                                 <label class="field">
                                     <span>Discount (%)</span>
-                                    <input type="text" id="discount" name="discount" value="0" inputmode="numeric" pattern="[0-9]*">
+                                    <div class="number-input">
+                                        <button type="button" class="number-step" onclick="adjustNumber('discount', -1, 0)" aria-label="Decrease discount">&#9660;</button>
+                                        <input type="text" id="discount" name="discount" value="0" inputmode="numeric" pattern="[0-9]*">
+                                        <button type="button" class="number-step" onclick="adjustNumber('discount', 1, 0)" aria-label="Increase discount">&#9650;</button>
+                                    </div>
                                 </label>
 
                                 <button type="submit" class="primary-button">&#65291; Add to Cart</button>
