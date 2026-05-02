@@ -1627,6 +1627,9 @@ def pos_checkout():
 
     selected_customer_id = str(request.form.get("customer_id") or "").strip()
     manual_customer_name = (request.form.get("customer_name") or "").strip()
+    manual_customer_email = (request.form.get("new_customer_email") or "").strip().lower()
+    manual_customer_phone = (request.form.get("new_customer_phone") or "").strip()
+    manual_customer_address = (request.form.get("new_customer_address") or "").strip()
     customer_rows = fetch_rows("customer")
     selected_customer = next(
         (
@@ -1636,13 +1639,26 @@ def pos_checkout():
         ),
         None,
     )
+    is_add_new_customer = selected_customer_id == "__new__"
+    if is_add_new_customer and not manual_customer_name:
+        set_notice("Enter customer name for new customer.", "warning")
+        return redirect("/pos")
+
     customer_name = (selected_customer.get("customer_name") if selected_customer else manual_customer_name) or "Walk-in Customer"
     payment_method = request.form.get("payment_method") or "cash"
     cash_received_input = safe_float(request.form.get("cash_received"), 0)
     current_user = get_current_user() or {}
     db_user = resolve_db_user_row(current_user)
     user_id = str((db_user or {}).get("user_id") or "").strip()
-    customer = selected_customer or get_or_create_customer(customer_name)
+    if is_add_new_customer:
+        customer = get_or_create_customer(
+            customer_name,
+            email=manual_customer_email,
+            phone=manual_customer_phone,
+            address=manual_customer_address,
+        )
+    else:
+        customer = selected_customer or get_or_create_customer(customer_name)
     customer_id = str(customer.get("customer_id") or "").strip()
 
     if not user_id:

@@ -225,17 +225,32 @@
                             <label class="field">
                                 <span>Select Existing Customer</span>
                                 <select id="customer_id" name="customer_id">
-                                    <option value="">Walk-in / New Customer</option>
+                                    <option value="">Walk-in Customer</option>
+                                    <option value="__new__">+ Add New Customer</option>
                                     {% for customer in customer_options %}
                                     <option value="{{ customer.customer_id }}">{{ customer.customer_name }}{% if customer.email %} - {{ customer.email }}{% endif %}</option>
                                     {% endfor %}
                                 </select>
                             </label>
 
-                            <label class="field">
-                                <span>Customer Name</span>
-                                <input type="text" id="customer_name" name="customer_name" placeholder="Enter customer name if not in the list">
-                            </label>
+                            <div id="newCustomerFields" class="hidden">
+                                <label class="field">
+                                    <span>Customer Name</span>
+                                    <input type="text" id="customer_name" name="customer_name" placeholder="Enter customer full name">
+                                </label>
+                                <label class="field">
+                                    <span>Email (optional)</span>
+                                    <input type="email" id="new_customer_email" name="new_customer_email" placeholder="example@gmail.com">
+                                </label>
+                                <label class="field">
+                                    <span>Phone (optional)</span>
+                                    <input type="text" id="new_customer_phone" name="new_customer_phone" inputmode="numeric" maxlength="11" placeholder="11-digit number">
+                                </label>
+                                <label class="field">
+                                    <span>Address (optional)</span>
+                                    <input type="text" id="new_customer_address" name="new_customer_address" placeholder="Enter customer address">
+                                </label>
+                            </div>
 
                             <label class="field">
                                 <span>Payment Method</span>
@@ -340,6 +355,10 @@
             const selectedPriceInput = document.getElementById('selected_price');
             const customerIdSelect = document.getElementById('customer_id');
             const customerNameInput = document.getElementById('customer_name');
+            const newCustomerFields = document.getElementById('newCustomerFields');
+            const newCustomerEmailInput = document.getElementById('new_customer_email');
+            const newCustomerPhoneInput = document.getElementById('new_customer_phone');
+            const newCustomerAddressInput = document.getElementById('new_customer_address');
             const paymentMethodSelect = document.getElementById('payment_method');
             const cashReceivedInput = document.getElementById('cash_received');
             const cashReceivedField = document.getElementById('cashReceivedField');
@@ -568,6 +587,15 @@
                 if (customerNameInput) {
                     customerNameInput.value = localStorage.getItem(posStorageKeys.customerName) || '';
                 }
+                if (newCustomerEmailInput) {
+                    newCustomerEmailInput.value = localStorage.getItem('meryl_pos_customer_email') || '';
+                }
+                if (newCustomerPhoneInput) {
+                    newCustomerPhoneInput.value = localStorage.getItem('meryl_pos_customer_phone') || '';
+                }
+                if (newCustomerAddressInput) {
+                    newCustomerAddressInput.value = localStorage.getItem('meryl_pos_customer_address') || '';
+                }
                 if (paymentMethodSelect) {
                     const savedPaymentMethod = localStorage.getItem(posStorageKeys.paymentMethod) || '';
                     if (savedPaymentMethod) {
@@ -588,6 +616,15 @@
                 }
                 if (customerNameInput) {
                     localStorage.setItem(posStorageKeys.customerName, customerNameInput.value || '');
+                }
+                if (newCustomerEmailInput) {
+                    localStorage.setItem('meryl_pos_customer_email', newCustomerEmailInput.value || '');
+                }
+                if (newCustomerPhoneInput) {
+                    localStorage.setItem('meryl_pos_customer_phone', newCustomerPhoneInput.value || '');
+                }
+                if (newCustomerAddressInput) {
+                    localStorage.setItem('meryl_pos_customer_address', newCustomerAddressInput.value || '');
                 }
                 if (paymentMethodSelect) {
                     localStorage.setItem(posStorageKeys.paymentMethod, paymentMethodSelect.value || '');
@@ -631,11 +668,28 @@
                 persistCustomerFields();
             };
 
+            const syncCustomerMode = () => {
+                const isAddNew = (customerIdSelect?.value || '') === '__new__';
+                if (newCustomerFields) {
+                    newCustomerFields.classList.toggle('hidden', !isAddNew);
+                }
+                if (customerNameInput) {
+                    customerNameInput.required = isAddNew;
+                }
+            };
+
             restorePersistedCustomerFields();
-            customerIdSelect?.addEventListener('change', persistCustomerFields);
+            customerIdSelect?.addEventListener('change', () => {
+                syncCustomerMode();
+                persistCustomerFields();
+            });
             customerNameInput?.addEventListener('input', persistCustomerFields);
+            newCustomerEmailInput?.addEventListener('input', persistCustomerFields);
+            newCustomerPhoneInput?.addEventListener('input', persistCustomerFields);
+            newCustomerAddressInput?.addEventListener('input', persistCustomerFields);
             paymentMethodSelect?.addEventListener('change', updateCashUi);
             cashReceivedInput?.addEventListener('input', updateCashUi);
+            syncCustomerMode();
             updateCashUi();
 
             if (receiptModal) {
