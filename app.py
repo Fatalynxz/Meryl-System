@@ -1582,19 +1582,26 @@ def pos_checkout():
     discount_total = sum(float(item["discount_amount"]) for item in cart)
     total = subtotal - discount_total
 
-    selected_customer_id = safe_int(request.form.get("customer_id"), 0)
+    selected_customer_id = str(request.form.get("customer_id") or "").strip()
     manual_customer_name = (request.form.get("customer_name") or "").strip()
     customer_rows = fetch_rows("customer")
-    selected_customer = next((row for row in customer_rows if safe_int(row.get("customer_id"), 0) == selected_customer_id), None)
+    selected_customer = next(
+        (
+            row
+            for row in customer_rows
+            if str(row.get("customer_id") or "").strip() == selected_customer_id
+        ),
+        None,
+    )
     customer_name = (selected_customer.get("customer_name") if selected_customer else manual_customer_name) or "Walk-in Customer"
     payment_method = request.form.get("payment_method") or "cash"
     current_user = get_current_user() or {}
     db_user = resolve_db_user_row(current_user)
-    user_id = safe_int((db_user or {}).get("user_id"), 0)
+    user_id = str((db_user or {}).get("user_id") or "").strip()
     customer = selected_customer or get_or_create_customer(customer_name)
-    customer_id = safe_int(customer.get("customer_id"), 0)
+    customer_id = str(customer.get("customer_id") or "").strip()
 
-    if user_id <= 0:
+    if not user_id:
         set_notice("Unable to resolve the logged-in staff account in the database.", "danger")
         return redirect("/pos")
 
@@ -1604,7 +1611,7 @@ def pos_checkout():
             {
                 "total_amount": total,
                 "payment_method": db_payment_method(payment_method),
-                "customer_id": customer_id if customer_id > 0 else None,
+                "customer_id": customer_id or None,
                 "transaction_date": datetime.now().isoformat(),
                 "user_id": user_id,
             }
