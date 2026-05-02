@@ -305,6 +305,7 @@ def adapt_product_payload_for_schema(payload, error):
     error_text = str(error)
     updated_payload = dict(payload)
     adapted = False
+    adaptation_notes = []
 
     if (
         "Could not find the 'brand' column of 'product'" in error_text
@@ -312,17 +313,20 @@ def adapt_product_payload_for_schema(payload, error):
     ):
         updated_payload.pop("brand", None)
         adapted = True
+        adaptation_notes.append("missing_brand_column")
 
     if "product_status_check" in error_text or "violates check constraint" in error_text:
         current_status = str(updated_payload.get("status") or "").strip().lower()
         if current_status in ("available", "active", ""):
             updated_payload["status"] = "active"
             adapted = True
+            adaptation_notes.append("status_mapped")
         elif current_status in ("not available", "not_available", "inactive", "discontinued"):
             updated_payload["status"] = "inactive"
             adapted = True
+            adaptation_notes.append("status_mapped")
 
-    return updated_payload, adapted
+    return updated_payload, adapted, adaptation_notes
 
 
 def normalize_user_rows(rows):
@@ -1735,10 +1739,12 @@ def inventory_add():
     stock_quantity = form_data["stock_quantity"]
     payload = form_data["payload"]
 
+    brand_column_missing = False
     try:
         created = supabase().table("product").insert(payload).execute().data or []
     except Exception as exc:
-        compatible_payload, was_adapted = adapt_product_payload_for_schema(payload, exc)
+        compatible_payload, was_adapted, adaptation_notes = adapt_product_payload_for_schema(payload, exc)
+        brand_column_missing = "missing_brand_column" in adaptation_notes
         if not was_adapted:
             set_notice(f"Unable to add product: {exc}", "danger")
             return redirect("/inventory")
@@ -1761,7 +1767,13 @@ def inventory_add():
                         timestamp=datetime.now().isoformat(),
                     )
                 ).execute()
-        set_notice("Product added successfully.")
+        if brand_column_missing:
+            set_notice(
+                "Product added, but brand was not saved because your database is missing the product.brand column.",
+                "warning",
+            )
+        else:
+            set_notice("Product added successfully.")
     except Exception as exc:
         set_notice(f"Unable to add product: {exc}", "danger")
     return redirect("/inventory")
@@ -1783,13 +1795,15 @@ def inventory_update(product_id):
     stock_quantity = form_data["stock_quantity"]
     payload = form_data["payload"]
 
+    brand_column_missing = False
     try:
         previous_inventory = get_inventory_row(product_id) or {}
         previous_stock = safe_int(previous_inventory.get("stock_quantity"), 0)
         try:
             supabase().table("product").update(payload).eq("product_id", product_id).execute()
         except Exception as exc:
-            compatible_payload, was_adapted = adapt_product_payload_for_schema(payload, exc)
+            compatible_payload, was_adapted, adaptation_notes = adapt_product_payload_for_schema(payload, exc)
+            brand_column_missing = "missing_brand_column" in adaptation_notes
             if not was_adapted:
                 raise
             supabase().table("product").update(compatible_payload).eq("product_id", product_id).execute()
@@ -1804,7 +1818,13 @@ def inventory_update(product_id):
                     timestamp=datetime.now().isoformat(),
                 )
             ).execute()
-        set_notice("Product updated successfully.")
+        if brand_column_missing:
+            set_notice(
+                "Product updated, but brand was not saved because your database is missing the product.brand column.",
+                "warning",
+            )
+        else:
+            set_notice("Product updated successfully.")
     except Exception as exc:
         set_notice(f"Unable to update product: {exc}", "danger")
     return redirect("/inventory")
