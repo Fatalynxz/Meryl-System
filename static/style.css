@@ -2609,12 +2609,19 @@ select:focus {
 }
 
 .customers-page .page-content {
-    padding-top: 22px;
+    padding-top: 26px;
+    padding-right: 20px;
+    padding-left: 20px;
+}
+
+.customers-page .stats-grid-three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
 }
 
 .customers-page .customer-stat-card {
-    min-height: 126px;
-    padding: 22px 30px;
+    min-height: 148px;
+    padding: 26px 34px;
 }
 
 .customers-page .customer-stat-card h3 {
@@ -2623,8 +2630,8 @@ select:focus {
 }
 
 .customers-page .customer-stat-card .stat-value {
-    margin: 10px 0 0;
-    font-size: 1.2rem;
+    margin: 14px 0 0;
+    font-size: 1.35rem;
     color: #ffd400;
 }
 
@@ -2672,11 +2679,12 @@ select:focus {
 }
 
 .customers-page .customer-directory-card {
-    margin-top: 22px;
+    margin-top: 26px;
+    padding: 28px;
 }
 
 .customers-page .customer-directory-header {
-    margin-bottom: 22px;
+    margin-bottom: 24px;
 }
 
 .customers-page .customer-directory-header h2 {
@@ -2695,22 +2703,28 @@ select:focus {
 }
 
 .customers-page .customer-add-button {
-    min-height: 44px;
+    min-height: 48px;
+    padding: 0 22px;
     gap: 10px;
 }
 
 .customers-page .inventory-search-wrap {
-    margin-bottom: 20px;
+    margin-bottom: 22px;
 }
 
 .customers-page .inventory-table thead th,
 .customers-page .inventory-table td {
-    font-size: 0.94rem;
+    padding: 18px 20px;
+    font-size: 0.98rem;
+}
+
+.customers-page .inventory-actions {
+    gap: 14px;
 }
 
 .customer-contact-cell {
     display: grid;
-    gap: 6px;
+    gap: 8px;
 }
 
 .customer-contact-cell span:first-child::before,
@@ -2728,12 +2742,18 @@ select:focus {
 }
 
 .customers-page .status-pill {
-    min-width: 118px;
-    padding: 6px 14px;
-    font-size: 0.88rem;
+    min-width: 124px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
     line-height: 1;
     text-align: center;
     white-space: nowrap;
+}
+
+@media (max-width: 920px) {
+    .customers-page .stats-grid-three {
+        grid-template-columns: 1fr;
+    }
 }
 
 .customer-modal-dialog {
