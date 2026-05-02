@@ -45,7 +45,7 @@ def complete_sale_inventory(
             reference_id=sales_id,
         )
         supabase.table("product").update(
-            {"status": "Available" if remaining_stock > 0 else "Not Available"}
+            {"status": "active" if remaining_stock > 0 else "inactive"}
         ).eq("product_id", product_id).execute()
         supabase.table("inventory_log").insert(
             {

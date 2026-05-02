@@ -146,12 +146,14 @@ def db_payment_status(value):
 def db_product_status(value):
     normalized = str(value or "").strip().lower()
     mapping = {
-        "available": "Available",
-        "not available": "Not Available",
-        "not_available": "Not Available",
-        "discontinued": "Discontinued",
+        "available": "active",
+        "active": "active",
+        "not available": "inactive",
+        "not_available": "inactive",
+        "inactive": "inactive",
+        "discontinued": "inactive",
     }
-    return mapping.get(normalized, "Available")
+    return mapping.get(normalized, "active")
 
 
 def db_promotion_type(value):
