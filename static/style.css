@@ -3469,13 +3469,32 @@ select:focus {
 .predictive-fast-card .mini-table-shell table td:nth-child(4) { width: 28%; }
 
 .predictive-slow-card .mini-table-shell table th:nth-child(1),
-.predictive-slow-card .mini-table-shell table td:nth-child(1) { width: 34%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(1) { width: 32%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(2),
 .predictive-slow-card .mini-table-shell table td:nth-child(2) { width: 12%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(3),
-.predictive-slow-card .mini-table-shell table td:nth-child(3) { width: 18%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(3) { width: 16%; }
 .predictive-slow-card .mini-table-shell table th:nth-child(4),
-.predictive-slow-card .mini-table-shell table td:nth-child(4) { width: 36%; }
+.predictive-slow-card .mini-table-shell table td:nth-child(4) { width: 40%; }
+
+.predictive-slow-card .mini-table-shell th,
+.predictive-slow-card .mini-table-shell td {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.predictive-slow-card .mini-table-shell td:nth-child(2),
+.predictive-slow-card .mini-table-shell td:nth-child(3) {
+    text-align: center;
+}
+
+.predictive-slow-card .mini-table-shell td:nth-child(1) {
+    line-height: 1.2;
+}
+
+.predictive-slow-card .mini-table-shell td:nth-child(1) small {
+    margin-top: 3px;
+}
 
 .predictive-promo-cell {
     display: grid;
@@ -3489,6 +3508,15 @@ select:focus {
     min-height: 36px;
     padding: 0 14px;
     border-radius: 999px;
+}
+
+.predictive-slow-card .predictive-promo-cell .predictive-promo-button {
+    min-width: 112px;
+    justify-self: start;
+}
+
+.predictive-slow-card .predictive-promo-cell small {
+    max-width: none;
 }
 
 .promotions-page .page-content {
