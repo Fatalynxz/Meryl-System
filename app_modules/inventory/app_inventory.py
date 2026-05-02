@@ -46,17 +46,41 @@ def upsert_inventory_record(
         "reference_id": reference_id,
         "last_updated": datetime.now().isoformat(),
     }
+    compatible_payload = dict(payload)
+    if compatible_payload.get("reference_id") in ("", None):
+        compatible_payload.pop("reference_id", None)
     existing = get_inventory_row(product_id)
     if existing:
-        return (
-            supabase.table("inventory")
-            .update(payload)
-            .eq("product_id", product_id)
-            .execute()
-            .data
-            or [existing]
-        )[0]
-    created = supabase.table("inventory").insert(payload).execute().data or []
+        try:
+            return (
+                supabase.table("inventory")
+                .update(compatible_payload)
+                .eq("product_id", product_id)
+                .execute()
+                .data
+                or [existing]
+            )[0]
+        except Exception as exc:
+            if "reference_id" not in str(exc):
+                raise
+            fallback_payload = dict(compatible_payload)
+            fallback_payload.pop("reference_id", None)
+            return (
+                supabase.table("inventory")
+                .update(fallback_payload)
+                .eq("product_id", product_id)
+                .execute()
+                .data
+                or [existing]
+            )[0]
+    try:
+        created = supabase.table("inventory").insert(compatible_payload).execute().data or []
+    except Exception as exc:
+        if "reference_id" not in str(exc):
+            raise
+        fallback_payload = dict(compatible_payload)
+        fallback_payload.pop("reference_id", None)
+        created = supabase.table("inventory").insert(fallback_payload).execute().data or []
     return created[0] if created else payload
 
 
@@ -264,10 +288,17 @@ def build_inventory_form_data(form, *, safe_int, safe_float, db_product_status):
             "error_tone": "warning",
         }
 
+    category_id = str(form.get("category_id") or "").strip()
+    if not category_id:
+        return {
+            "error": "Category is required.",
+            "error_tone": "danger",
+        }
+
     payload = {
         "product_name": form.get("product_name", "").strip(),
         "brand": form.get("brand", "").strip() or "Meryl",
-        "category_id": safe_int(form.get("category_id")),
+        "category_id": category_id,
         "size": form.get("size", "").strip() or "-",
         "color": (form.get("color") or "Default").strip() or "Default",
         "cost_price": safe_float(form.get("cost_price"), 0),
