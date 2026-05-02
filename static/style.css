@@ -507,7 +507,7 @@ select {
     height: 100vh;
     margin: 0;
     padding: 14px 10px 12px;
-    background: #d10010;
+    background: linear-gradient(180deg, #be1f1f 0%, #a91515 100%);
     border: 1px solid rgba(126, 0, 0, 0.6);
     position: sticky;
     left: 0;
@@ -881,7 +881,7 @@ select {
     padding: 14px 10px 12px;
     border-radius: 0;
     border-bottom: 1px solid rgba(126, 0, 0, 0.6);
-    background: #d10010;
+    background: linear-gradient(180deg, #be1f1f 0%, #a91515 100%);
     box-shadow: none;
     width: 270px;
     min-height: 0;
@@ -5468,7 +5468,7 @@ select:-internal-autofill-selected {
 .settings-page .navbar,
 .receipt-page .navbar,
 .tab-strip {
-    background: #d10010;
+    background: linear-gradient(180deg, #be1f1f 0%, #a91515 100%);
     border-color: rgba(122, 24, 24, 0.48);
 }
 
