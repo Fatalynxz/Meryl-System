@@ -1605,66 +1605,72 @@ def pos_checkout():
         set_notice("Unable to resolve the logged-in staff account in the database.", "danger")
         return redirect("/pos")
 
-    sale = (
-        supabase().table("sales_transaction")
-        .insert(
-            {
-                "total_amount": total,
-                "payment_method": db_payment_method(payment_method),
-                "customer_id": customer_id or None,
-                "transaction_date": datetime.now().isoformat(),
-                "user_id": user_id,
-            }
-        )
-        .execute()
-    )
-
-    sales_id = sale.data[0]["sales_id"]
-    supabase().table("payment").insert(
-        {
-            "sales_id": sales_id,
-            "payment_method": db_payment_method(payment_method),
-            "amount_paid": total,
-            "change_amount": 0,
-            "payment_status": db_payment_status("pending"),
-        }
-    ).execute()
-    receipt_timestamp = datetime.now()
-    receipt_payload = pos_build_receipt_payload(
-        sales_id=sales_id,
-        customer_name=customer_name,
-        cashier_name=current_user.get("name", "Admin User"),
-        payment_method=payment_method,
-        subtotal=subtotal,
-        discount_total=discount_total,
-        total=total,
-        cart=cart,
-        receipt_timestamp=receipt_timestamp,
-    )
-
-    for item in cart:
-        discounted_subtotal = safe_float(item["subtotal"], 0)
-        (
-            supabase().table("sales_details")
+    try:
+        sale = (
+            supabase().table("sales_transaction")
             .insert(
                 {
-                    "sales_id": sales_id,
-                    "product_id": item["product_id"],
-                    "quantity": item["quantity"],
-                    "price": item["price"],
-                    "discount_applied": item["discount_amount"],
-                    "subtotal": discounted_subtotal,
+                    "total_amount": total,
+                    "customer_id": customer_id or None,
+                    "transaction_date": datetime.now().isoformat(),
+                    "user_id": user_id,
                 }
             )
             .execute()
         )
 
-    session["receipt"] = receipt_payload
-    session["last_receipt"] = receipt_payload
+        sales_id = str((sale.data or [{}])[0].get("sales_id") or "").strip()
+        if not sales_id:
+            raise ValueError("Sales transaction was not created.")
 
-    session["cart"] = []
-    set_notice("Payment recorded. Sale is now pending admin approval.")
-    return redirect("/pos")
+        supabase().table("payment").insert(
+            {
+                "sales_id": sales_id,
+                "payment_method": db_payment_method(payment_method),
+                "amount_paid": total,
+                "change_amount": 0,
+                "payment_status": db_payment_status("pending"),
+            }
+        ).execute()
+        receipt_timestamp = datetime.now()
+        receipt_payload = pos_build_receipt_payload(
+            sales_id=sales_id,
+            customer_name=customer_name,
+            cashier_name=current_user.get("name", "Admin User"),
+            payment_method=payment_method,
+            subtotal=subtotal,
+            discount_total=discount_total,
+            total=total,
+            cart=cart,
+            receipt_timestamp=receipt_timestamp,
+        )
+
+        for item in cart:
+            discounted_subtotal = safe_float(item["subtotal"], 0)
+            (
+                supabase().table("sales_details")
+                .insert(
+                    {
+                        "sales_id": sales_id,
+                        "product_id": item["product_id"],
+                        "quantity": item["quantity"],
+                        "price": item["price"],
+                        "discount_applied": item["discount_amount"],
+                        "subtotal": discounted_subtotal,
+                    }
+                )
+                .execute()
+            )
+
+        session["receipt"] = receipt_payload
+        session["last_receipt"] = receipt_payload
+
+        session["cart"] = []
+        set_notice("Payment recorded. Sale is now pending admin approval.")
+        return redirect("/pos")
+    except Exception as exc:
+        set_notice(f"Unable to complete payment: {exc}", "danger")
+        return redirect("/pos")
 
 
 @app.route("/sales/complete/<int:sales_id>", methods=["POST"])
