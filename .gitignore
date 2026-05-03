@@ -50,3 +50,7 @@ yarn-error.log*
 # Misc
 *.log
 .cache/
+
+# Keep frontend source lib folder tracked
+!_figma_ui_import/src/lib/
+!_figma_ui_import/src/lib/**
