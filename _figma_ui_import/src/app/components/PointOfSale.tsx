@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -43,6 +44,7 @@ type ProductGroup = {
 };
 
 export function PointOfSale() {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const productsQuery = useProducts();
   const customersQuery = useCustomers();
@@ -205,6 +207,8 @@ export function PointOfSale() {
     setCustomerName("walk-in");
     setPaymentMethod("Cash");
     setCashReceived("");
+    await queryClient.invalidateQueries({ queryKey: ["products"] });
+    await queryClient.invalidateQueries({ queryKey: ["sales"] });
     toast.success("Payment processed successfully!");
   };
 
@@ -511,4 +515,3 @@ export function PointOfSale() {
     </div>
   );
 }
-

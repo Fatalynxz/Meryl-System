@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -82,7 +83,7 @@ function toUiProduct(row: any): UiProduct {
     id: row.product_id,
     product_id: row.product_id,
     name: row.product_name ?? "Unnamed",
-    brand: "N/A",
+    brand: row.brand ?? "N/A",
     category: category?.category_name ?? "Uncategorized",
     category_id: row.category_id ?? null,
     size: row.size ?? "N/A",
@@ -97,6 +98,7 @@ function toUiProduct(row: any): UiProduct {
 }
 
 export function ProductManagement() {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<UiProduct | null>(null);
@@ -164,6 +166,7 @@ export function ProductManagement() {
         });
       }
 
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
       setIsAddDialogOpen(false);
       setFormData(defaultForm);
       toast.success("Product added successfully!");
@@ -197,6 +200,7 @@ export function ProductManagement() {
         });
       }
 
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
       setEditingProduct(null);
       setFormData(defaultForm);
       toast.success("Product updated successfully!");
@@ -208,6 +212,7 @@ export function ProductManagement() {
   const handleDeleteProduct = async (id: string) => {
     try {
       await productMutations.removeMutation.mutateAsync(id);
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Product deleted successfully!");
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to delete product");
