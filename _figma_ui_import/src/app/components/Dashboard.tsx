@@ -1,61 +1,244 @@
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { TrendingUp, Package, Coins, Users, AlertCircle, ArrowUpRight, ArrowDownRight, MoreHorizontal } from 'lucide-react';
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, BarChart, Bar, Cell } from 'recharts';
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { TrendingUp, Package, Coins, Users, AlertCircle, ArrowUpRight, ArrowDownRight, MoreHorizontal } from "lucide-react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, BarChart, Bar, Cell } from "recharts";
+import { useCustomers, useProducts, useSales } from "../../lib/hooks";
+import { supabase } from "../../lib/supabase";
+
+function formatPeso(value: number) {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
+function shortDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+}
 
 export function Dashboard() {
+  const salesQuery = useSales();
+  const productsQuery = useProducts();
+  const customersQuery = useCustomers();
+
+  const topProductsQuery = useQuery({
+    queryKey: ["dashboard-top-products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales_details")
+        .select("quantity, subtotal, product:product_id(product_name)");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const sales = (salesQuery.data as any[]) ?? [];
+  const products = (productsQuery.data as any[]) ?? [];
+  const customers = (customersQuery.data as any[]) ?? [];
+  const salesDetails = (topProductsQuery.data as any[]) ?? [];
+
+  const {
+    totalRevenue,
+    monthRevenue,
+    monthRevenueChange,
+    totalStock,
+    lowStockCount,
+    newCustomersThisMonth,
+    recentSales,
+    revenueData,
+    categoryData,
+    topProducts,
+  } = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const previousMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    const previousMonth = previousMonthDate.getMonth();
+    const previousMonthYear = previousMonthDate.getFullYear();
+
+    let revenueAll = 0;
+    let revenueCurrentMonth = 0;
+    let revenuePreviousMonth = 0;
+
+    const parsedSales = [...sales]
+      .map((s) => {
+        const amount = Number(s.total_amount ?? 0);
+        const rawDate = s.transaction_date ?? s.created_at ?? null;
+        const date = rawDate ? new Date(rawDate) : null;
+        return {
+          ...s,
+          amount,
+          date,
+          dateValue: date && !Number.isNaN(date.getTime()) ? date.getTime() : 0,
+        };
+      })
+      .sort((a, b) => b.dateValue - a.dateValue);
+
+    for (const sale of parsedSales) {
+      revenueAll += sale.amount;
+      if (!sale.date || Number.isNaN(sale.date.getTime())) continue;
+      const saleMonth = sale.date.getMonth();
+      const saleYear = sale.date.getFullYear();
+      if (saleMonth === currentMonth && saleYear === currentYear) {
+        revenueCurrentMonth += sale.amount;
+      } else if (saleMonth === previousMonth && saleYear === previousMonthYear) {
+        revenuePreviousMonth += sale.amount;
+      }
+    }
+
+    const monthChange =
+      revenuePreviousMonth > 0
+        ? ((revenueCurrentMonth - revenuePreviousMonth) / revenuePreviousMonth) * 100
+        : revenueCurrentMonth > 0
+          ? 100
+          : 0;
+
+    const stockList = products.map((p) => {
+      const inventory = Array.isArray(p.inventory) ? p.inventory[0] : p.inventory;
+      const stock = Number(inventory?.stock_quantity ?? 0);
+      const reorder = Number(p.reorder_level ?? inventory?.reorder_level ?? 10);
+      return { stock, reorder };
+    });
+    const stockTotal = stockList.reduce((sum, row) => sum + row.stock, 0);
+    const lowStock = stockList.filter((row) => row.stock > 0 && row.stock <= row.reorder).length;
+
+    const customerNewCount = customers.filter((c) => {
+      const rawDate = c.created_at ?? c.date_registered ?? null;
+      if (!rawDate) return false;
+      const date = new Date(rawDate);
+      return !Number.isNaN(date.getTime()) && date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    }).length;
+
+    const recent = parsedSales.slice(0, 5).map((s) => ({
+      id: String(s.sales_id ?? ""),
+      customer: s.customer?.customer_name || s.customer?.name || "Walk-in Customer",
+      product: `Order #${s.sales_id ?? "-"}`,
+      amount: formatPeso(s.amount),
+      date: shortDate(s.transaction_date ?? s.created_at),
+    }));
+
+    const dailyRevenueMap = new Map<string, number>();
+    for (let i = 6; i >= 0; i -= 1) {
+      const d = new Date(now);
+      d.setHours(0, 0, 0, 0);
+      d.setDate(now.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      dailyRevenueMap.set(key, 0);
+    }
+    for (const s of parsedSales) {
+      if (!s.date || Number.isNaN(s.date.getTime())) continue;
+      const key = new Date(s.date.getFullYear(), s.date.getMonth(), s.date.getDate()).toISOString().slice(0, 10);
+      if (!dailyRevenueMap.has(key)) continue;
+      dailyRevenueMap.set(key, (dailyRevenueMap.get(key) ?? 0) + s.amount);
+    }
+    const revenueSeries = Array.from(dailyRevenueMap.entries()).map(([key, value]) => ({
+      day: new Date(key).toLocaleDateString("en-US", { weekday: "short" }),
+      value: Math.round(value),
+    }));
+
+    const categoryCount = new Map<string, number>();
+    for (const p of products) {
+      const categoryName = p.category?.[0]?.category_name || p.category?.category_name || "Uncategorized";
+      categoryCount.set(categoryName, (categoryCount.get(categoryName) ?? 0) + 1);
+    }
+    const categoryTotal = Array.from(categoryCount.values()).reduce((a, b) => a + b, 0) || 1;
+    const categorySeries = Array.from(categoryCount.entries())
+      .map(([name, count]) => ({
+        name,
+        value: Math.round((count / categoryTotal) * 100),
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 4);
+
+    const productStats = new Map<string, { sold: number; revenue: number }>();
+    for (const row of salesDetails) {
+      const productName = row.product?.product_name || "Unknown Product";
+      const qty = Number(row.quantity ?? 0);
+      const subtotal = Number(row.subtotal ?? 0);
+      const prev = productStats.get(productName) ?? { sold: 0, revenue: 0 };
+      productStats.set(productName, { sold: prev.sold + qty, revenue: prev.revenue + subtotal });
+    }
+    const topProductSeries = Array.from(productStats.entries())
+      .map(([name, agg]) => ({ name, sold: agg.sold, revenue: formatPeso(agg.revenue) }))
+      .sort((a, b) => b.sold - a.sold)
+      .slice(0, 5);
+
+    return {
+      totalRevenue: revenueAll,
+      monthRevenue: revenueCurrentMonth,
+      monthRevenueChange: monthChange,
+      totalStock: stockTotal,
+      lowStockCount: lowStock,
+      newCustomersThisMonth: customerNewCount,
+      recentSales: recent,
+      revenueData: revenueSeries,
+      categoryData: categorySeries,
+      topProducts: topProductSeries,
+    };
+  }, [sales, products, customers, salesDetails]);
+
+  const loading =
+    salesQuery.isLoading ||
+    productsQuery.isLoading ||
+    customersQuery.isLoading ||
+    topProductsQuery.isLoading;
+
   const stats = [
-    { title: 'Total Revenue', value: '₱24,580', change: '+12.5%', icon: Coins, trend: 'up', accent: 'red' },
-    { title: 'Products in Stock', value: '1,234', change: '+8 new', icon: Package, trend: 'up', accent: 'yellow' },
-    { title: 'Total Customers', value: '892', change: '+43 this month', icon: Users, trend: 'up', accent: 'red' },
-    { title: 'Low Stock Items', value: '12', change: 'Needs attention', icon: AlertCircle, trend: 'warning', accent: 'yellow' }
+    {
+      title: "Total Revenue",
+      value: formatPeso(totalRevenue),
+      change: `${monthRevenueChange >= 0 ? "+" : ""}${monthRevenueChange.toFixed(1)}% vs last month`,
+      icon: Coins,
+      trend: monthRevenueChange < 0 ? "down" : "up",
+      accent: "red",
+    },
+    {
+      title: "Products in Stock",
+      value: totalStock.toLocaleString(),
+      change: `${products.length} variants`,
+      icon: Package,
+      trend: "up",
+      accent: "yellow",
+    },
+    {
+      title: "Total Customers",
+      value: customers.length.toLocaleString(),
+      change: `+${newCustomersThisMonth} this month`,
+      icon: Users,
+      trend: "up",
+      accent: "red",
+    },
+    {
+      title: "Low Stock Items",
+      value: lowStockCount.toLocaleString(),
+      change: lowStockCount > 0 ? "Needs attention" : "Healthy",
+      icon: AlertCircle,
+      trend: lowStockCount > 0 ? "warning" : "up",
+      accent: "yellow",
+    },
   ];
 
-  const recentSales = [
-    { id: 'S001', customer: 'John Doe', product: 'Nike Air Max', amount: '₱120', date: '2026-03-05' },
-    { id: 'S002', customer: 'Jane Smith', product: 'Adidas Ultraboost', amount: '₱180', date: '2026-03-05' },
-    { id: 'S003', customer: 'Bob Johnson', product: 'Puma Suede', amount: '₱85', date: '2026-03-04' },
-    { id: 'S004', customer: 'Alice Brown', product: 'Converse Chuck Taylor', amount: '₱65', date: '2026-03-04' },
-    { id: 'S005', customer: 'Charlie Davis', product: 'New Balance 574', amount: '₱95', date: '2026-03-03' }
-  ];
-
-  const topProducts = [
-    { name: 'Nike Air Max', sold: 45, revenue: '₱5,400' },
-    { name: 'Adidas Ultraboost', sold: 38, revenue: '₱6,840' },
-    { name: 'Puma Suede', sold: 32, revenue: '₱2,720' },
-    { name: 'Vans Old Skool', sold: 28, revenue: '₱1,960' },
-    { name: 'Converse Chuck Taylor', sold: 25, revenue: '₱1,625' }
-  ];
-
-  const revenueData = [
-    { day: 'Mon', value: 1200 },
-    { day: 'Tue', value: 2100 },
-    { day: 'Wed', value: 1800 },
-    { day: 'Thu', value: 2900 },
-    { day: 'Fri', value: 3400 },
-    { day: 'Sat', value: 4100 },
-    { day: 'Sun', value: 3800 },
-  ];
-
-  const categoryData = [
-    { name: 'Sneakers', value: 42 },
-    { name: 'Boots', value: 28 },
-    { name: 'Sandals', value: 18 },
-    { name: 'Formal', value: 12 },
-  ];
+  if (loading) {
+    return <div className="text-sm text-white/60">Loading dashboard data...</div>;
+  }
 
   return (
     <div className="space-y-6">
-      {/* Hero Card */}
       <div className="relative rounded-3xl overflow-hidden p-8 bg-[#16161C] border border-white/5">
         <div className="absolute -right-10 -top-10 w-64 h-64 rounded-full bg-[#FFD60A]/15 blur-3xl" />
         <div className="absolute right-20 bottom-0 w-40 h-40 rounded-full bg-[#E5202A]/10 blur-2xl" />
         <div className="relative grid md:grid-cols-3 gap-6 items-center">
           <div className="md:col-span-2">
             <div className="text-[11px] uppercase tracking-widest text-[#FFD60A]">Total Balance</div>
-            <div className="mt-2 text-white text-4xl tracking-tight">₱248,592.40</div>
+            <div className="mt-2 text-white text-4xl tracking-tight">{formatPeso(totalRevenue)}</div>
             <div className="flex items-center gap-2 mt-3 text-sm text-white/60">
               <span className="inline-flex items-center gap-1 bg-[#FFD60A] text-[#1A1A22] px-2 py-0.5 rounded-full text-xs">
-                <ArrowUpRight className="w-3 h-3" /> +18.4%
+                <ArrowUpRight className="w-3 h-3" /> {monthRevenueChange >= 0 ? "+" : ""}
+                {monthRevenueChange.toFixed(1)}%
               </span>
               vs last month · all stores combined
             </div>
@@ -76,20 +259,21 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
-          const isYellow = stat.accent === 'yellow';
+          const isYellow = stat.accent === "yellow";
           return (
             <div
               key={index}
               className="group relative rounded-2xl p-5 bg-[#16161C] border border-white/5 hover:border-white/10 transition"
             >
               <div className="flex items-start justify-between">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  isYellow ? 'bg-[#FFD60A]/15 text-[#FFD60A]' : 'bg-[#E5202A]/15 text-[#FF6B72]'
-                }`}>
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                    isYellow ? "bg-[#FFD60A]/15 text-[#FFD60A]" : "bg-[#E5202A]/15 text-[#FF6B72]"
+                  }`}
+                >
                   <Icon className="w-5 h-5" />
                 </div>
                 <button className="text-white/30 hover:text-white/70">
@@ -98,10 +282,16 @@ export function Dashboard() {
               </div>
               <div className="mt-4 text-xs text-white/50">{stat.title}</div>
               <div className="mt-1 text-white text-2xl tracking-tight">{stat.value}</div>
-              <div className={`mt-2 inline-flex items-center gap-1 text-xs ${
-                stat.trend === 'warning' ? 'text-[#FFD60A]' : 'text-emerald-400'
-              }`}>
-                {stat.trend === 'warning' ? <ArrowDownRight className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+              <div
+                className={`mt-2 inline-flex items-center gap-1 text-xs ${
+                  stat.trend === "warning" ? "text-[#FFD60A]" : stat.trend === "down" ? "text-rose-400" : "text-emerald-400"
+                }`}
+              >
+                {stat.trend === "warning" || stat.trend === "down" ? (
+                  <ArrowDownRight className="w-3 h-3" />
+                ) : (
+                  <ArrowUpRight className="w-3 h-3" />
+                )}
                 {stat.change}
               </div>
             </div>
@@ -109,25 +299,12 @@ export function Dashboard() {
         })}
       </div>
 
-      {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-2xl p-6 bg-[#16161C] border border-white/5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-white">Revenue Overview</h3>
               <p className="text-xs text-white/40 mt-0.5">Last 7 days performance</p>
-            </div>
-            <div className="flex gap-1 bg-[#0E0E12] rounded-xl p-1 border border-white/5">
-              {['Day', 'Week', 'Month'].map((p, i) => (
-                <button
-                  key={p}
-                  className={`px-3 py-1 rounded-lg text-xs ${
-                    i === 1 ? 'bg-[#E5202A] text-white' : 'text-white/50 hover:text-white'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
             </div>
           </div>
           <div className="h-64">
@@ -143,10 +320,10 @@ export function Dashboard() {
                 <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip
                   contentStyle={{
-                    background: '#0E0E12',
-                    border: '1px solid #ffffff20',
+                    background: "#0E0E12",
+                    border: "1px solid #ffffff20",
                     borderRadius: 12,
-                    color: '#fff'
+                    color: "#fff",
                   }}
                 />
                 <Area type="monotone" dataKey="value" stroke="#FFD60A" strokeWidth={2.5} fill="url(#revFill)" />
@@ -159,7 +336,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-white">Categories</h3>
-              <p className="text-xs text-white/40 mt-0.5">Sales mix</p>
+              <p className="text-xs text-white/40 mt-0.5">Inventory mix</p>
             </div>
           </div>
           <div className="h-40">
@@ -168,12 +345,12 @@ export function Dashboard() {
                 <XAxis dataKey="name" stroke="#ffffff40" fontSize={10} tickLine={false} axisLine={false} />
                 <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                   {categoryData.map((entry, i) => (
-                    <Cell key={entry.name} fill={i % 2 === 0 ? '#E5202A' : '#FFD60A'} />
+                    <Cell key={entry.name} fill={i % 2 === 0 ? "#E5202A" : "#FFD60A"} />
                   ))}
                 </Bar>
                 <Tooltip
-                  cursor={{ fill: '#ffffff05' }}
-                  contentStyle={{ background: '#0E0E12', border: '1px solid #ffffff20', borderRadius: 12, color: '#fff' }}
+                  cursor={{ fill: "#ffffff05" }}
+                  contentStyle={{ background: "#0E0E12", border: "1px solid #ffffff20", borderRadius: 12, color: "#fff" }}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -182,7 +359,7 @@ export function Dashboard() {
             {categoryData.map((c, i) => (
               <div key={c.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${i % 2 === 0 ? 'bg-[#E5202A]' : 'bg-[#FFD60A]'}`} />
+                  <span className={`w-2 h-2 rounded-full ${i % 2 === 0 ? "bg-[#E5202A]" : "bg-[#FFD60A]"}`} />
                   <span className="text-white/70">{c.name}</span>
                 </div>
                 <span className="text-white">{c.value}%</span>
@@ -192,12 +369,10 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Recent + Top products */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-2xl p-6 bg-[#16161C] border border-white/5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white">Recent Sales</h3>
-            <button className="text-xs text-[#FFD60A] hover:underline">View all</button>
           </div>
           <div className="space-y-1">
             {recentSales.map((sale) => (
@@ -226,11 +401,10 @@ export function Dashboard() {
               <TrendingUp className="w-4 h-4 text-[#FFD60A]" />
               Top Selling Products
             </h3>
-            <button className="text-xs text-[#FFD60A] hover:underline">Report</button>
           </div>
           <div className="space-y-1">
             {topProducts.map((product, index) => {
-              const max = Math.max(...topProducts.map(p => p.sold));
+              const max = Math.max(...topProducts.map((p) => p.sold), 1);
               const pct = (product.sold / max) * 100;
               return (
                 <div key={index} className="py-2.5 border-b border-white/5 last:border-0">
