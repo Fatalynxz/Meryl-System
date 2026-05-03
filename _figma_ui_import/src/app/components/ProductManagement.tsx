@@ -206,7 +206,7 @@ export function ProductManagement() {
         category_id: formData.category_id,
         size: formData.size || null,
         color: formData.color || null,
-        cost_price: formData.cost_price ?? 0,
+        cost_price: formData.price ?? formData.cost_price ?? 0,
         reorder_level: formData.reorder_level ?? 10,
         status: toDbStatus(formData.status ?? "Active"),
       });
@@ -239,7 +239,7 @@ export function ProductManagement() {
           category_id: formData.category_id || editingProduct.category_id,
           size: formData.size || null,
           color: formData.color || null,
-          cost_price: formData.cost_price ?? 0,
+          cost_price: formData.price ?? formData.cost_price ?? 0,
           reorder_level: formData.reorder_level ?? editingProduct.reorder_level,
           status: toDbStatus(formData.status ?? editingProduct.status),
         },
@@ -424,6 +424,11 @@ function ProductForm({
   setFormData: (data: ProductFormData) => void;
   categories: any[];
 }) {
+  const filteredCategories = categories.filter((category: any) => {
+    const name = String(category?.category_name ?? "").trim().toLowerCase();
+    return !["kid", "kids", "men", "women"].includes(name);
+  });
+
   return (
     <div className="grid gap-4 py-4">
       <div className="grid grid-cols-2 gap-4">
@@ -464,7 +469,7 @@ function ProductForm({
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-              {categories.map((category: any) => (
+              {filteredCategories.map((category: any) => (
                 <SelectItem key={category.category_id} value={category.category_id}>
                   {category.category_name}
                 </SelectItem>
