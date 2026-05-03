@@ -32,7 +32,7 @@ type UiProduct = {
   price: number;
   reorder_level: number;
   stock: number;
-  status: "Active" | "Inactive" | "Discontinued";
+  status: "Active" | "Inactive";
   sku: string;
   product_id: string;
 };
@@ -47,7 +47,7 @@ type ProductFormData = {
   price: number;
   reorder_level: number;
   stock: number;
-  status: "Active" | "Inactive" | "Discontinued";
+  status: "Active" | "Inactive";
   sku: string;
 };
 
@@ -58,8 +58,7 @@ function toDbStatus(status: ProductFormData["status"]): "active" | "inactive" {
 function toUiStatus(value: string | null | undefined): ProductFormData["status"] {
   const normalized = String(value ?? "").trim().toLowerCase();
   if (normalized === "active" || normalized === "available") return "Active";
-  if (normalized === "inactive") return "Inactive";
-  return "Discontinued";
+  return "Inactive";
 }
 
 function buildClientId() {
@@ -355,9 +354,7 @@ export function ProductManagement() {
                       className={
                         product.status === "Active"
                           ? "bg-green-600 text-white"
-                          : product.status === "Inactive"
-                            ? "bg-gray-600 text-white"
-                            : "bg-red-900 text-yellow-200"
+                          : "bg-gray-600 text-white"
                       }
                     >
                       {product.status}
@@ -569,7 +566,6 @@ function ProductForm({
             <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
               <SelectItem value="Active">Active</SelectItem>
               <SelectItem value="Inactive">Inactive</SelectItem>
-              <SelectItem value="Discontinued">Discontinued</SelectItem>
             </SelectContent>
           </Select>
         </div>
