@@ -6,6 +6,13 @@ import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
 import { useAuth } from '../../lib/auth-context';
 
 type PortalRole = 'admin' | 'sales' | 'inventory';
+type DemoUser = { username: string; password: string };
+
+const demoUsers: Record<PortalRole, DemoUser> = {
+  admin: { username: 'admin', password: 'admin123' },
+  sales: { username: 'sales', password: 'sales123' },
+  inventory: { username: 'inventory', password: 'inv123' },
+};
 
 export function Login() {
   const navigate = useNavigate();
@@ -45,9 +52,10 @@ export function Login() {
   };
 
   const quickLogin = (role: PortalRole) => {
+    const demo = demoUsers[role];
     setSelectedRole(role);
-    setUsername(role);
-    setPassword('');
+    setUsername(demo.username);
+    setPassword(demo.password);
   };
 
   const roleOptions = [
@@ -157,7 +165,7 @@ export function Login() {
               className="w-full h-11 rounded-xl bg-gradient-to-r from-[#E5202A] to-[#B81820] hover:from-[#C71820] hover:to-[#9A1218] text-white shadow-lg shadow-red-900/30"
             >
               <LogIn className="w-4 h-4 mr-2" />
-              {submitting ? 'Signing in...' : 'Sign in'}
+              Sign in
             </Button>
           </form>
 
