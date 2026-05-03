@@ -4,6 +4,7 @@ services:
     runtime: python
     pythonVersion: 3.11
     plan: free
+    buildCommand: pip install -r requirements.txt && cd _figma_ui_import && npm ci && VITE_SUPABASE_URL="$SUPABASE_URL" VITE_SUPABASE_ANON_KEY="$SUPABASE_KEY" npm run build
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: FLASK_ENV

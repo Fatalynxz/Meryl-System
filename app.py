@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 
 from dotenv import load_dotenv
-from flask import Flask, Response, redirect, render_template, request, session, url_for, g
+from flask import Flask, Response, abort, redirect, render_template, request, send_from_directory, session, url_for, g
 from supabase import create_client
 from app_modules.auth.app_auth_store import (
     find_auth_account as store_find_auth_account,
@@ -160,6 +160,8 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = "secret123"
+REACT_DIST_DIR = Path(__file__).resolve().parent / "_figma_ui_import" / "dist"
+REACT_ASSETS_DIR = REACT_DIST_DIR / "assets"
 
 # Supabase initialization (lazy-loaded)
 _supabase_client = None
@@ -785,6 +787,16 @@ def render_page(template_name, **context):
     )
 
 
+def has_react_shell():
+    return (REACT_DIST_DIR / "index.html").exists()
+
+
+def render_react_shell():
+    if not has_react_shell():
+        abort(404)
+    return send_from_directory(str(REACT_DIST_DIR), "index.html")
+
+
 def get_post_login_redirect(role):
     return ui_get_post_login_redirect(role)
 
@@ -922,6 +934,9 @@ def handle_runtime_error(error):
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "GET" and has_react_shell():
+        return render_react_shell()
+
     ensure_core_role_accounts()
     if request.method == "POST":
         form_data = build_login_form_data(request.form)
@@ -935,8 +950,10 @@ def login():
 
 
 @app.route("/")
-@login_required
 def dashboard():
+    if has_react_shell():
+        return render_react_shell()
+
     context = page_build_dashboard_context(
         build_sales_rows=build_sales_rows,
         normalize_inventory_products=normalize_inventory_products,
@@ -949,9 +966,10 @@ def dashboard():
 
 
 @app.route("/sales")
-@login_required
-@roles_required("admin")
 def sales():
+    if has_react_shell():
+        return render_react_shell()
+
     context = page_build_sales_context(
         build_sales_rows=build_sales_rows,
         datetime_cls=datetime,
@@ -974,9 +992,10 @@ def sales_export_csv():
 
 
 @app.route("/inventory")
-@login_required
-@roles_required("admin", "inventory_staff")
 def inventory():
+    if has_react_shell():
+        return render_react_shell()
+
     context = page_build_inventory_context(
         normalize_inventory_products=normalize_inventory_products,
         fetch_rows=fetch_rows,
@@ -985,6 +1004,20 @@ def inventory():
         build_category_options=build_category_options,
     )
     return render_page("inventory.html", **context)
+
+
+@app.route("/admin")
+def admin_shell():
+    if has_react_shell():
+        return render_react_shell()
+    return redirect("/")
+
+
+@app.route("/assets/<path:filename>")
+def react_assets(filename):
+    if not REACT_ASSETS_DIR.exists():
+        abort(404)
+    return send_from_directory(str(REACT_ASSETS_DIR), filename)
 
 
 @app.route("/customers")
