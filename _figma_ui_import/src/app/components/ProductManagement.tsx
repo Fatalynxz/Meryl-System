@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "./ui/badge";
 import { Edit, Package, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useCategories, useProducts, useProductsMutations } from "../../lib/hooks";
+import { useCategories, useInventory, useProducts, useProductsMutations } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
 
 type UiProduct = {
@@ -83,8 +83,8 @@ const defaultForm: ProductFormData = {
   sku: "",
 };
 
-function toUiProduct(row: any): UiProduct {
-  const firstInventory = Array.isArray(row.inventory) ? row.inventory[0] : null;
+function toUiProduct(row: any, inventoryByProductId: Record<string, any>): UiProduct {
+  const firstInventory = inventoryByProductId[String(row.product_id)] ?? null;
   const category = Array.isArray(row.category) ? row.category[0] : row.category;
   return {
     id: row.product_id,
@@ -112,12 +112,24 @@ export function ProductManagement() {
   const [formData, setFormData] = useState<ProductFormData>(defaultForm);
 
   const productsQuery = useProducts();
+  const inventoryQuery = useInventory();
   const categoriesQuery = useCategories();
   const productMutations = useProductsMutations();
 
+  const inventoryByProductId = useMemo(() => {
+    const rows = (inventoryQuery.data as any[]) ?? [];
+    const map: Record<string, any> = {};
+    for (const row of rows) {
+      const key = String(row.product_id ?? "");
+      if (!key) continue;
+      map[key] = row;
+    }
+    return map;
+  }, [inventoryQuery.data]);
+
   const products = useMemo<UiProduct[]>(
-    () => (productsQuery.data ?? []).map((row) => toUiProduct(row)),
-    [productsQuery.data],
+    () => (productsQuery.data ?? []).map((row) => toUiProduct(row, inventoryByProductId)),
+    [productsQuery.data, inventoryByProductId],
   );
 
   const filteredProducts = useMemo(

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Coins, CreditCard, Package, Plus, Receipt, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useCustomers, useProducts } from "../../lib/hooks";
+import { useCustomers, useInventory, useProducts } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 
@@ -47,6 +47,7 @@ export function PointOfSale() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const productsQuery = useProducts();
+  const inventoryQuery = useInventory();
   const customersQuery = useCustomers();
 
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -68,9 +69,16 @@ export function PointOfSale() {
 
   const productInventory = useMemo<ProductVariant[]>(() => {
     const rows = (productsQuery.data as any[]) ?? [];
+    const inventoryRows = (inventoryQuery.data as any[]) ?? [];
+    const inventoryByProductId: Record<string, any> = {};
+    for (const inv of inventoryRows) {
+      const key = String(inv.product_id ?? "");
+      if (!key) continue;
+      inventoryByProductId[key] = inv;
+    }
     const variants: ProductVariant[] = [];
     for (const row of rows) {
-      const inventory = Array.isArray(row.inventory) ? row.inventory[0] : row.inventory;
+      const inventory = inventoryByProductId[String(row.product_id)] ?? null;
       const stock = Number(inventory?.stock_quantity ?? 0);
       if (stock <= 0) continue;
       variants.push({
@@ -84,7 +92,7 @@ export function PointOfSale() {
       });
     }
     return variants;
-  }, [productsQuery.data]);
+  }, [productsQuery.data, inventoryQuery.data]);
 
   const productGroups: ProductGroup[] = useMemo(
     () =>
