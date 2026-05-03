@@ -50,6 +50,17 @@ type ProductFormData = {
   sku: string;
 };
 
+function toDbStatus(status: ProductFormData["status"]): "active" | "inactive" {
+  return status === "Active" ? "active" : "inactive";
+}
+
+function toUiStatus(value: string | null | undefined): ProductFormData["status"] {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (normalized === "active" || normalized === "available") return "Active";
+  if (normalized === "inactive") return "Inactive";
+  return "Discontinued";
+}
+
 const defaultForm: ProductFormData = {
   name: "",
   brand: "",
@@ -80,7 +91,7 @@ function toUiProduct(row: any): UiProduct {
     price: Number(row.cost_price ?? 0),
     reorder_level: Number(row.reorder_level ?? firstInventory?.reorder_level ?? 0),
     stock: Number(firstInventory?.stock_quantity ?? 0),
-    status: (row.status ?? "Active") as UiProduct["status"],
+    status: toUiStatus(row.status),
     sku: row.product_id,
   };
 }
@@ -142,7 +153,7 @@ export function ProductManagement() {
         color: formData.color || null,
         cost_price: formData.cost_price ?? 0,
         reorder_level: formData.reorder_level ?? 10,
-        status: formData.status ?? "Active",
+        status: toDbStatus(formData.status ?? "Active"),
       });
 
       if (formData.stock > 0) {
@@ -173,7 +184,7 @@ export function ProductManagement() {
           color: formData.color || null,
           cost_price: formData.cost_price ?? 0,
           reorder_level: formData.reorder_level ?? editingProduct.reorder_level,
-          status: formData.status ?? editingProduct.status,
+          status: toDbStatus(formData.status ?? editingProduct.status),
         },
       });
 
@@ -503,4 +514,3 @@ function ProductForm({
     </div>
   );
 }
-
