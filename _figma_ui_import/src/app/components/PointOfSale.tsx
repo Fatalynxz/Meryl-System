@@ -216,6 +216,7 @@ export function PointOfSale() {
     setPaymentMethod("Cash");
     setCashReceived("");
     await queryClient.invalidateQueries({ queryKey: ["products"] });
+    await queryClient.invalidateQueries({ queryKey: ["inventory"] });
     await queryClient.invalidateQueries({ queryKey: ["sales"] });
     toast.success("Payment processed successfully!");
   };

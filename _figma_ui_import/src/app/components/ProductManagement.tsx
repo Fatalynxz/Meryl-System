@@ -220,6 +220,7 @@ export function ProductManagement() {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setIsAddDialogOpen(false);
       setFormData(defaultForm);
       toast.success("Product added successfully!");
@@ -251,6 +252,7 @@ export function ProductManagement() {
       );
 
       await queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setEditingProduct(null);
       setFormData(defaultForm);
       toast.success("Product updated successfully!");
@@ -263,6 +265,7 @@ export function ProductManagement() {
     try {
       await productMutations.removeMutation.mutateAsync(id);
       await queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       toast.success("Product deleted successfully!");
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to delete product");
