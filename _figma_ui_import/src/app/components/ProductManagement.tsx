@@ -62,6 +62,13 @@ function toUiStatus(value: string | null | undefined): ProductFormData["status"]
   return "Discontinued";
 }
 
+function buildClientId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `inv_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
 const defaultForm: ProductFormData = {
   name: "",
   brand: "",
@@ -141,6 +148,40 @@ export function ProductManagement() {
     });
   };
 
+  const upsertInventoryAbsolute = async (productId: string, stock: number, reorderLevel: number) => {
+    const { data: existing, error: selectError } = await supabase
+      .from("inventory")
+      .select("inventory_id")
+      .eq("product_id", productId)
+      .limit(1);
+
+    if (selectError) throw selectError;
+
+    if (existing && existing.length > 0) {
+      const { error: updateError } = await supabase
+        .from("inventory")
+        .update({
+          stock_quantity: Math.max(0, stock),
+          reorder_level: reorderLevel,
+          last_updated: new Date().toISOString(),
+        })
+        .eq("product_id", productId);
+
+      if (updateError) throw updateError;
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("inventory").insert({
+      inventory_id: buildClientId(),
+      product_id: productId,
+      stock_quantity: Math.max(0, stock),
+      reorder_level: reorderLevel,
+      last_updated: new Date().toISOString(),
+    });
+
+    if (insertError) throw insertError;
+  };
+
   const handleAddProduct = async () => {
     if (!formData.name || !formData.category_id) {
       toast.error("Please fill in all required fields");
@@ -159,11 +200,11 @@ export function ProductManagement() {
       });
 
       if (formData.stock > 0) {
-        await supabase.rpc("adjust_inventory", {
-          p_product_id: (created as any).product_id,
-          p_quantity_change: formData.stock,
-          p_reason: "INITIAL_STOCK",
-        });
+        await upsertInventoryAbsolute(
+          (created as any).product_id,
+          Number(formData.stock ?? 0),
+          Number(formData.reorder_level ?? 10),
+        );
       }
 
       await queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -191,14 +232,11 @@ export function ProductManagement() {
         },
       });
 
-      const delta = Number(formData.stock ?? 0) - Number(editingProduct.stock ?? 0);
-      if (delta !== 0) {
-        await supabase.rpc("adjust_inventory", {
-          p_product_id: editingProduct.product_id,
-          p_quantity_change: delta,
-          p_reason: "MANUAL_UPDATE",
-        });
-      }
+      await upsertInventoryAbsolute(
+        editingProduct.product_id,
+        Number(formData.stock ?? 0),
+        Number(formData.reorder_level ?? editingProduct.reorder_level ?? 10),
+      );
 
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       setEditingProduct(null);
