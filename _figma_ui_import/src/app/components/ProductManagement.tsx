@@ -316,28 +316,28 @@ export function ProductManagement() {
         </div>
 
         <div className="border border-red-800 rounded-lg overflow-hidden">
-          <Table className="w-full min-w-[1200px]">
+          <Table className="w-full">
             <TableHeader>
               <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[260px]">SKU</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[170px]">Product</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[120px]">Brand</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[170px]">Category</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[80px]">Size</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[110px]">Price</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[120px]">Stock</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[110px]">Reorder</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[110px]">Status</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap w-[110px]">Actions</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">SKU</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">Brand</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">Category</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">Size</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">Price</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">Stock</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">Reorder</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap">Status</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id} className="border-red-800">
-                  <TableCell className="text-yellow-200 text-xs whitespace-nowrap">{product.sku}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap">{product.name}</TableCell>
+                  <TableCell className="text-yellow-200 text-xs max-w-[220px] truncate">{product.sku}</TableCell>
+                  <TableCell className="text-yellow-200 whitespace-nowrap max-w-[160px] truncate">{product.name}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap">{product.brand}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap">{product.category}</TableCell>
+                  <TableCell className="text-yellow-200 whitespace-nowrap max-w-[160px] truncate">{product.category}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap">{product.size}</TableCell>
                   <TableCell className="text-yellow-300 whitespace-nowrap">₱{product.price}</TableCell>
                   <TableCell className="whitespace-nowrap">
@@ -361,7 +361,7 @@ export function ProductManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex justify-end gap-1">
                       <Dialog
                         open={editingProduct?.id === product.id}
                         onOpenChange={(open) => !open && setEditingProduct(null)}
