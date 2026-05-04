@@ -50,9 +50,9 @@ function shortId(value: string | null | undefined, head = 8, tail = 6) {
 }
 
 function toPaymentStatus(status: SaleStatus): string {
-  if (status === "Pending") return "Pending";
-  if (status === "Cancelled") return "Cancelled";
-  return "Paid";
+  if (status === "Pending") return "pending";
+  if (status === "Cancelled") return "failed";
+  return "completed";
 }
 
 export function SalesManagement() {
