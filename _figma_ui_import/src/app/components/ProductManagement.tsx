@@ -315,32 +315,32 @@ export function ProductManagement() {
           />
         </div>
 
-        <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-          <Table className="w-full">
+        <div className="border border-red-800 rounded-lg overflow-hidden">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                <TableHead className="text-yellow-300 whitespace-nowrap">SKU</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Brand</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Category</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Size</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Price</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Stock</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Reorder</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Status</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap">Actions</TableHead>
+                <TableHead className="text-yellow-300">SKU</TableHead>
+                <TableHead className="text-yellow-300">Product</TableHead>
+                <TableHead className="text-yellow-300">Brand</TableHead>
+                <TableHead className="text-yellow-300">Category</TableHead>
+                <TableHead className="text-yellow-300">Size</TableHead>
+                <TableHead className="text-yellow-300">Price</TableHead>
+                <TableHead className="text-yellow-300">Stock</TableHead>
+                <TableHead className="text-yellow-300">Reorder</TableHead>
+                <TableHead className="text-yellow-300">Status</TableHead>
+                <TableHead className="text-yellow-300">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id} className="border-red-800">
-                  <TableCell className="text-yellow-200 text-xs whitespace-nowrap">{product.sku}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap">{product.name}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap">{product.brand}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap">{product.category}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap">{product.size}</TableCell>
-                  <TableCell className="text-yellow-300 whitespace-nowrap">₱{product.price}</TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="text-yellow-200 text-xs break-all">{product.sku}</TableCell>
+                  <TableCell className="text-yellow-200">{product.name}</TableCell>
+                  <TableCell className="text-yellow-200">{product.brand}</TableCell>
+                  <TableCell className="text-yellow-200">{product.category}</TableCell>
+                  <TableCell className="text-yellow-200">{product.size}</TableCell>
+                  <TableCell className="text-yellow-300">₱{product.price}</TableCell>
+                  <TableCell>
                     <Badge
                       variant={product.stock <= product.reorder_level ? "destructive" : "default"}
                       className={product.stock <= product.reorder_level ? "bg-yellow-600 text-red-900" : "bg-yellow-400 text-red-900"}
@@ -348,8 +348,8 @@ export function ProductManagement() {
                       {product.stock} units
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap">{product.reorder_level}</TableCell>
-                  <TableCell className="whitespace-nowrap">
+                  <TableCell className="text-yellow-200">{product.reorder_level}</TableCell>
+                  <TableCell>
                     <Badge
                       className={
                         product.status === "Active"
