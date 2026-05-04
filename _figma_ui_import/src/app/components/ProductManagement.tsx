@@ -315,20 +315,8 @@ export function ProductManagement() {
           />
         </div>
 
-        <div className="border border-red-800 rounded-lg overflow-hidden">
-          <Table className="w-full table-fixed text-base">
-            <colgroup>
-              <col className="w-[26%]" />
-              <col className="w-[13%]" />
-              <col className="w-[10%]" />
-              <col className="w-[13%]" />
-              <col className="w-[6%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-              <col className="w-[8%]" />
-              <col className="w-[8%]" />
-              <col className="w-[8%]" />
-            </colgroup>
+        <div className="border border-red-800 rounded-lg overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <Table className="w-full min-w-[1120px] text-base">
             <TableHeader>
               <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                 <TableHead className="text-yellow-300 whitespace-nowrap py-4 px-3">SKU</TableHead>
@@ -339,8 +327,8 @@ export function ProductManagement() {
                 <TableHead className="text-yellow-300 whitespace-nowrap text-right py-4 px-3">Price</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Stock</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Reorder</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Status</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap text-right py-4 px-3">Actions</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3 min-w-[110px]">Status</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-right py-4 px-3 min-w-[90px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -352,7 +340,7 @@ export function ProductManagement() {
                   <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3">{product.category}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap text-center py-4 px-3">{product.size}</TableCell>
                   <TableCell className="text-yellow-300 whitespace-nowrap text-right py-4 px-3">PHP {product.price}</TableCell>
-                  <TableCell className="whitespace-nowrap text-center py-4 px-3">
+                  <TableCell className="whitespace-nowrap text-center py-4 px-3 min-w-[110px]">
                     <Badge
                       variant={product.stock <= product.reorder_level ? "destructive" : "default"}
                       className={product.stock <= product.reorder_level ? "bg-yellow-600 text-red-900" : "bg-yellow-400 text-red-900"}
@@ -372,8 +360,8 @@ export function ProductManagement() {
                       {product.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="py-4 px-3">
-                    <div className="flex justify-end gap-1">
+                  <TableCell className="py-4 px-3 min-w-[90px]">
+                    <div className="flex justify-end gap-2">
                       <Dialog
                         open={editingProduct?.id === product.id}
                         onOpenChange={(open) => !open && setEditingProduct(null)}
