@@ -238,46 +238,46 @@ export function CustomerManagement() {
             <Table className="w-full">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Name</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Contact</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Address</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Purchases</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Last Purchase</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Status</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Actions</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Name</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Contact</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Address</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Purchases</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Last Purchase</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCustomers.map((customer: any) => (
                   <TableRow key={customer.customer_id} className="border-red-800">
-                    <TableCell className="text-yellow-200 whitespace-nowrap">{customer.name}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{customer.name}</TableCell>
                     <TableCell className="min-w-[180px]">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-yellow-200 text-xs whitespace-nowrap">
+                      <div className="space-y-1 flex flex-col items-center">
+                        <div className="flex items-center justify-center gap-1 text-yellow-200 text-xs whitespace-nowrap">
                           <Mail className="w-3 h-3" />
                           {customer.email}
                         </div>
-                        <div className="flex items-center gap-1 text-yellow-200 text-xs whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1 text-yellow-200 text-xs whitespace-nowrap">
                           <Phone className="w-3 h-3" />
                           {customer.contact_number}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-yellow-200 text-xs min-w-[200px]">
-                      <div className="flex items-start gap-1">
+                      <div className="flex items-center justify-center gap-1 text-center">
                         <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
                         <span>{customer.address || "N/A"}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-yellow-300 text-center whitespace-nowrap">{customer.totalPurchases}</TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{customer.lastPurchaseDate}</TableCell>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{customer.lastPurchaseDate}</TableCell>
+                    <TableCell className="whitespace-nowrap text-center">
                       <Badge className={(customer.status ?? "Active") === "Active" ? "bg-green-600 text-white" : "bg-gray-600 text-white"}>
                         {customer.status ?? "Active"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <div className="flex justify-center gap-2">
                         <Dialog open={editingCustomerId === customer.customer_id} onOpenChange={(open) => !open && setEditingCustomerId(null)}>
                           <DialogTrigger asChild>
                             <Button
@@ -379,4 +379,3 @@ function CustomerForm({
     </div>
   );
 }
-
