@@ -172,13 +172,16 @@ export function PointOfSale() {
     cart.reduce((sum, item) => sum + item.price * item.quantity * (item.discount / 100), 0);
   const calculateTotal = () => calculateSubtotal() - calculateTotalDiscount();
 
-  const normalizePhone = (value: string) => value.replace(/[^\d+]/g, "").trim();
+  const normalizePhone = (value: string) => value.replace(/\D/g, "").slice(0, 11);
 
   const getOrCreateWalkInCustomer = async () => {
     const name = walkInCustomerName.trim();
     const phone = normalizePhone(walkInCustomerPhone);
     if (!name || !phone) {
       throw new Error("Please provide walk-in customer name and mobile number");
+    }
+    if (phone.length !== 11) {
+      throw new Error("Mobile number must be exactly 11 digits");
     }
 
     const { data: existing, error: selectError } = await supabase
@@ -503,8 +506,10 @@ export function PointOfSale() {
                         <Label className="text-yellow-300">Mobile Number</Label>
                         <Input
                           value={walkInCustomerPhone}
-                          onChange={(e) => setWalkInCustomerPhone(e.target.value)}
+                          onChange={(e) => setWalkInCustomerPhone(normalizePhone(e.target.value))}
                           placeholder="e.g. 09171234567"
+                          inputMode="numeric"
+                          maxLength={11}
                           className="bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
                         />
                       </div>
