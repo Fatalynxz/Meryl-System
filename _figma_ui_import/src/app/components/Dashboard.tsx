@@ -53,6 +53,11 @@ export function Dashboard() {
     categoryData,
     topProducts,
   } = useMemo(() => {
+    const isCompletedPayment = (value: string | null | undefined) => {
+      const normalized = String(value ?? "").trim().toLowerCase();
+      return normalized === "completed" || normalized === "paid";
+    };
+
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -69,9 +74,12 @@ export function Dashboard() {
         const amount = Number(s.total_amount ?? 0);
         const rawDate = s.transaction_date ?? s.created_at ?? null;
         const date = rawDate ? new Date(rawDate) : null;
+        const payment = Array.isArray((s as any).payment) ? (s as any).payment[0] : (s as any).payment;
+        const paymentStatus = payment?.payment_status ?? null;
         return {
           ...s,
           amount,
+          isCompleted: isCompletedPayment(paymentStatus),
           date,
           dateValue: date && !Number.isNaN(date.getTime()) ? date.getTime() : 0,
         };
@@ -79,6 +87,7 @@ export function Dashboard() {
       .sort((a, b) => b.dateValue - a.dateValue);
 
     for (const sale of parsedSales) {
+      if (!sale.isCompleted) continue;
       revenueAll += sale.amount;
       if (!sale.date || Number.isNaN(sale.date.getTime())) continue;
       const saleMonth = sale.date.getMonth();
@@ -130,6 +139,7 @@ export function Dashboard() {
       dailyRevenueMap.set(key, 0);
     }
     for (const s of parsedSales) {
+      if (!s.isCompleted) continue;
       if (!s.date || Number.isNaN(s.date.getTime())) continue;
       const key = new Date(s.date.getFullYear(), s.date.getMonth(), s.date.getDate()).toISOString().slice(0, 10);
       if (!dailyRevenueMap.has(key)) continue;
