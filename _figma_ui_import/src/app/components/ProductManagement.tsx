@@ -68,6 +68,12 @@ function buildClientId() {
   return `inv_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function shortId(value: string | null | undefined, head = 8, tail = 6) {
+  const text = String(value ?? "").trim();
+  if (text.length <= head + tail + 1) return text;
+  return `${text.slice(0, head)}...${text.slice(-tail)}`;
+}
+
 const defaultForm: ProductFormData = {
   name: "",
   brand: "",
@@ -338,7 +344,9 @@ export function ProductManagement() {
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id} className="border-red-800">
-                  <TableCell className="text-yellow-200 text-sm whitespace-nowrap truncate py-4 px-3 text-center">{product.sku}</TableCell>
+                  <TableCell className="text-yellow-200 text-sm whitespace-nowrap truncate py-4 px-3 text-center">
+                    {shortId(product.sku)}
+                  </TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3 text-center">{product.name}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap py-4 px-3 text-center">{product.brand}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3 text-center">{product.category}</TableCell>

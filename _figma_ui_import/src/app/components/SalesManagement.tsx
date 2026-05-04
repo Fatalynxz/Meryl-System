@@ -41,6 +41,12 @@ function formatDate(v?: string | null) {
   return Number.isNaN(d.getTime()) ? "N/A" : d.toISOString().slice(0, 10);
 }
 
+function shortId(value: string | null | undefined, head = 8, tail = 6) {
+  const text = String(value ?? "").trim();
+  if (text.length <= head + tail + 1) return text;
+  return `${text.slice(0, head)}...${text.slice(-tail)}`;
+}
+
 export function SalesManagement() {
   const { user } = useAuth();
   const salesQuery = useSales();
@@ -261,7 +267,7 @@ export function SalesManagement() {
               <TableBody>
                 {filteredSales.map((sale: any) => (
                   <TableRow key={sale.sales_id} className="border-red-800">
-                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.sales_id}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{shortId(sale.sales_id)}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.customerName}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap max-w-[240px] truncate text-center">
                       {sale.saleDetails.length > 0
