@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Checkbox } from "./ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Coins, CreditCard, Package, Plus, Receipt, Trash2 } from "lucide-react";
@@ -56,6 +57,9 @@ export function PointOfSale() {
   const [quantity, setQuantity] = useState<number>(1);
   const [discount, setDiscount] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>("walk-in");
+  const [saveWalkInDetails, setSaveWalkInDetails] = useState(false);
+  const [walkInCustomerName, setWalkInCustomerName] = useState("");
+  const [walkInCustomerPhone, setWalkInCustomerPhone] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
   const [cashReceived, setCashReceived] = useState<string>("");
   const [receiptData, setReceiptData] = useState<any>(null);
@@ -168,6 +172,43 @@ export function PointOfSale() {
     cart.reduce((sum, item) => sum + item.price * item.quantity * (item.discount / 100), 0);
   const calculateTotal = () => calculateSubtotal() - calculateTotalDiscount();
 
+  const normalizePhone = (value: string) => value.replace(/[^\d+]/g, "").trim();
+
+  const getOrCreateWalkInCustomer = async () => {
+    const name = walkInCustomerName.trim();
+    const phone = normalizePhone(walkInCustomerPhone);
+    if (!name || !phone) {
+      throw new Error("Please provide walk-in customer name and mobile number");
+    }
+
+    const { data: existing, error: selectError } = await supabase
+      .from("customer")
+      .select("customer_id,name")
+      .eq("contact_number", phone)
+      .limit(1);
+    if (selectError) throw selectError;
+
+    if (existing && existing.length > 0) {
+      return { customer_id: existing[0].customer_id as string, label: (existing[0].name as string) || name };
+    }
+
+    const fallbackEmail = `${phone.replace(/[^\d]/g, "") || Date.now()}@walkin.local`;
+    const { data: created, error: insertError } = await supabase
+      .from("customer")
+      .insert({
+        name,
+        contact_number: phone,
+        email: fallbackEmail,
+        status: "Active",
+        date_registered: new Date().toISOString().slice(0, 10),
+      })
+      .select("customer_id,name")
+      .single();
+    if (insertError) throw insertError;
+
+    return { customer_id: created.customer_id as string, label: (created.name as string) || name };
+  };
+
   const processPayment = async () => {
     if (!user?.user_id) return toast.error("No logged in user");
     if (cart.length === 0) return toast.error("Cart is empty");
@@ -177,7 +218,18 @@ export function PointOfSale() {
     if (paid < total) return toast.error("Insufficient payment amount");
 
     const selectedCustomer = customerOptions.find((c) => c.value === customerName);
-    const p_customer_id = selectedCustomer?.customer_id ?? null;
+    let p_customer_id = selectedCustomer?.customer_id ?? null;
+    let receiptCustomerName = selectedCustomer?.label ?? "Walk-in Customer";
+
+    if (customerName === "walk-in" && saveWalkInDetails) {
+      try {
+        const walkInCustomer = await getOrCreateWalkInCustomer();
+        p_customer_id = walkInCustomer.customer_id;
+        receiptCustomerName = walkInCustomer.label;
+      } catch (error: any) {
+        return toast.error(error?.message ?? "Failed to save walk-in customer");
+      }
+    }
 
     const items = cart.map((item) => ({
       product_id: item.product_id,
@@ -200,7 +252,7 @@ export function PointOfSale() {
     const receipt = {
       receiptNumber: data?.sales_id ?? `RCP-${Date.now()}`,
       date: new Date().toLocaleString(),
-      customerName: selectedCustomer?.label ?? "Walk-in Customer",
+      customerName: receiptCustomerName,
       items: cart,
       subtotal: calculateSubtotal(),
       discount: calculateTotalDiscount(),
@@ -213,6 +265,9 @@ export function PointOfSale() {
     setShowReceipt(true);
     setCart([]);
     setCustomerName("walk-in");
+    setSaveWalkInDetails(false);
+    setWalkInCustomerName("");
+    setWalkInCustomerPhone("");
     setPaymentMethod("Cash");
     setCashReceived("");
     await queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -402,7 +457,15 @@ export function PointOfSale() {
             <div className="space-y-4 pt-4 border-t border-red-600">
               <div className="space-y-2">
                 <Label className="text-yellow-300">Select Existing Customer</Label>
-                <Select value={customerName} onValueChange={setCustomerName}>
+                <Select
+                  value={customerName}
+                  onValueChange={(value) => {
+                    setCustomerName(value);
+                    if (value !== "walk-in") {
+                      setSaveWalkInDetails(false);
+                    }
+                  }}
+                >
                   <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
                     <SelectValue />
                   </SelectTrigger>
@@ -413,6 +476,42 @@ export function PointOfSale() {
                   </SelectContent>
                 </Select>
               </div>
+              {customerName === "walk-in" && (
+                <div className="space-y-3 rounded-md border border-red-800 p-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="save-walkin-details"
+                      checked={saveWalkInDetails}
+                      onCheckedChange={(checked) => setSaveWalkInDetails(Boolean(checked))}
+                    />
+                    <Label htmlFor="save-walkin-details" className="text-yellow-300 cursor-pointer">
+                      Save walk-in customer details
+                    </Label>
+                  </div>
+                  {saveWalkInDetails && (
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-yellow-300">Customer Name</Label>
+                        <Input
+                          value={walkInCustomerName}
+                          onChange={(e) => setWalkInCustomerName(e.target.value)}
+                          placeholder="e.g. Juan Dela Cruz"
+                          className="bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-yellow-300">Mobile Number</Label>
+                        <Input
+                          value={walkInCustomerPhone}
+                          onChange={(e) => setWalkInCustomerPhone(e.target.value)}
+                          placeholder="e.g. 09171234567"
+                          className="bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label className="text-yellow-300">Payment Method</Label>
