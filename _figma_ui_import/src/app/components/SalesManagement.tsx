@@ -112,9 +112,10 @@ export function SalesManagement() {
     [uiSales, searchTerm],
   );
 
-  const totalRevenue = uiSales.reduce((sum, sale) => sum + sale.total_amount, 0);
+  const completedSales = uiSales.filter((s) => s.status === "Completed");
+  const totalRevenue = completedSales.reduce((sum, sale) => sum + sale.total_amount, 0);
   const today = new Date().toISOString().slice(0, 10);
-  const todaySales = uiSales.filter((s) => s.transaction_date === today);
+  const todaySales = completedSales.filter((s) => s.transaction_date === today);
   const pendingSales = uiSales.filter((s) => s.status === "Pending");
 
   const handleStatusUpdate = async (sale: any, nextStatus: SaleStatus) => {
