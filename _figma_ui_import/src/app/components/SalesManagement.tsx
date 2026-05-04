@@ -243,37 +243,37 @@ export function SalesManagement() {
             />
           </div>
 
-          <div className="border border-red-800 rounded-lg overflow-hidden">
-            <Table className="w-full table-fixed">
+          <div className="border border-red-800 rounded-lg overflow-x-auto">
+            <Table className="w-full min-w-[1180px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                  <TableHead className="text-yellow-300">Order ID</TableHead>
-                  <TableHead className="text-yellow-300">Customer</TableHead>
-                  <TableHead className="text-yellow-300">Product</TableHead>
-                  <TableHead className="text-yellow-300">Qty</TableHead>
-                  <TableHead className="text-yellow-300">Amount</TableHead>
-                  <TableHead className="text-yellow-300">Payment</TableHead>
-                  <TableHead className="text-yellow-300">Status</TableHead>
-                  <TableHead className="text-yellow-300">Date</TableHead>
-                  <TableHead className="text-yellow-300">Actions</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Order ID</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Customer</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Amount</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Payment</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Status</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Date</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredSales.map((sale: any) => (
                   <TableRow key={sale.sales_id} className="border-red-800">
-                    <TableCell className="text-yellow-200 break-all">{sale.sales_id}</TableCell>
-                    <TableCell className="text-yellow-200">{sale.customerName}</TableCell>
-                    <TableCell className="text-yellow-200">
+                    <TableCell className="text-yellow-200 whitespace-nowrap">{sale.sales_id}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap">{sale.customerName}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap max-w-[240px] truncate">
                       {sale.saleDetails.length > 0
                         ? sale.saleDetails.map((d: any) => d.productName).join(", ")
                         : "N/A"}
                     </TableCell>
-                    <TableCell className="text-yellow-200 text-center">
+                    <TableCell className="text-yellow-200 text-center whitespace-nowrap">
                       {sale.saleDetails.reduce((sum: number, detail: any) => sum + detail.quantity, 0)}
                     </TableCell>
                     <TableCell className="text-yellow-300 whitespace-nowrap">₱{sale.total_amount}</TableCell>
-                    <TableCell className="text-yellow-200 text-sm">{sale.payment_method}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{sale.payment_method}</TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Badge
                         className={
                           sale.status === "Completed"
@@ -286,8 +286,8 @@ export function SalesManagement() {
                         {sale.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-yellow-200 text-sm">{sale.transaction_date}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{sale.transaction_date}</TableCell>
+                    <TableCell className="text-center whitespace-nowrap">
                       <Dialog open={viewingSale?.sales_id === sale.sales_id} onOpenChange={(open) => !open && setViewingSale(null)}>
                         <DialogTrigger asChild>
                           <Button
