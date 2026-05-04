@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -11,6 +12,7 @@ import { Calendar, Eye, Plus, Search, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomers, useSales, useSalesMutations } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
+import { supabase } from "../../lib/supabase";
 
 type SaleStatus = "Completed" | "Pending" | "Cancelled";
 
@@ -47,7 +49,14 @@ function shortId(value: string | null | undefined, head = 8, tail = 6) {
   return `${text.slice(0, head)}...${text.slice(-tail)}`;
 }
 
+function toPaymentStatus(status: SaleStatus): string {
+  if (status === "Pending") return "Pending";
+  if (status === "Cancelled") return "Cancelled";
+  return "Paid";
+}
+
 export function SalesManagement() {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const salesQuery = useSales();
   const customersQuery = useCustomers();
@@ -57,9 +66,11 @@ export function SalesManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [viewingSale, setViewingSale] = useState<any | null>(null);
   const [formData, setFormData] = useState<SaleForm>(defaultForm);
+  const [updatingSaleId, setUpdatingSaleId] = useState<string | null>(null);
 
   const customers = (customersQuery.data as any[]) ?? [];
   const sales = (salesQuery.data as any[]) ?? [];
+  const isAdmin = String(user?.role_name ?? "").trim().toLowerCase() === "admin";
 
   const uiSales = useMemo(
     () =>
@@ -69,6 +80,7 @@ export function SalesManagement() {
         const details = Array.isArray((sale as any).sales_details) ? (sale as any).sales_details : [];
         return {
           sales_id: sale.sales_id,
+          payment_id: payment?.payment_id ?? null,
           transaction_date: formatDate(sale.transaction_date),
           total_amount: Number(sale.total_amount ?? 0),
           payment_method: payment?.payment_method ?? "N/A",
@@ -104,6 +116,32 @@ export function SalesManagement() {
   const today = new Date().toISOString().slice(0, 10);
   const todaySales = uiSales.filter((s) => s.transaction_date === today);
   const pendingSales = uiSales.filter((s) => s.status === "Pending");
+
+  const handleStatusUpdate = async (sale: any, nextStatus: SaleStatus) => {
+    if (!isAdmin) return;
+    if (sale.status === nextStatus) return;
+    if (!sale.payment_id) {
+      toast.error("No payment record found for this sale");
+      return;
+    }
+
+    try {
+      setUpdatingSaleId(sale.sales_id);
+      const { error } = await supabase
+        .from("payment")
+        .update({ payment_status: toPaymentStatus(nextStatus) })
+        .eq("payment_id", sale.payment_id);
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ["sales"] });
+      toast.success(`Sale status updated to ${nextStatus}`);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to update sale status");
+    } finally {
+      setUpdatingSaleId(null);
+    }
+  };
 
   const handleAddSale = async () => {
     if (!formData.total || formData.total <= 0) {
@@ -280,17 +318,34 @@ export function SalesManagement() {
                     <TableCell className="text-yellow-300 whitespace-nowrap text-center">₱{sale.total_amount}</TableCell>
                     <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.payment_method}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
-                      <Badge
-                        className={
-                          sale.status === "Completed"
-                            ? "bg-green-600 text-white"
-                            : sale.status === "Pending"
-                              ? "bg-yellow-600 text-red-900"
-                              : "bg-red-900 text-yellow-200"
-                        }
-                      >
-                        {sale.status}
-                      </Badge>
+                      {isAdmin ? (
+                        <Select
+                          value={sale.status}
+                          onValueChange={(value) => void handleStatusUpdate(sale, value as SaleStatus)}
+                          disabled={updatingSaleId === sale.sales_id}
+                        >
+                          <SelectTrigger className="h-8 min-w-[130px] bg-red-600 border-red-800 text-yellow-200 mx-auto">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                            <SelectItem value="Completed">Completed</SelectItem>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                            <SelectItem value="Cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge
+                          className={
+                            sale.status === "Completed"
+                              ? "bg-green-600 text-white"
+                              : sale.status === "Pending"
+                                ? "bg-yellow-600 text-red-900"
+                                : "bg-red-900 text-yellow-200"
+                          }
+                        >
+                          {sale.status}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.transaction_date}</TableCell>
                     <TableCell className="text-center whitespace-nowrap">
