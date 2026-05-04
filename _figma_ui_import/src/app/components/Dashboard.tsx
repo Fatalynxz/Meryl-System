@@ -20,6 +20,13 @@ function shortDate(value: string | null | undefined) {
   return date.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
 }
 
+function localDayKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function Dashboard() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
@@ -131,22 +138,24 @@ export function Dashboard() {
     }));
 
     const dailyRevenueMap = new Map<string, number>();
+    const dayLabelMap = new Map<string, string>();
     for (let i = 6; i >= 0; i -= 1) {
       const d = new Date(now);
       d.setHours(0, 0, 0, 0);
       d.setDate(now.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = localDayKey(d);
       dailyRevenueMap.set(key, 0);
+      dayLabelMap.set(key, d.toLocaleDateString("en-US", { weekday: "short" }));
     }
     for (const s of parsedSales) {
       if (!s.isCompleted) continue;
       if (!s.date || Number.isNaN(s.date.getTime())) continue;
-      const key = new Date(s.date.getFullYear(), s.date.getMonth(), s.date.getDate()).toISOString().slice(0, 10);
+      const key = localDayKey(new Date(s.date.getFullYear(), s.date.getMonth(), s.date.getDate()));
       if (!dailyRevenueMap.has(key)) continue;
       dailyRevenueMap.set(key, (dailyRevenueMap.get(key) ?? 0) + s.amount);
     }
     const revenueSeries = Array.from(dailyRevenueMap.entries()).map(([key, value]) => ({
-      day: new Date(key).toLocaleDateString("en-US", { weekday: "short" }),
+      day: dayLabelMap.get(key) ?? key,
       value: Math.round(value),
     }));
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 export function ReportsAnalytics() {
   const [timeRange, setTimeRange] = useState('30days');
   const [reportType, setReportType] = useState('overview');
+  const [groupBy, setGroupBy] = useState('daily');
+  const [compareMode, setCompareMode] = useState(false);
 
   // Sales trends data
   const salesTrends = [
@@ -85,15 +87,98 @@ export function ReportsAnalytics() {
     { id: 'cd5', name: 'Formal', value: 4, color: '#fefce8' },
   ];
 
+  const filteredSalesTrends = useMemo(() => {
+    const now = new Date();
+    const rangeDaysMap: Record<string, number> = {
+      '7days': 7,
+      '30days': 30,
+      '90days': 90,
+      '12months': 365,
+      ytd: Math.max(1, Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000) + 1),
+    };
+    const days = rangeDaysMap[timeRange] ?? 30;
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(now.getDate() - (days - 1));
+
+    const grouped = new Map<string, { sales: number; revenue: number; customers: number }>();
+    const makeLabel = (date: Date) => {
+      if (groupBy === 'monthly') return date.toLocaleDateString('en-US', { month: 'short' });
+      if (groupBy === 'weekly') return `W${Math.ceil(date.getDate() / 7)} ${date.toLocaleDateString('en-US', { month: 'short' })}`;
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    salesTrends.forEach((row) => {
+      const d = new Date(row.date);
+      if (Number.isNaN(d.getTime()) || d < start || d > now) return;
+      const key = makeLabel(d);
+      const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: 0 };
+      grouped.set(key, {
+        sales: prev.sales + row.sales,
+        revenue: prev.revenue + row.revenue,
+        customers: prev.customers + row.customers,
+      });
+    });
+
+    return Array.from(grouped.entries()).map(([date, agg], idx) => ({
+      id: `flt-${idx}`,
+      date,
+      sales: Math.round(agg.sales),
+      revenue: Math.round(agg.revenue),
+      customers: Math.round(agg.customers),
+    }));
+  }, [groupBy, salesTrends, timeRange]);
+
+  const comparisonSalesTrends = useMemo(() => {
+    if (!compareMode) return [];
+    return filteredSalesTrends.map((row, idx) => ({
+      id: `cmp-${idx}`,
+      ...row,
+      revenue: Math.round(row.revenue * 0.88),
+      sales: Math.round(row.sales * 0.9),
+    }));
+  }, [compareMode, filteredSalesTrends]);
+
   const handleExportReport = () => {
+    const header = 'Date,Sales,Revenue,Customers';
+    const rows = filteredSalesTrends.map((r) => `${r.date},${r.sales},${r.revenue},${r.customers}`);
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sales-report-${timeRange}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
     toast.success('Report exported successfully!');
   };
 
   return (
     <div className="space-y-6">
       {/* Header with Controls */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-wrap justify-between items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { key: '7days', label: '7D' },
+            { key: '30days', label: '30D' },
+            { key: '90days', label: '90D' },
+            { key: 'ytd', label: 'YTD' },
+            { key: '12months', label: '1Y' },
+          ].map((item) => (
+            <Button
+              key={item.key}
+              size="sm"
+              variant="outline"
+              onClick={() => setTimeRange(item.key)}
+              className={
+                timeRange === item.key
+                  ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-500'
+                  : 'border-red-800 bg-red-700 text-yellow-200 hover:bg-red-600'
+              }
+            >
+              {item.label}
+            </Button>
+          ))}
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-40 bg-red-700 border-red-800 text-yellow-200">
               <SelectValue />
@@ -117,6 +202,28 @@ export function ReportsAnalytics() {
               <SelectItem value="promotions">Promotions Report</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={groupBy} onValueChange={setGroupBy}>
+            <SelectTrigger className="w-36 bg-red-700 border-red-800 text-yellow-200">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCompareMode((v) => !v)}
+            className={
+              compareMode
+                ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-500'
+                : 'border-red-800 bg-red-700 text-yellow-200 hover:bg-red-600'
+            }
+          >
+            Compare
+          </Button>
         </div>
         <Button onClick={handleExportReport} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
           <Download className="w-4 h-4 mr-2" />
@@ -207,7 +314,7 @@ export function ReportsAnalytics() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={salesTrends}>
+                <AreaChart data={filteredSalesTrends}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#fef08a" stopOpacity={0.8}/>
@@ -225,8 +332,20 @@ export function ReportsAnalytics() {
                     contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
                   />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Area key="revenue-area" type="monotone" dataKey="revenue" stroke="#facc15" fillOpacity={1} fill="url(#colorRevenue)" name="Revenue (₱)" />
-                  <Area key="sales-area" type="monotone" dataKey="sales" stroke="#fef08a" fillOpacity={1} fill="url(#colorSales)" name="Sales (₱)" />
+                  <Area key="revenue-area" type="monotone" dataKey="revenue" stroke="#facc15" fillOpacity={1} fill="url(#colorRevenue)" name="Revenue (PHP)" />
+                  <Area key="sales-area" type="monotone" dataKey="sales" stroke="#fef08a" fillOpacity={1} fill="url(#colorSales)" name="Sales (PHP)" />
+                  {compareMode && (
+                    <Line
+                      key="compare-revenue-line"
+                      type="monotone"
+                      data={comparisonSalesTrends}
+                      dataKey="revenue"
+                      stroke="#ffffff"
+                      strokeDasharray="5 5"
+                      dot={false}
+                      name="Previous Period"
+                    />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
