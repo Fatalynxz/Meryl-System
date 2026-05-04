@@ -1,6 +1,6 @@
 import { createRow, getRowById, listRows, removeRow, updateRow } from "./_common";
 
-const SALES_JOIN = "*, customer:customer(*), user:user(*), payment:payment(*)";
+const SALES_JOIN = "*, customer:customer(*), user:user(*), payment:payment(*), sales_details:sales_details(*, product:product(*))";
 const SALES_DETAILS_JOIN = "*, customer:customer(*), user:user(*), payment:payment(*), sales_details:sales_details(*, product:product(*))";
 
 export const salesApi = {
