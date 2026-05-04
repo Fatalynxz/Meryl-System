@@ -324,11 +324,15 @@ export function ProductManagement() {
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Brand</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Category</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Size</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Price</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap py-4 px-3">
+                  <div className="w-full text-center">Price</div>
+                </TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Stock</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Reorder</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3 min-w-[110px]">Status</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3 min-w-[90px]">Actions</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap py-4 px-3 min-w-[90px]">
+                  <div className="w-full text-center">Actions</div>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -339,7 +343,9 @@ export function ProductManagement() {
                   <TableCell className="text-yellow-200 whitespace-nowrap py-4 px-3 text-center">{product.brand}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3 text-center">{product.category}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap text-center py-4 px-3">{product.size}</TableCell>
-                  <TableCell className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">PHP {product.price}</TableCell>
+                  <TableCell className="text-yellow-300 whitespace-nowrap py-4 px-3">
+                    <div className="w-full text-center">PHP {product.price}</div>
+                  </TableCell>
                   <TableCell className="whitespace-nowrap text-center py-4 px-3 min-w-[110px]">
                     <Badge
                       variant={product.stock <= product.reorder_level ? "destructive" : "default"}
@@ -360,7 +366,7 @@ export function ProductManagement() {
                       {product.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="py-4 px-3 min-w-[90px]">
+                  <TableCell className="py-4 px-3 min-w-[90px] text-center">
                     <div className="flex justify-center gap-2">
                       <Dialog
                         open={editingProduct?.id === product.id}
