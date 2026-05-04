@@ -247,23 +247,23 @@ export function SalesManagement() {
             <Table className="w-full min-w-[1180px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Order ID</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Customer</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Order ID</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Product</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Amount</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Payment</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Status</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Date</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Amount</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Payment</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Date</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredSales.map((sale: any) => (
                   <TableRow key={sale.sales_id} className="border-red-800">
-                    <TableCell className="text-yellow-200 whitespace-nowrap">{sale.sales_id}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap">{sale.customerName}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap max-w-[240px] truncate">
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.sales_id}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.customerName}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap max-w-[240px] truncate text-center">
                       {sale.saleDetails.length > 0
                         ? sale.saleDetails.map((d: any) => d.productName).join(", ")
                         : "N/A"}
@@ -271,9 +271,9 @@ export function SalesManagement() {
                     <TableCell className="text-yellow-200 text-center whitespace-nowrap">
                       {sale.saleDetails.reduce((sum: number, detail: any) => sum + detail.quantity, 0)}
                     </TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap">₱{sale.total_amount}</TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{sale.payment_method}</TableCell>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">₱{sale.total_amount}</TableCell>
+                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.payment_method}</TableCell>
+                    <TableCell className="whitespace-nowrap text-center">
                       <Badge
                         className={
                           sale.status === "Completed"
@@ -286,7 +286,7 @@ export function SalesManagement() {
                         {sale.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{sale.transaction_date}</TableCell>
+                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.transaction_date}</TableCell>
                     <TableCell className="text-center whitespace-nowrap">
                       <Dialog open={viewingSale?.sales_id === sale.sales_id} onOpenChange={(open) => !open && setViewingSale(null)}>
                         <DialogTrigger asChild>
@@ -337,3 +337,4 @@ export function SalesManagement() {
     </div>
   );
 }
+
