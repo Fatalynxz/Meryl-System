@@ -319,27 +319,27 @@ export function ProductManagement() {
           <Table className="w-full min-w-[1120px] text-base">
             <TableHeader>
               <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                <TableHead className="text-yellow-300 whitespace-nowrap py-4 px-3">SKU</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap py-4 px-3">Product</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap py-4 px-3">Brand</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap py-4 px-3">Category</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">SKU</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Product</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Brand</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Category</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Size</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap text-right py-4 px-3">Price</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Price</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Stock</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Reorder</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3 min-w-[110px]">Status</TableHead>
-                <TableHead className="text-yellow-300 whitespace-nowrap text-right py-4 px-3 min-w-[90px]">Actions</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3 min-w-[90px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id} className="border-red-800">
-                  <TableCell className="text-yellow-200 text-sm whitespace-nowrap truncate py-4 px-3">{product.sku}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3">{product.name}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap py-4 px-3">{product.brand}</TableCell>
-                  <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3">{product.category}</TableCell>
+                  <TableCell className="text-yellow-200 text-sm whitespace-nowrap truncate py-4 px-3 text-center">{product.sku}</TableCell>
+                  <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3 text-center">{product.name}</TableCell>
+                  <TableCell className="text-yellow-200 whitespace-nowrap py-4 px-3 text-center">{product.brand}</TableCell>
+                  <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3 text-center">{product.category}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap text-center py-4 px-3">{product.size}</TableCell>
-                  <TableCell className="text-yellow-300 whitespace-nowrap text-right py-4 px-3">PHP {product.price}</TableCell>
+                  <TableCell className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">PHP {product.price}</TableCell>
                   <TableCell className="whitespace-nowrap text-center py-4 px-3 min-w-[110px]">
                     <Badge
                       variant={product.stock <= product.reorder_level ? "destructive" : "default"}
@@ -361,7 +361,7 @@ export function ProductManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell className="py-4 px-3 min-w-[90px]">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-center gap-2">
                       <Dialog
                         open={editingProduct?.id === product.id}
                         onOpenChange={(open) => !open && setEditingProduct(null)}
