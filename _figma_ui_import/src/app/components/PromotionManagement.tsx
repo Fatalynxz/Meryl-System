@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -11,6 +11,7 @@ import { Progress } from './ui/progress';
 import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useProducts, useSales } from '../../lib/hooks';
 
 type Promotion = {
   promo_id: string;
@@ -42,7 +43,18 @@ type Customer = {
   status: 'Active' | 'Inactive';
 };
 
+type PromotionRecommendation = {
+  id: string;
+  title: string;
+  rationale: string;
+  discount_type: Promotion['discount_type'];
+  discount_value: number;
+  targetProducts: string;
+};
+
 export function PromotionManagement() {
+  const salesQuery = useSales();
+  const productsQuery = useProducts();
   // Mock customer data (in real app, would fetch from customer management)
   const mockCustomers: Customer[] = [
     { customer_id: '1', name: 'John Doe', email: 'john.doe@email.com', status: 'Active' },
@@ -111,6 +123,120 @@ export function PromotionManagement() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [lastNotificationBatch, setLastNotificationBatch] = useState<Notification[]>([]);
+
+  const productRecommendations = useMemo<PromotionRecommendation[]>(() => {
+    const sales = (salesQuery.data as any[]) ?? [];
+    const products = (productsQuery.data as any[]) ?? [];
+    const now = new Date();
+    const last30 = new Date(now);
+    last30.setDate(now.getDate() - 30);
+
+    const soldByProduct = new Map<string, number>();
+    sales.forEach((sale: any) => {
+      const txDate = new Date(sale.transaction_date ?? sale.created_at ?? '');
+      if (Number.isNaN(txDate.getTime()) || txDate < last30) return;
+      const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
+      const status = String(payment?.payment_status ?? '').toLowerCase();
+      if (status !== 'completed' && status !== 'paid') return;
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      details.forEach((d: any) => {
+        const pid = String(d.product_id ?? '');
+        if (!pid) return;
+        soldByProduct.set(pid, (soldByProduct.get(pid) ?? 0) + Number(d.quantity ?? 0));
+      });
+    });
+
+    const rows = products.map((p: any) => {
+      const inventory = Array.isArray(p.inventory) ? p.inventory[0] : p.inventory;
+      const stock = Number(inventory?.stock_quantity ?? 0);
+      const reorder = Number(p.reorder_level ?? inventory?.reorder_level ?? 10);
+      const sold30 = soldByProduct.get(String(p.product_id ?? '')) ?? 0;
+      const velocity = sold30 / 30;
+      return {
+        id: String(p.product_id ?? ''),
+        name: String(p.product_name ?? 'Unknown Product'),
+        category: String(p.category?.[0]?.category_name ?? p.category?.category_name ?? 'General'),
+        stock,
+        reorder,
+        sold30,
+        velocity,
+      };
+    });
+
+    const slow = rows
+      .filter((r) => r.stock >= r.reorder * 2 && r.sold30 > 0 && r.sold30 <= 5)
+      .sort((a, b) => a.sold30 - b.sold30)[0];
+    const overstock = rows
+      .filter((r) => r.stock >= r.reorder * 3 && r.sold30 <= 2)
+      .sort((a, b) => b.stock - a.stock)[0];
+    const categoryRollup = new Map<string, { stock: number; sold: number }>();
+    rows.forEach((r) => {
+      const prev = categoryRollup.get(r.category) ?? { stock: 0, sold: 0 };
+      categoryRollup.set(r.category, { stock: prev.stock + r.stock, sold: prev.sold + r.sold30 });
+    });
+    const weakCategory = Array.from(categoryRollup.entries())
+      .map(([category, v]) => ({ category, ratio: v.stock > 0 ? v.sold / v.stock : 0 }))
+      .sort((a, b) => a.ratio - b.ratio)[0];
+
+    const recs: PromotionRecommendation[] = [];
+    if (slow) {
+      recs.push({
+        id: `slow-${slow.id}`,
+        title: `Boost slow mover: ${slow.name}`,
+        rationale: `${slow.sold30} sold in 30d with ${slow.stock} units on hand.`,
+        discount_type: 'Percentage',
+        discount_value: 15,
+        targetProducts: slow.name,
+      });
+    }
+    if (overstock) {
+      recs.push({
+        id: `overstock-${overstock.id}`,
+        title: `Clear overstock: ${overstock.name}`,
+        rationale: `${overstock.stock} units in stock and very low movement.`,
+        discount_type: 'Bundle',
+        discount_value: 1,
+        targetProducts: overstock.name,
+      });
+    }
+    if (weakCategory) {
+      recs.push({
+        id: `category-${weakCategory.category}`,
+        title: `Category push: ${weakCategory.category}`,
+        rationale: `Lowest sell-through ratio in last 30 days.`,
+        discount_type: 'BOGO',
+        discount_value: 50,
+        targetProducts: `${weakCategory.category} Category`,
+      });
+    }
+    recs.push({
+      id: 'weekend-traffic',
+      title: 'Weekend traffic booster',
+      rationale: 'Use short promo window to increase conversion without long margin impact.',
+      discount_type: 'Fixed Amount',
+      discount_value: 20,
+      targetProducts: 'All Products',
+    });
+    return recs.slice(0, 4);
+  }, [productsQuery.data, salesQuery.data]);
+
+  const applyRecommendation = (rec: PromotionRecommendation) => {
+    const start = new Date();
+    const end = new Date();
+    end.setDate(start.getDate() + 7);
+    const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
+    setFormData({
+      promo_name: rec.title,
+      discount_type: rec.discount_type,
+      discount_value: rec.discount_value,
+      targetProducts: rec.targetProducts,
+      start_date: toDateInput(start),
+      end_date: toDateInput(end),
+      status: 'Scheduled',
+    });
+    setIsAddDialogOpen(true);
+    toast.success('Recommendation applied to promotion form');
+  };
 
   // Performance data for charts
   const promotionPerformance = [
@@ -306,6 +432,49 @@ export function PromotionManagement() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Analytics Recommendations */}
+      <Card className="bg-red-700 border-red-800">
+        <CardHeader>
+          <CardTitle className="text-yellow-300 flex items-center gap-2">
+            <Percent className="w-5 h-5" />
+            Recommended by Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {productRecommendations.map((rec) => (
+              <div key={rec.id} className="rounded-lg border border-red-800 bg-red-800/40 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-yellow-200 font-medium">{rec.title}</p>
+                    <p className="text-yellow-300/80 text-xs mt-1">{rec.rationale}</p>
+                    <div className="flex gap-2 mt-2">
+                      <Badge className="bg-yellow-400 text-red-900">{rec.discount_type}</Badge>
+                      <Badge className="bg-red-600 text-yellow-200">
+                        {rec.discount_type === 'Percentage'
+                          ? `${rec.discount_value}%`
+                          : rec.discount_type === 'Fixed Amount'
+                            ? `₱${rec.discount_value}`
+                            : rec.discount_type === 'BOGO'
+                              ? 'Buy 1 Get 1'
+                              : 'Bundle'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                    onClick={() => applyRecommendation(rec)}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Active Promotions Table */}
       <Card className="bg-red-700 border-red-800">
