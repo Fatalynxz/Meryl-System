@@ -1,5 +1,8 @@
 from collections import defaultdict
 from datetime import datetime
+import json
+import urllib.request
+import urllib.error
 
 
 def sync_promotion_notifications(
@@ -58,6 +61,102 @@ def sync_promotion_notifications(
 
     if notification_payloads:
         supabase.table("notification").insert(notification_payloads).execute()
+
+
+def send_promotion_notifications_via_brevo(
+    promo_id,
+    *,
+    supabase,
+    table_exists,
+    fetch_rows,
+    safe_int,
+    sender_email,
+    sender_name,
+    api_key,
+):
+    """
+    Send promotion emails through Brevo based on notification rows produced by
+    `sync_promotion_notifications`.
+    """
+    if not table_exists("notification"):
+        return {"enabled": False, "sent": 0, "failed": 0, "reason": "notification_table_missing"}
+
+    promo_id = safe_int(promo_id, 0)
+    if promo_id <= 0:
+        return {"enabled": False, "sent": 0, "failed": 0, "reason": "invalid_promo_id"}
+
+    if not api_key or not sender_email:
+        return {"enabled": False, "sent": 0, "failed": 0, "reason": "brevo_not_configured"}
+
+    promo_lookup = {safe_int(row.get("promo_id"), 0): row for row in fetch_rows("promotion")}
+    promo = promo_lookup.get(promo_id, {})
+    promo_name = str(promo.get("promo_name") or "Promotion").strip()
+    discount_type = str(promo.get("discount_type") or "").strip()
+    discount_value = promo.get("discount_value")
+    start_date = str(promo.get("start_date") or "").strip()[:10]
+    end_date = str(promo.get("end_date") or "").strip()[:10]
+
+    notification_rows = (
+        supabase.table("notification")
+        .select("notification_id, email, email_status, customer_id")
+        .eq("promo_id", promo_id)
+        .execute()
+        .data
+        or []
+    )
+
+    sent = 0
+    failed = 0
+    for row in notification_rows:
+        email = str(row.get("email") or "").strip()
+        if not email:
+            failed += 1
+            continue
+
+        payload = {
+            "sender": {"name": sender_name or "Meryl Shoes", "email": sender_email},
+            "to": [{"email": email}],
+            "subject": f"New Promotion: {promo_name}",
+            "htmlContent": (
+                f"<h3>{promo_name}</h3>"
+                f"<p>Hi there,</p>"
+                f"<p>We launched a new promotion just for you.</p>"
+                f"<ul>"
+                f"<li><strong>Type:</strong> {discount_type or 'Promotion'}</li>"
+                f"<li><strong>Value:</strong> {discount_value}</li>"
+                f"<li><strong>Valid:</strong> {start_date} to {end_date}</li>"
+                f"</ul>"
+                f"<p>Visit Meryl Shoes to enjoy this offer.</p>"
+            ),
+        }
+
+        status = "Sent"
+        try:
+            request = urllib.request.Request(
+                "https://api.brevo.com/v3/smtp/email",
+                data=json.dumps(payload).encode("utf-8"),
+                method="POST",
+                headers={
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                    "api-key": api_key,
+                },
+            )
+            with urllib.request.urlopen(request, timeout=20):
+                sent += 1
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
+            status = "Failed"
+            failed += 1
+
+        try:
+            supabase.table("notification").update(
+                {"email_status": status, "date_sent": datetime.now().isoformat()}
+            ).eq("notification_id", row.get("notification_id")).execute()
+        except Exception:
+            # Best effort status update only.
+            pass
+
+    return {"enabled": True, "sent": sent, "failed": failed, "reason": ""}
 
 
 def sync_promotion_products(

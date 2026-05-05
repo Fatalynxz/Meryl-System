@@ -94,6 +94,7 @@ from app_modules.analytics.app_promotions import (
     build_active_promotion_lookup as promotion_build_active_lookup,
     build_promotions_context as promotion_build_context,
     compute_promo_discount as promotion_compute_discount,
+    send_promotion_notifications_via_brevo as promotion_send_notifications_via_brevo,
     sync_promotion_notifications as promotion_sync_notifications,
     sync_promotion_products as promotion_sync_products,
 )
@@ -669,6 +670,19 @@ def sync_promotion_notifications(promo_id):
         build_sale_status_maps=build_sale_status_maps,
         fetch_rows=fetch_rows,
         build_customer_lookup=build_customer_lookup,
+    )
+
+
+def send_promotion_notifications_via_brevo(promo_id):
+    return promotion_send_notifications_via_brevo(
+        promo_id,
+        supabase=supabase(),
+        table_exists=table_exists,
+        fetch_rows=fetch_rows,
+        safe_int=safe_int,
+        sender_email=os.getenv("BREVO_SENDER_EMAIL", "").strip(),
+        sender_name=os.getenv("BREVO_SENDER_NAME", "Meryl Shoes").strip() or "Meryl Shoes",
+        api_key=os.getenv("BREVO_API_KEY", "").strip(),
     )
 
 
@@ -1538,7 +1552,16 @@ def promotions_save():
             supabase().table("promotion").update(payload).eq("promo_id", promo_id).execute()
             linked_count = sync_promotion_products(promo_id, target_category_id, target_product_id)
             sync_promotion_notifications(promo_id)
-            set_notice(f"Promotion updated. Linked products: {linked_count}.")
+            delivery = send_promotion_notifications_via_brevo(promo_id)
+            if delivery.get("enabled"):
+                set_notice(
+                    f"Promotion updated. Linked products: {linked_count}. Emails sent: {delivery.get('sent', 0)}, failed: {delivery.get('failed', 0)}."
+                )
+            else:
+                set_notice(
+                    f"Promotion updated. Linked products: {linked_count}. Email send skipped ({delivery.get('reason', 'not configured')}).",
+                    "warning",
+                )
         else:
             created = supabase().table("promotion").insert(payload).execute().data or []
             if not created:
@@ -1546,7 +1569,16 @@ def promotions_save():
             new_promo_id = created[0]["promo_id"]
             linked_count = sync_promotion_products(new_promo_id, target_category_id, target_product_id)
             sync_promotion_notifications(new_promo_id)
-            set_notice(f"Promotion created. Linked products: {linked_count}.")
+            delivery = send_promotion_notifications_via_brevo(new_promo_id)
+            if delivery.get("enabled"):
+                set_notice(
+                    f"Promotion created. Linked products: {linked_count}. Emails sent: {delivery.get('sent', 0)}, failed: {delivery.get('failed', 0)}."
+                )
+            else:
+                set_notice(
+                    f"Promotion created. Linked products: {linked_count}. Email send skipped ({delivery.get('reason', 'not configured')}).",
+                    "warning",
+                )
     except Exception as exc:
         set_notice(f"Unable to save promotion: {exc}", "danger")
 
