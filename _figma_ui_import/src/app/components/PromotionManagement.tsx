@@ -52,6 +52,26 @@ type PromotionRecommendation = {
   targetProducts: string;
 };
 
+function toDbDiscountType(value: Promotion['discount_type'] | string | undefined) {
+  const normalized = String(value ?? '').toLowerCase();
+  if (normalized.includes('fixed')) return 'fixed';
+  return 'percentage';
+}
+
+function toDbStatus(value: Promotion['status'] | string | undefined, startDate?: string) {
+  const normalized = String(value ?? '').toLowerCase();
+  if (normalized.includes('ended')) return 'expired';
+  if (normalized.includes('scheduled')) return 'inactive';
+  if (normalized.includes('active')) {
+    if (startDate) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (startDate > today) return 'inactive';
+    }
+    return 'active';
+  }
+  return 'inactive';
+}
+
 export function PromotionManagement() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
@@ -96,12 +116,15 @@ export function PromotionManagement() {
               ? 'Bundle'
               : 'Percentage';
       const rawStatus = String(row.status ?? 'Scheduled').toLowerCase();
+      const today = new Date().toISOString().slice(0, 10);
+      const start = String(row.start_date ?? '').slice(0, 10);
+      const end = String(row.end_date ?? '').slice(0, 10);
       const status: Promotion['status'] =
-        rawStatus.includes('active')
-          ? 'Active'
-          : rawStatus.includes('scheduled')
-            ? 'Scheduled'
-            : 'Ended';
+        rawStatus.includes('expired') || (end && end < today)
+          ? 'Ended'
+          : rawStatus.includes('active') || (start && start <= today && end && end >= today)
+            ? 'Active'
+            : 'Scheduled';
       return {
         promo_id: String(row.promo_id ?? ''),
         promo_name: String(row.promo_name ?? 'Promotion'),
@@ -263,12 +286,13 @@ export function PromotionManagement() {
     try {
       setIsSavingPromotion(true);
       const newPromotionPayload = {
+        promo_id: crypto.randomUUID(),
         promo_name: formData.promo_name!,
-        discount_type: formData.discount_type || 'Percentage',
+        discount_type: toDbDiscountType(formData.discount_type),
         discount_value: Number(formData.discount_value || 0),
         start_date: formData.start_date!,
         end_date: formData.end_date!,
-        status: formData.status || 'Scheduled',
+        status: toDbStatus(formData.status, formData.start_date),
       };
 
       await promotionsMutations.createMutation.mutateAsync(newPromotionPayload as any);
@@ -303,13 +327,13 @@ export function PromotionManagement() {
 
     await promotionsMutations.updateMutation.mutateAsync({
       id: editingPromotion.promo_id,
-      data: {
+      payload: {
         promo_name: formData.promo_name,
-        discount_type: formData.discount_type,
+        discount_type: toDbDiscountType(formData.discount_type),
         discount_value: formData.discount_value,
         start_date: formData.start_date,
         end_date: formData.end_date,
-        status: formData.status,
+        status: toDbStatus(formData.status, formData.start_date),
       },
     } as any);
     setEditingPromotion(null);
