@@ -66,6 +66,11 @@ function toDbStatus(value: Promotion['status'] | string | undefined, startDate?:
   return 'inactive';
 }
 
+function isMissingTargetProductsColumnError(error: any) {
+  const message = String(error?.message ?? error ?? '').toLowerCase();
+  return message.includes("target_products") && message.includes("column");
+}
+
 function formatTargetProducts(categories: string[], products: string[]) {
   const cats = categories.filter(Boolean);
   const prods = products.filter(Boolean);
@@ -364,7 +369,13 @@ export function PromotionManagement() {
         status: toDbStatus(formData.status, formData.start_date),
       };
 
-      await promotionsMutations.createMutation.mutateAsync(newPromotionPayload as any);
+      try {
+        await promotionsMutations.createMutation.mutateAsync(newPromotionPayload as any);
+      } catch (error: any) {
+        if (!isMissingTargetProductsColumnError(error)) throw error;
+        const { target_products: _ignored, ...fallbackPayload } = newPromotionPayload as any;
+        await promotionsMutations.createMutation.mutateAsync(fallbackPayload);
+      }
 
       // Send email notifications to all active customers
       const activeCustomers = customers.filter(c => c.status === 'Active' && c.email);
@@ -395,18 +406,29 @@ export function PromotionManagement() {
     if (!editingPromotion) return;
     try {
       setIsUpdatingPromotion(true);
-      await promotionsMutations.updateMutation.mutateAsync({
-        id: editingPromotion.promo_id,
-        payload: {
-          promo_name: formData.promo_name,
-          discount_type: toDbDiscountType(formData.discount_type),
-          discount_value: formData.discount_value,
-          target_products: formData.targetProducts,
-          start_date: formData.start_date,
-          end_date: formData.end_date,
-          status: toDbStatus(formData.status, formData.start_date),
-        },
-      } as any);
+      const payload = {
+        promo_name: formData.promo_name,
+        discount_type: toDbDiscountType(formData.discount_type),
+        discount_value: formData.discount_value,
+        target_products: formData.targetProducts,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        status: toDbStatus(formData.status, formData.start_date),
+      } as any;
+
+      try {
+        await promotionsMutations.updateMutation.mutateAsync({
+          id: editingPromotion.promo_id,
+          payload,
+        } as any);
+      } catch (error: any) {
+        if (!isMissingTargetProductsColumnError(error)) throw error;
+        const { target_products: _ignored, ...fallbackPayload } = payload;
+        await promotionsMutations.updateMutation.mutateAsync({
+          id: editingPromotion.promo_id,
+          payload: fallbackPayload,
+        } as any);
+      }
       setEditingPromotion(null);
       setFormData({});
       toast.success('Promotion updated successfully!');
