@@ -54,7 +54,9 @@ type PromotionRecommendation = {
 
 function toDbDiscountType(value: Promotion['discount_type'] | string | undefined) {
   const normalized = String(value ?? '').toLowerCase();
+  if (normalized.includes('bundle')) return 'fixed';
   if (normalized.includes('fixed')) return 'fixed';
+  if (normalized.includes('bogo')) return 'percentage';
   return 'percentage';
 }
 
