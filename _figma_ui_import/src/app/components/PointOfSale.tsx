@@ -25,6 +25,7 @@ type CartItem = {
   price: number;
   quantity: number;
   discount: number;
+  promotionType?: string;
 };
 
 type ProductVariant = {
@@ -253,11 +254,22 @@ export function PointOfSale() {
       ? promoToPercent(matchedPromotion.discountType, matchedPromotion.discountValue, selectedVariant.price)
       : discount;
 
+    const isBogoApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bogo"));
+    const quantityToAdd = isBogoApplied ? quantity * 2 : quantity;
+    const finalDiscount = isBogoApplied ? 50 : promoDiscount;
+
     const existingItem = cart.find((item) => item.id === selectedVariant.product_id);
     if (existingItem) {
       setCart(
         cart.map((item) =>
-          item.id === selectedVariant.product_id ? { ...item, quantity: item.quantity + quantity } : item,
+          item.id === selectedVariant.product_id
+            ? {
+                ...item,
+                quantity: item.quantity + quantityToAdd,
+                discount: isBogoApplied ? 50 : item.discount,
+                promotionType: isBogoApplied ? "bogo" : item.promotionType,
+              }
+            : item,
         ),
       );
     } else {
@@ -271,8 +283,9 @@ export function PointOfSale() {
           color: selectedVariant.color,
           size: selectedVariant.size,
           price: selectedVariant.price,
-          quantity,
-          discount: promoDiscount,
+          quantity: quantityToAdd,
+          discount: finalDiscount,
+          promotionType: isBogoApplied ? "bogo" : undefined,
         },
       ]);
     }
@@ -281,7 +294,9 @@ export function PointOfSale() {
     setSelectedSize("");
     setQuantity(1);
     setDiscount(0);
-    if (matchedPromotion) {
+    if (isBogoApplied) {
+      toast.success("BOGO applied: quantity doubled and charged as buy-1-get-1");
+    } else if (matchedPromotion) {
       toast.success("Product added with active promotion applied");
     } else {
       toast.success("Product added to cart");
@@ -296,7 +311,13 @@ export function PointOfSale() {
   const updateDiscount = (id: string, newDiscount: number) =>
     newDiscount >= 0 &&
     newDiscount <= 100 &&
-    setCart(cart.map((item) => (item.id === id ? { ...item, discount: newDiscount } : item)));
+    setCart(
+      cart.map((item) =>
+        item.id === id
+          ? { ...item, discount: item.promotionType === "bogo" ? 50 : newDiscount }
+          : item,
+      ),
+    );
 
   const calculateSubtotal = () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const calculateTotalDiscount = () =>
@@ -547,6 +568,7 @@ export function PointOfSale() {
                               value={item.discount}
                               onChange={(e) => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
                               className="w-20 bg-red-600 border-red-800 text-yellow-200"
+                              disabled={item.promotionType === "bogo"}
                             />
                           </TableCell>
                           <TableCell className="text-yellow-300">₱{itemTotal.toFixed(2)}</TableCell>
