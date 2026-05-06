@@ -11,7 +11,7 @@ import { Progress } from './ui/progress';
 import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { useProducts, useSales } from '../../lib/hooks';
+import { useCustomers, useProducts, useSales } from '../../lib/hooks';
 
 type Promotion = {
   promo_id: string;
@@ -55,16 +55,14 @@ type PromotionRecommendation = {
 export function PromotionManagement() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
-  // Mock customer data (in real app, would fetch from customer management)
-  const mockCustomers: Customer[] = [
-    { customer_id: '1', name: 'John Doe', email: 'john.doe@email.com', status: 'Active' },
-    { customer_id: '2', name: 'Jane Smith', email: 'jane.smith@email.com', status: 'Active' },
-    { customer_id: '3', name: 'Bob Johnson', email: 'bob.johnson@email.com', status: 'Active' },
-    { customer_id: '4', name: 'Alice Brown', email: 'alice.brown@email.com', status: 'Active' },
-    { customer_id: '5', name: 'Charlie Davis', email: 'charlie.davis@email.com', status: 'Active' },
-    { customer_id: '6', name: 'Diana Wilson', email: 'diana.wilson@email.com', status: 'Active' },
-    { customer_id: '7', name: 'Eve Martinez', email: 'eve.martinez@email.com', status: 'Inactive' },
-  ];
+  const customersQuery = useCustomers();
+  const customers: Customer[] = ((customersQuery.data as any[]) ?? []).map((row: any) => ({
+    customer_id: String(row.customer_id ?? ''),
+    name: String(row.customer_name ?? row.name ?? 'Customer'),
+    email: String(row.email ?? '').trim(),
+    status: String(row.status ?? 'active').toLowerCase() === 'active' ? 'Active' : 'Inactive',
+  }));
+  const customerNameMap = new Map(customers.map((c) => [c.customer_id, c.name]));
 
   const [promotions, setPromotions] = useState<Promotion[]>([
     {
@@ -283,7 +281,7 @@ export function PromotionManagement() {
     setPromotions([...promotions, newPromotion]);
 
     // Send email notifications to all active customers
-    const activeCustomers = mockCustomers.filter(c => c.status === 'Active');
+    const activeCustomers = customers.filter(c => c.status === 'Active' && c.email);
     const newNotifications: Notification[] = activeCustomers.map((customer, index) => ({
       notification_id: `NOTIF-${Date.now()}-${index}`,
       customer_id: customer.customer_id,
@@ -625,13 +623,13 @@ export function PromotionManagement() {
               <p className="text-yellow-300 mb-2">Notification Recipients:</p>
               <div className="space-y-2">
                 {lastNotificationBatch.map((notif) => {
-                  const customer = mockCustomers.find(c => c.customer_id === notif.customer_id);
+                  const customerName = customerNameMap.get(notif.customer_id) || 'Customer';
                   return (
                     <div key={notif.notification_id} className="flex items-center justify-between p-3 bg-red-600 rounded border border-red-800">
                       <div className="flex items-center gap-3">
                         <Mail className="w-4 h-4 text-yellow-400" />
                         <div>
-                          <p className="text-yellow-200 text-sm">{customer?.name}</p>
+                          <p className="text-yellow-200 text-sm">{customerName}</p>
                           <p className="text-yellow-300 text-xs">{notif.email}</p>
                         </div>
                       </div>
