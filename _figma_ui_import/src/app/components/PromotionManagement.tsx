@@ -388,7 +388,9 @@ export function PromotionManagement() {
         promo_id: crypto.randomUUID(),
         promo_name: encodePromoNameWithType(formData.promo_name!, formData.discount_type),
         discount_type: toDbDiscountType(formData.discount_type),
-        discount_value: Number(formData.discount_value || 0),
+        discount_value: String(formData.discount_type ?? '').toLowerCase().includes('bogo')
+          ? 0
+          : Number(formData.discount_value || 0),
         target_products: formData.targetProducts || 'All Products',
         start_date: formData.start_date!,
         end_date: formData.end_date!,
@@ -435,7 +437,9 @@ export function PromotionManagement() {
       const payload = {
         promo_name: encodePromoNameWithType(formData.promo_name, formData.discount_type),
         discount_type: toDbDiscountType(formData.discount_type),
-        discount_value: formData.discount_value,
+        discount_value: String(formData.discount_type ?? '').toLowerCase().includes('bogo')
+          ? 0
+          : formData.discount_value,
         target_products: formData.targetProducts,
         start_date: formData.start_date,
         end_date: formData.end_date,
@@ -837,6 +841,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
   categoryOptions: string[];
   productOptions: Array<{ name: string; category: string }>;
 }) {
+  const isBogoType = String(formData.discount_type ?? '').toLowerCase().includes('bogo');
   const parsed = useMemo(() => parseTargetProducts(formData.targetProducts), [formData.targetProducts]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(parsed.categories);
   const [selectedProducts, setSelectedProducts] = useState<string[]>(parsed.products);
@@ -907,7 +912,16 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="discount_type" className="text-yellow-300">Promotion Type *</Label>
-          <Select value={formData.discount_type || 'Percentage'} onValueChange={(value) => setFormData({ ...formData, discount_type: value as Promotion['discount_type'] })}>
+          <Select
+            value={formData.discount_type || 'Percentage'}
+            onValueChange={(value) =>
+              setFormData({
+                ...formData,
+                discount_type: value as Promotion['discount_type'],
+                discount_value: String(value).toLowerCase().includes('bogo') ? 0 : formData.discount_value,
+              })
+            }
+          >
             <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
               <SelectValue />
             </SelectTrigger>
@@ -927,7 +941,8 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
             value={formData.discount_value || ''}
             onChange={(e) => setFormData({ ...formData, discount_value: parseFloat(e.target.value) })}
             className="bg-red-600 border-red-800 text-yellow-200"
-            placeholder={formData.discount_type === 'Percentage' ? '25' : '20'}
+            placeholder={isBogoType ? '0 (Auto for BOGO)' : formData.discount_type === 'Percentage' ? '25' : '20'}
+            disabled={isBogoType}
           />
         </div>
       </div>
