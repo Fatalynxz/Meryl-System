@@ -81,6 +81,7 @@ export function PromotionManagement() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [lastNotificationBatch, setLastNotificationBatch] = useState<Notification[]>([]);
+  const [isSavingPromotion, setIsSavingPromotion] = useState(false);
 
   const promotions: Promotion[] = useMemo(() => {
     const rows = (promotionsQuery.data as any[]) ?? [];
@@ -259,36 +260,42 @@ export function PromotionManagement() {
       return;
     }
 
-    const newPromotionPayload = {
-      promo_name: formData.promo_name!,
-      discount_type: formData.discount_type || 'Percentage',
-      discount_value: formData.discount_value || 0,
-      start_date: formData.start_date!,
-      end_date: formData.end_date!,
-      status: formData.status || 'Scheduled',
-    };
+    try {
+      setIsSavingPromotion(true);
+      const newPromotionPayload = {
+        promo_name: formData.promo_name!,
+        discount_type: formData.discount_type || 'Percentage',
+        discount_value: Number(formData.discount_value || 0),
+        start_date: formData.start_date!,
+        end_date: formData.end_date!,
+        status: formData.status || 'Scheduled',
+      };
 
-    await promotionsMutations.createMutation.mutateAsync(newPromotionPayload as any);
+      await promotionsMutations.createMutation.mutateAsync(newPromotionPayload as any);
 
-    // Send email notifications to all active customers
-    const activeCustomers = customers.filter(c => c.status === 'Active' && c.email);
-    const newNotifications: Notification[] = activeCustomers.map((customer, index) => ({
-      notification_id: `NOTIF-${Date.now()}-${index}`,
-      customer_id: customer.customer_id,
-      promo_id: 'NEW_PROMO',
-      email: customer.email,
-      email_status: 'Sent' as const,
-      date_sent: new Date().toISOString().split('T')[0]
-    }));
+      // Send email notifications to all active customers
+      const activeCustomers = customers.filter(c => c.status === 'Active' && c.email);
+      const newNotifications: Notification[] = activeCustomers.map((customer, index) => ({
+        notification_id: `NOTIF-${Date.now()}-${index}`,
+        customer_id: customer.customer_id,
+        promo_id: 'NEW_PROMO',
+        email: customer.email,
+        email_status: 'Sent' as const,
+        date_sent: new Date().toISOString().split('T')[0]
+      }));
 
-    setNotifications([...notifications, ...newNotifications]);
-    setLastNotificationBatch(newNotifications);
-    setIsAddDialogOpen(false);
-    setFormData({});
+      setNotifications([...notifications, ...newNotifications]);
+      setLastNotificationBatch(newNotifications);
+      setIsAddDialogOpen(false);
+      setFormData({});
 
-    // Show success message and notification dialog
-    toast.success(`Promotion created! Email notifications sent to ${activeCustomers.length} customers.`);
-    setShowNotificationDialog(true);
+      toast.success(`Promotion created! Email notifications sent to ${activeCustomers.length} customers.`);
+      setShowNotificationDialog(true);
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Unable to create promotion');
+    } finally {
+      setIsSavingPromotion(false);
+    }
   };
 
   const handleEditPromotion = async () => {
@@ -491,8 +498,12 @@ export function PromotionManagement() {
                 </DialogHeader>
                 <PromotionForm formData={formData} setFormData={setFormData} />
                 <DialogFooter>
-                  <Button onClick={handleAddPromotion} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                    Create Promotion
+                  <Button
+                    onClick={handleAddPromotion}
+                    disabled={isSavingPromotion}
+                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
+                  >
+                    {isSavingPromotion ? 'Creating...' : 'Create Promotion'}
                   </Button>
                 </DialogFooter>
               </DialogContent>
