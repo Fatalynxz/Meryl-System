@@ -54,6 +54,11 @@ type ActivePromotionRule = {
   endDate: string;
 };
 
+const PROMO_TYPE_MARKERS = {
+  bundle: "__TYPE_BUNDLE__",
+  bogo: "__TYPE_BOGO__",
+} as const;
+
 function parsePromotionTarget(rawValue: string | null | undefined) {
   const raw = String(rawValue ?? "").trim();
   if (!raw || raw.toLowerCase() === "all products") {
@@ -91,6 +96,13 @@ function parsePromotionTarget(rawValue: string | null | undefined) {
     categories: Array.from(new Set(categories)),
     products: Array.from(new Set(products)),
   };
+}
+
+function resolveEffectiveDiscountType(discountType: string, promoName: string | undefined) {
+  const loweredName = String(promoName ?? "").toLowerCase();
+  if (loweredName.includes(PROMO_TYPE_MARKERS.bogo.toLowerCase())) return "bogo";
+  if (loweredName.includes(PROMO_TYPE_MARKERS.bundle.toLowerCase())) return "bundle";
+  return String(discountType ?? "").toLowerCase();
 }
 
 function promoToPercent(discountType: string, discountValue: number, unitPrice: number) {
@@ -185,7 +197,10 @@ export function PointOfSale() {
 
         const parsedTarget = parsePromotionTarget(row.target_products ?? row.targetProducts);
         return {
-          discountType: String(row.discount_type ?? "percentage"),
+          discountType: resolveEffectiveDiscountType(
+            String(row.discount_type ?? "percentage"),
+            String(row.promo_name ?? ""),
+          ),
           discountValue: Number(row.discount_value ?? 0),
           appliesToAll: parsedTarget.appliesToAll,
           categories: parsedTarget.categories,
