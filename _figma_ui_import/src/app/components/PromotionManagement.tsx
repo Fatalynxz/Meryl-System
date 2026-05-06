@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle } from 'lucide-react';
+import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useCustomers, useProducts, usePromotions, usePromotionsMutations, useSales } from '../../lib/hooks';
@@ -62,14 +62,55 @@ function toDbStatus(value: Promotion['status'] | string | undefined, startDate?:
   const normalized = String(value ?? '').toLowerCase();
   if (normalized.includes('ended')) return 'expired';
   if (normalized.includes('scheduled')) return 'inactive';
-  if (normalized.includes('active')) {
-    if (startDate) {
-      const today = new Date().toISOString().slice(0, 10);
-      if (startDate > today) return 'inactive';
-    }
-    return 'active';
-  }
+  if (normalized.includes('active')) return 'active';
   return 'inactive';
+}
+
+function formatTargetProducts(categories: string[], products: string[]) {
+  const cats = categories.filter(Boolean);
+  const prods = products.filter(Boolean);
+  if (!cats.length && !prods.length) return 'All Products';
+  if (!cats.length) return `Products: ${prods.join(', ')}`;
+  if (!prods.length) return `Categories: ${cats.join(', ')}`;
+  return `Categories: ${cats.join(', ')} | Products: ${prods.join(', ')}`;
+}
+
+function parseTargetProducts(text: string | undefined) {
+  const raw = String(text ?? '').trim();
+  if (!raw || raw.toLowerCase() === 'all products') {
+    return { categories: [] as string[], products: [] as string[] };
+  }
+
+  const categories: string[] = [];
+  const products: string[] = [];
+  raw.split('|').forEach((segment) => {
+    const value = segment.trim();
+    if (!value) return;
+    if (value.toLowerCase().startsWith('categories:')) {
+      value
+        .slice('categories:'.length)
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .forEach((v) => categories.push(v));
+      return;
+    }
+    if (value.toLowerCase().startsWith('products:')) {
+      value
+        .slice('products:'.length)
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .forEach((v) => products.push(v));
+      return;
+    }
+    products.push(value);
+  });
+
+  return {
+    categories: Array.from(new Set(categories)),
+    products: Array.from(new Set(products)),
+  };
 }
 
 export function PromotionManagement() {
@@ -85,6 +126,32 @@ export function PromotionManagement() {
     status: String(row.status ?? 'active').toLowerCase() === 'active' ? 'Active' : 'Inactive',
   }));
   const customerNameMap = new Map(customers.map((c) => [c.customer_id, c.name]));
+  const productRows = (productsQuery.data as any[]) ?? [];
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          productRows
+            .map(
+              (p: any) =>
+                String(p.category?.[0]?.category_name ?? p.category?.category_name ?? '').trim(),
+            )
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    [productRows],
+  );
+  const productOptions = useMemo(
+    () =>
+      productRows
+        .map((p: any) => ({
+          name: String(p.product_name ?? 'Unknown Product').trim(),
+          category: String(p.category?.[0]?.category_name ?? p.category?.category_name ?? '').trim(),
+        }))
+        .filter((p: any) => p.name)
+        .sort((a: any, b: any) => a.name.localeCompare(b.name)),
+    [productRows],
+  );
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
@@ -290,6 +357,7 @@ export function PromotionManagement() {
         promo_name: formData.promo_name!,
         discount_type: toDbDiscountType(formData.discount_type),
         discount_value: Number(formData.discount_value || 0),
+        target_products: formData.targetProducts || 'All Products',
         start_date: formData.start_date!,
         end_date: formData.end_date!,
         status: toDbStatus(formData.status, formData.start_date),
@@ -331,6 +399,7 @@ export function PromotionManagement() {
         promo_name: formData.promo_name,
         discount_type: toDbDiscountType(formData.discount_type),
         discount_value: formData.discount_value,
+        target_products: formData.targetProducts,
         start_date: formData.start_date,
         end_date: formData.end_date,
         status: toDbStatus(formData.status, formData.start_date),
@@ -520,7 +589,12 @@ export function PromotionManagement() {
                 <DialogHeader>
                   <DialogTitle className="text-yellow-300">Create New Promotion</DialogTitle>
                 </DialogHeader>
-                <PromotionForm formData={formData} setFormData={setFormData} />
+                <PromotionForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  categoryOptions={categoryOptions}
+                  productOptions={productOptions}
+                />
                 <DialogFooter>
                   <Button
                     onClick={handleAddPromotion}
@@ -606,7 +680,12 @@ export function PromotionManagement() {
                             <DialogHeader>
                               <DialogTitle className="text-yellow-300">Edit Promotion</DialogTitle>
                             </DialogHeader>
-                            <PromotionForm formData={formData} setFormData={setFormData} />
+                            <PromotionForm
+                              formData={formData}
+                              setFormData={setFormData}
+                              categoryOptions={categoryOptions}
+                              productOptions={productOptions}
+                            />
                             <DialogFooter>
                               <Button onClick={handleEditPromotion} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
                                 Update Promotion
@@ -693,10 +772,67 @@ export function PromotionManagement() {
   );
 }
 
-function PromotionForm({ formData, setFormData }: {
+function PromotionForm({ formData, setFormData, categoryOptions, productOptions }: {
   formData: Partial<Promotion>;
   setFormData: (data: Partial<Promotion>) => void;
+  categoryOptions: string[];
+  productOptions: Array<{ name: string; category: string }>;
 }) {
+  const parsed = useMemo(() => parseTargetProducts(formData.targetProducts), [formData.targetProducts]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(parsed.categories);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>(parsed.products);
+  const [pendingCategory, setPendingCategory] = useState('');
+  const [pendingProduct, setPendingProduct] = useState('');
+
+  useEffect(() => {
+    const next = parseTargetProducts(formData.targetProducts);
+    setSelectedCategories(next.categories);
+    setSelectedProducts(next.products);
+  }, [formData.targetProducts]);
+
+  const filteredProductOptions = useMemo(() => {
+    if (!selectedCategories.length) return productOptions;
+    return productOptions.filter((p) => selectedCategories.includes(p.category));
+  }, [productOptions, selectedCategories]);
+
+  const syncTargetProducts = (categories: string[], products: string[]) => {
+    setFormData({
+      ...formData,
+      targetProducts: formatTargetProducts(categories, products),
+    });
+  };
+
+  const addCategory = (value: string) => {
+    if (!value || selectedCategories.includes(value)) return;
+    const nextCategories = [...selectedCategories, value];
+    setSelectedCategories(nextCategories);
+    syncTargetProducts(nextCategories, selectedProducts);
+  };
+
+  const removeCategory = (value: string) => {
+    const nextCategories = selectedCategories.filter((c) => c !== value);
+    const nextProducts = selectedProducts.filter((name) => {
+      const found = productOptions.find((p) => p.name === name);
+      return !found || nextCategories.length === 0 || nextCategories.includes(found.category);
+    });
+    setSelectedCategories(nextCategories);
+    setSelectedProducts(nextProducts);
+    syncTargetProducts(nextCategories, nextProducts);
+  };
+
+  const addProduct = (value: string) => {
+    if (!value || selectedProducts.includes(value)) return;
+    const nextProducts = [...selectedProducts, value];
+    setSelectedProducts(nextProducts);
+    syncTargetProducts(selectedCategories, nextProducts);
+  };
+
+  const removeProduct = (value: string) => {
+    const nextProducts = selectedProducts.filter((p) => p !== value);
+    setSelectedProducts(nextProducts);
+    syncTargetProducts(selectedCategories, nextProducts);
+  };
+
   return (
     <div className="grid gap-4 py-4">
       <div className="space-y-2">
@@ -738,13 +874,72 @@ function PromotionForm({ formData, setFormData }: {
       </div>
       <div className="space-y-2">
         <Label htmlFor="targetProducts" className="text-yellow-300">Target Products *</Label>
-        <Input
-          id="targetProducts"
-          value={formData.targetProducts || ''}
-          onChange={(e) => setFormData({ ...formData, targetProducts: e.target.value })}
-          className="bg-red-600 border-red-800 text-yellow-200"
-          placeholder="e.g., Running Category, All Products, Specific SKU"
-        />
+        <div className="space-y-3 rounded-lg border border-red-800 p-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-yellow-300 text-xs">Categories (choose one or more)</Label>
+              <Select value={pendingCategory} onValueChange={(value) => {
+                addCategory(value);
+                setPendingCategory('');
+              }}>
+                <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                  {categoryOptions.map((category) => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-2 min-h-6">
+                {selectedCategories.map((category) => (
+                  <Badge key={category} className="bg-yellow-400 text-red-900 gap-1 pr-1">
+                    {category}
+                    <button type="button" className="ml-1" onClick={() => removeCategory(category)}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-yellow-300 text-xs">Products (filtered by category)</Label>
+              <Select value={pendingProduct} onValueChange={(value) => {
+                addProduct(value);
+                setPendingProduct('');
+              }}>
+                <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent className="bg-red-700 border-red-800 text-yellow-200 max-h-64">
+                  {filteredProductOptions.map((product) => (
+                    <SelectItem key={product.name} value={product.name}>
+                      {product.name} {product.category ? `(${product.category})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-2 min-h-6">
+                {selectedProducts.map((product) => (
+                  <Badge key={product} className="bg-red-500 text-yellow-200 gap-1 pr-1">
+                    {product}
+                    <button type="button" className="ml-1" onClick={() => removeProduct(product)}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Input
+            id="targetProducts"
+            value={formData.targetProducts || 'All Products'}
+            readOnly
+            className="bg-red-600 border-red-800 text-yellow-200"
+          />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
