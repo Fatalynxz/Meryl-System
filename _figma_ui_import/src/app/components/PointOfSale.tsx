@@ -118,6 +118,15 @@ function promoToPercent(discountType: string, discountValue: number, unitPrice: 
   return 0;
 }
 
+function getPromotionTypePriority(discountType: string) {
+  const type = String(discountType ?? "").toLowerCase();
+  if (type.includes("bogo")) return 4;
+  if (type.includes("bundle")) return 3;
+  if (type.includes("fixed")) return 2;
+  if (type.includes("percentage")) return 1;
+  return 0;
+}
+
 export function PointOfSale() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -244,12 +253,27 @@ export function PointOfSale() {
     const meta = productMetaById.get(selectedVariant.product_id);
     const productNameLc = String(meta?.productName ?? selectedVariant.product_name).toLowerCase();
     const categoryLc = String(meta?.categoryName ?? "").toLowerCase();
-    const matchedPromotion = activePromotionRules.find((promo) => {
-      if (promo.appliesToAll) return true;
-      const matchesProduct = promo.products.includes(productNameLc);
-      const matchesCategory = categoryLc ? promo.categories.includes(categoryLc) : false;
-      return matchesProduct || matchesCategory;
-    });
+    const matchedPromotion = activePromotionRules
+      .map((promo) => {
+        const matchesProduct = promo.products.includes(productNameLc);
+        const matchesCategory = categoryLc ? promo.categories.includes(categoryLc) : false;
+        const applies = promo.appliesToAll || matchesProduct || matchesCategory;
+        if (!applies) return null;
+
+        const specificityScore = matchesProduct ? 3 : matchesCategory ? 2 : promo.appliesToAll ? 1 : 0;
+        return {
+          promo,
+          specificityScore,
+          typePriority: getPromotionTypePriority(promo.discountType),
+          effectivePercent: promoToPercent(promo.discountType, promo.discountValue, selectedVariant.price),
+        };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => {
+        if (b.specificityScore !== a.specificityScore) return b.specificityScore - a.specificityScore;
+        if (b.typePriority !== a.typePriority) return b.typePriority - a.typePriority;
+        return b.effectivePercent - a.effectivePercent;
+      })?.[0]?.promo;
     const promoDiscount = matchedPromotion
       ? promoToPercent(matchedPromotion.discountType, matchedPromotion.discountValue, selectedVariant.price)
       : discount;
