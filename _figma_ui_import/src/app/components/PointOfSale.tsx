@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Coins, CreditCard, Package, Plus, Receipt, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { useCustomers, useInventory, useProducts } from "../../lib/hooks";
+import { useCustomers, useInventory, useProducts, usePromotions } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 
@@ -44,12 +44,74 @@ type ProductGroup = {
   variants: ProductVariant[];
 };
 
+type ActivePromotionRule = {
+  discountType: string;
+  discountValue: number;
+  appliesToAll: boolean;
+  categories: string[];
+  products: string[];
+  startDate: string;
+  endDate: string;
+};
+
+function parsePromotionTarget(rawValue: string | null | undefined) {
+  const raw = String(rawValue ?? "").trim();
+  if (!raw || raw.toLowerCase() === "all products") {
+    return { appliesToAll: true, categories: [] as string[], products: [] as string[] };
+  }
+
+  const categories: string[] = [];
+  const products: string[] = [];
+  raw.split("|").forEach((segment) => {
+    const value = segment.trim();
+    if (!value) return;
+    if (value.toLowerCase().startsWith("categories:")) {
+      value
+        .slice("categories:".length)
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .forEach((v) => categories.push(v.toLowerCase()));
+      return;
+    }
+    if (value.toLowerCase().startsWith("products:")) {
+      value
+        .slice("products:".length)
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean)
+        .forEach((v) => products.push(v.toLowerCase()));
+      return;
+    }
+    products.push(value.toLowerCase());
+  });
+
+  return {
+    appliesToAll: false,
+    categories: Array.from(new Set(categories)),
+    products: Array.from(new Set(products)),
+  };
+}
+
+function promoToPercent(discountType: string, discountValue: number, unitPrice: number) {
+  const type = discountType.toLowerCase();
+  if (type.includes("percentage")) return Math.max(0, Math.min(100, discountValue));
+  if (type.includes("fixed")) {
+    if (unitPrice <= 0) return 0;
+    return Math.max(0, Math.min(100, (discountValue / unitPrice) * 100));
+  }
+  if (type.includes("bogo")) return 50;
+  if (type.includes("bundle")) return Math.max(0, Math.min(100, discountValue || 10));
+  return 0;
+}
+
 export function PointOfSale() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const productsQuery = useProducts();
   const inventoryQuery = useInventory();
   const customersQuery = useCustomers();
+  const promotionsQuery = usePromotions();
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProductKey, setSelectedProductKey] = useState<string>("");
@@ -98,6 +160,43 @@ export function PointOfSale() {
     return variants;
   }, [productsQuery.data, inventoryQuery.data]);
 
+  const productMetaById = useMemo(() => {
+    const rows = (productsQuery.data as any[]) ?? [];
+    const map = new Map<string, { productName: string; categoryName: string }>();
+    rows.forEach((row) => {
+      map.set(String(row.product_id), {
+        productName: String(row.product_name ?? "").trim(),
+        categoryName: String(row.category?.[0]?.category_name ?? row.category?.category_name ?? "").trim(),
+      });
+    });
+    return map;
+  }, [productsQuery.data]);
+
+  const activePromotionRules = useMemo<ActivePromotionRule[]>(() => {
+    const rows = (promotionsQuery.data as any[]) ?? [];
+    const today = new Date().toISOString().slice(0, 10);
+    return rows
+      .map((row) => {
+        const status = String(row.status ?? "").toLowerCase();
+        const startDate = String(row.start_date ?? "").slice(0, 10);
+        const endDate = String(row.end_date ?? "").slice(0, 10);
+        const withinWindow = (!startDate || startDate <= today) && (!endDate || endDate >= today);
+        if (!(status === "active" && withinWindow)) return null;
+
+        const parsedTarget = parsePromotionTarget(row.target_products ?? row.targetProducts);
+        return {
+          discountType: String(row.discount_type ?? "percentage"),
+          discountValue: Number(row.discount_value ?? 0),
+          appliesToAll: parsedTarget.appliesToAll,
+          categories: parsedTarget.categories,
+          products: parsedTarget.products,
+          startDate,
+          endDate,
+        } as ActivePromotionRule;
+      })
+      .filter(Boolean) as ActivePromotionRule[];
+  }, [promotionsQuery.data]);
+
   const productGroups: ProductGroup[] = useMemo(
     () =>
       productInventory.reduce((acc, variant) => {
@@ -126,6 +225,19 @@ export function PointOfSale() {
       return toast.error(`Only ${selectedVariant.stock_quantity} units available in stock`);
     }
 
+    const meta = productMetaById.get(selectedVariant.product_id);
+    const productNameLc = String(meta?.productName ?? selectedVariant.product_name).toLowerCase();
+    const categoryLc = String(meta?.categoryName ?? "").toLowerCase();
+    const matchedPromotion = activePromotionRules.find((promo) => {
+      if (promo.appliesToAll) return true;
+      const matchesProduct = promo.products.includes(productNameLc);
+      const matchesCategory = categoryLc ? promo.categories.includes(categoryLc) : false;
+      return matchesProduct || matchesCategory;
+    });
+    const promoDiscount = matchedPromotion
+      ? promoToPercent(matchedPromotion.discountType, matchedPromotion.discountValue, selectedVariant.price)
+      : discount;
+
     const existingItem = cart.find((item) => item.id === selectedVariant.product_id);
     if (existingItem) {
       setCart(
@@ -145,7 +257,7 @@ export function PointOfSale() {
           size: selectedVariant.size,
           price: selectedVariant.price,
           quantity,
-          discount,
+          discount: promoDiscount,
         },
       ]);
     }
@@ -154,7 +266,11 @@ export function PointOfSale() {
     setSelectedSize("");
     setQuantity(1);
     setDiscount(0);
-    toast.success("Product added to cart");
+    if (matchedPromotion) {
+      toast.success("Product added with active promotion applied");
+    } else {
+      toast.success("Product added to cart");
+    }
   };
 
   const removeFromCart = (id: string) => setCart(cart.filter((item) => item.id !== id));

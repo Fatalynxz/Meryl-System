@@ -169,6 +169,7 @@ export function PromotionManagement() {
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [lastNotificationBatch, setLastNotificationBatch] = useState<Notification[]>([]);
   const [isSavingPromotion, setIsSavingPromotion] = useState(false);
+  const [isUpdatingPromotion, setIsUpdatingPromotion] = useState(false);
 
   const promotions: Promotion[] = useMemo(() => {
     const rows = (promotionsQuery.data as any[]) ?? [];
@@ -392,22 +393,28 @@ export function PromotionManagement() {
 
   const handleEditPromotion = async () => {
     if (!editingPromotion) return;
-
-    await promotionsMutations.updateMutation.mutateAsync({
-      id: editingPromotion.promo_id,
-      payload: {
-        promo_name: formData.promo_name,
-        discount_type: toDbDiscountType(formData.discount_type),
-        discount_value: formData.discount_value,
-        target_products: formData.targetProducts,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        status: toDbStatus(formData.status, formData.start_date),
-      },
-    } as any);
-    setEditingPromotion(null);
-    setFormData({});
-    toast.success('Promotion updated successfully!');
+    try {
+      setIsUpdatingPromotion(true);
+      await promotionsMutations.updateMutation.mutateAsync({
+        id: editingPromotion.promo_id,
+        payload: {
+          promo_name: formData.promo_name,
+          discount_type: toDbDiscountType(formData.discount_type),
+          discount_value: formData.discount_value,
+          target_products: formData.targetProducts,
+          start_date: formData.start_date,
+          end_date: formData.end_date,
+          status: toDbStatus(formData.status, formData.start_date),
+        },
+      } as any);
+      setEditingPromotion(null);
+      setFormData({});
+      toast.success('Promotion updated successfully!');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Unable to update promotion');
+    } finally {
+      setIsUpdatingPromotion(false);
+    }
   };
 
   const handleDeletePromotion = async (promo_id: string) => {
@@ -676,7 +683,7 @@ export function PromotionManagement() {
                               <Edit className="w-4 h-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl">
+                          <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl max-h-[85vh] overflow-y-auto pr-1">
                             <DialogHeader>
                               <DialogTitle className="text-yellow-300">Edit Promotion</DialogTitle>
                             </DialogHeader>
@@ -687,8 +694,12 @@ export function PromotionManagement() {
                               productOptions={productOptions}
                             />
                             <DialogFooter>
-                              <Button onClick={handleEditPromotion} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                                Update Promotion
+                              <Button
+                                onClick={handleEditPromotion}
+                                disabled={isUpdatingPromotion}
+                                className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
+                              >
+                                {isUpdatingPromotion ? 'Updating...' : 'Update Promotion'}
                               </Button>
                             </DialogFooter>
                           </DialogContent>
