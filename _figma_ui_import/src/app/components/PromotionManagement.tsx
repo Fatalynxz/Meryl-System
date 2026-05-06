@@ -52,6 +52,37 @@ type PromotionRecommendation = {
   targetProducts: string;
 };
 
+const PROMO_TYPE_MARKERS = {
+  bundle: "__TYPE_BUNDLE__",
+  bogo: "__TYPE_BOGO__",
+} as const;
+
+function stripPromoTypeMarker(name: string | undefined) {
+  const value = String(name ?? "");
+  return value
+    .replace(PROMO_TYPE_MARKERS.bundle, "")
+    .replace(PROMO_TYPE_MARKERS.bogo, "")
+    .trim();
+}
+
+function encodePromoNameWithType(name: string | undefined, type: Promotion["discount_type"] | string | undefined) {
+  const cleanName = stripPromoTypeMarker(name);
+  const normalizedType = String(type ?? "").toLowerCase();
+  if (normalizedType.includes("bundle")) return `${cleanName} ${PROMO_TYPE_MARKERS.bundle}`.trim();
+  if (normalizedType.includes("bogo") || normalizedType.includes("buy one get one")) {
+    return `${cleanName} ${PROMO_TYPE_MARKERS.bogo}`.trim();
+  }
+  return cleanName;
+}
+
+function decodeDisplayType(rawType: string, rawName: string | undefined): Promotion["discount_type"] {
+  const loweredName = String(rawName ?? "").toLowerCase();
+  if (loweredName.includes(PROMO_TYPE_MARKERS.bundle.toLowerCase())) return "Bundle";
+  if (loweredName.includes(PROMO_TYPE_MARKERS.bogo.toLowerCase())) return "BOGO";
+  if (rawType.includes("fixed")) return "Fixed Amount";
+  return "Percentage";
+}
+
 function toDbDiscountType(value: Promotion['discount_type'] | string | undefined) {
   const normalized = String(value ?? '').toLowerCase();
   if (normalized.includes('bundle')) return 'fixed';
@@ -182,14 +213,7 @@ export function PromotionManagement() {
     const rows = (promotionsQuery.data as any[]) ?? [];
     return rows.map((row) => {
       const rawType = String(row.discount_type ?? 'Percentage').toLowerCase();
-      const discount_type: Promotion['discount_type'] =
-        rawType.includes('fixed')
-          ? 'Fixed Amount'
-          : rawType.includes('bogo')
-            ? 'BOGO'
-            : rawType.includes('bundle')
-              ? 'Bundle'
-              : 'Percentage';
+      const discount_type: Promotion['discount_type'] = decodeDisplayType(rawType, row.promo_name);
       const rawStatus = String(row.status ?? 'Scheduled').toLowerCase();
       const today = new Date().toISOString().slice(0, 10);
       const start = String(row.start_date ?? '').slice(0, 10);
@@ -202,7 +226,7 @@ export function PromotionManagement() {
             : 'Scheduled';
       return {
         promo_id: String(row.promo_id ?? ''),
-        promo_name: String(row.promo_name ?? 'Promotion'),
+        promo_name: stripPromoTypeMarker(String(row.promo_name ?? 'Promotion')),
         discount_type,
         discount_value: Number(row.discount_value ?? 0),
         targetProducts: String(row.targetProducts ?? row.target_products ?? 'All Products'),
@@ -362,7 +386,7 @@ export function PromotionManagement() {
       setIsSavingPromotion(true);
       const newPromotionPayload = {
         promo_id: crypto.randomUUID(),
-        promo_name: formData.promo_name!,
+        promo_name: encodePromoNameWithType(formData.promo_name!, formData.discount_type),
         discount_type: toDbDiscountType(formData.discount_type),
         discount_value: Number(formData.discount_value || 0),
         target_products: formData.targetProducts || 'All Products',
@@ -409,7 +433,7 @@ export function PromotionManagement() {
     try {
       setIsUpdatingPromotion(true);
       const payload = {
-        promo_name: formData.promo_name,
+        promo_name: encodePromoNameWithType(formData.promo_name, formData.discount_type),
         discount_type: toDbDiscountType(formData.discount_type),
         discount_value: formData.discount_value,
         target_products: formData.targetProducts,
