@@ -505,41 +505,41 @@ export function PromotionManagement() {
         </CardHeader>
         <CardContent>
           <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-            <Table className="w-full">
+            <Table className="w-full min-w-[1080px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Promotion Name</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Type</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Discount</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Period</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Status</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Performance</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Actions</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Promotion Name</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Type</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Discount</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Period</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Performance</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {promotions.map((promotion) => (
                   <TableRow key={promotion.promo_id} className="border-red-800">
-                    <TableCell className="min-w-[180px]">
+                    <TableCell className="min-w-[220px] text-center align-middle">
                       <div>
                         <p className="text-yellow-200 whitespace-nowrap">{promotion.promo_name}</p>
                         <p className="text-yellow-300 text-xs whitespace-nowrap">{promotion.targetProducts}</p>
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap text-center align-middle">
                       <Badge className="bg-yellow-400 text-red-900">
                         {promotion.discount_type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap">
+                    <TableCell className="text-yellow-300 whitespace-nowrap text-center align-middle">
                       {promotion.discount_type === 'Percentage' ? `${promotion.discount_value}%` :
                        promotion.discount_type === 'Fixed Amount' ? `₱${promotion.discount_value}` :
                        promotion.discount_type === 'BOGO' ? 'Buy 1 Get 1' : 'Bundle'}
                     </TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap">
+                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center align-middle">
                       {promotion.start_date} to {promotion.end_date}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap text-center align-middle">
                       <Badge className={
                         promotion.status === 'Active' ? 'bg-green-600 text-white' :
                         promotion.status === 'Scheduled' ? 'bg-yellow-600 text-red-900' :
@@ -548,9 +548,9 @@ export function PromotionManagement() {
                         {promotion.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="min-w-[200px]">
+                    <TableCell className="min-w-[240px] text-center align-middle">
                       <div className="space-y-1">
-                        <div className="flex justify-between text-xs text-yellow-200">
+                        <div className="flex justify-center gap-6 text-xs text-yellow-200">
                           <span className="whitespace-nowrap">Sales: ₱{promotion.salesGenerated}</span>
                           <span className="whitespace-nowrap">{promotion.unitsAffected} units</span>
                         </div>
@@ -558,8 +558,8 @@ export function PromotionManagement() {
                         <p className="text-xs text-yellow-300">{promotion.effectiveness}% effective</p>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
+                    <TableCell className="text-center align-middle">
+                      <div className="flex gap-2 justify-center">
                         <Dialog open={editingPromotion?.promo_id === promotion.promo_id} onOpenChange={(open) => !open && setEditingPromotion(null)}>
                           <DialogTrigger asChild>
                             <Button
