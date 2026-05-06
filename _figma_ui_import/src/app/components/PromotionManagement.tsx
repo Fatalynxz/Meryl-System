@@ -11,7 +11,7 @@ import { Progress } from './ui/progress';
 import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { useCustomers, useProducts, useSales } from '../../lib/hooks';
+import { useCustomers, useProducts, usePromotions, usePromotionsMutations, useSales } from '../../lib/hooks';
 
 type Promotion = {
   promo_id: string;
@@ -55,6 +55,8 @@ type PromotionRecommendation = {
 export function PromotionManagement() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
+  const promotionsQuery = usePromotions();
+  const promotionsMutations = usePromotionsMutations();
   const customersQuery = useCustomers();
   const customers: Customer[] = ((customersQuery.data as any[]) ?? []).map((row: any) => ({
     customer_id: String(row.customer_id ?? ''),
@@ -63,48 +65,6 @@ export function PromotionManagement() {
     status: String(row.status ?? 'active').toLowerCase() === 'active' ? 'Active' : 'Inactive',
   }));
   const customerNameMap = new Map(customers.map((c) => [c.customer_id, c.name]));
-
-  const [promotions, setPromotions] = useState<Promotion[]>([
-    {
-      promo_id: 'PROMO-001',
-      promo_name: 'Spring Sale - Running Shoes',
-      discount_type: 'Percentage',
-      discount_value: 25,
-      targetProducts: 'Running Category',
-      start_date: '2026-03-01',
-      end_date: '2026-03-31',
-      status: 'Active',
-      salesGenerated: 8450,
-      unitsAffected: 78,
-      effectiveness: 92
-    },
-    {
-      promo_id: 'PROMO-002',
-      promo_name: 'Weekend Special',
-      discount_type: 'Fixed Amount',
-      discount_value: 20,
-      targetProducts: 'All Products',
-      start_date: '2026-03-05',
-      end_date: '2026-03-07',
-      status: 'Active',
-      salesGenerated: 3200,
-      unitsAffected: 45,
-      effectiveness: 78
-    },
-    {
-      promo_id: 'PROMO-003',
-      promo_name: 'Buy One Get One - Casual',
-      discount_type: 'BOGO',
-      discount_value: 50,
-      targetProducts: 'Casual Category',
-      start_date: '2026-03-10',
-      end_date: '2026-03-20',
-      status: 'Scheduled',
-      salesGenerated: 0,
-      unitsAffected: 0,
-      effectiveness: 0
-    },
-  ]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
@@ -121,6 +81,41 @@ export function PromotionManagement() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [lastNotificationBatch, setLastNotificationBatch] = useState<Notification[]>([]);
+
+  const promotions: Promotion[] = useMemo(() => {
+    const rows = (promotionsQuery.data as any[]) ?? [];
+    return rows.map((row) => {
+      const rawType = String(row.discount_type ?? 'Percentage').toLowerCase();
+      const discount_type: Promotion['discount_type'] =
+        rawType.includes('fixed')
+          ? 'Fixed Amount'
+          : rawType.includes('bogo')
+            ? 'BOGO'
+            : rawType.includes('bundle')
+              ? 'Bundle'
+              : 'Percentage';
+      const rawStatus = String(row.status ?? 'Scheduled').toLowerCase();
+      const status: Promotion['status'] =
+        rawStatus.includes('active')
+          ? 'Active'
+          : rawStatus.includes('scheduled')
+            ? 'Scheduled'
+            : 'Ended';
+      return {
+        promo_id: String(row.promo_id ?? ''),
+        promo_name: String(row.promo_name ?? 'Promotion'),
+        discount_type,
+        discount_value: Number(row.discount_value ?? 0),
+        targetProducts: String(row.targetProducts ?? row.target_products ?? 'All Products'),
+        start_date: String(row.start_date ?? '').slice(0, 10),
+        end_date: String(row.end_date ?? '').slice(0, 10),
+        status,
+        salesGenerated: Number(row.salesGenerated ?? row.sales_generated ?? 0),
+        unitsAffected: Number(row.unitsAffected ?? row.units_affected ?? 0),
+        effectiveness: Number(row.effectiveness ?? 0),
+      };
+    });
+  }, [promotionsQuery.data]);
 
   const productRecommendations = useMemo<PromotionRecommendation[]>(() => {
     const sales = (salesQuery.data as any[]) ?? [];
@@ -258,34 +253,29 @@ export function PromotionManagement() {
     { id: 'ci4', name: 'Formal', value: 12, color: '#fef9c3' },
   ];
 
-  const handleAddPromotion = () => {
+  const handleAddPromotion = async () => {
     if (!formData.promo_name || !formData.targetProducts || !formData.start_date || !formData.end_date) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const newPromotion: Promotion = {
-      promo_id: `PROMO-${String(promotions.length + 1).padStart(3, '0')}`,
+    const newPromotionPayload = {
       promo_name: formData.promo_name!,
-      discount_type: formData.discount_type as Promotion['discount_type'] || 'Percentage',
+      discount_type: formData.discount_type || 'Percentage',
       discount_value: formData.discount_value || 0,
-      targetProducts: formData.targetProducts!,
       start_date: formData.start_date!,
       end_date: formData.end_date!,
-      status: formData.status as Promotion['status'] || 'Scheduled',
-      salesGenerated: 0,
-      unitsAffected: 0,
-      effectiveness: 0
+      status: formData.status || 'Scheduled',
     };
 
-    setPromotions([...promotions, newPromotion]);
+    await promotionsMutations.createMutation.mutateAsync(newPromotionPayload as any);
 
     // Send email notifications to all active customers
     const activeCustomers = customers.filter(c => c.status === 'Active' && c.email);
     const newNotifications: Notification[] = activeCustomers.map((customer, index) => ({
       notification_id: `NOTIF-${Date.now()}-${index}`,
       customer_id: customer.customer_id,
-      promo_id: newPromotion.promo_id,
+      promo_id: 'NEW_PROMO',
       email: customer.email,
       email_status: 'Sent' as const,
       date_sent: new Date().toISOString().split('T')[0]
@@ -301,21 +291,27 @@ export function PromotionManagement() {
     setShowNotificationDialog(true);
   };
 
-  const handleEditPromotion = () => {
+  const handleEditPromotion = async () => {
     if (!editingPromotion) return;
 
-    setPromotions(promotions.map(p =>
-      p.promo_id === editingPromotion.promo_id
-        ? { ...editingPromotion, ...formData }
-        : p
-    ));
+    await promotionsMutations.updateMutation.mutateAsync({
+      id: editingPromotion.promo_id,
+      data: {
+        promo_name: formData.promo_name,
+        discount_type: formData.discount_type,
+        discount_value: formData.discount_value,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        status: formData.status,
+      },
+    } as any);
     setEditingPromotion(null);
     setFormData({});
     toast.success('Promotion updated successfully!');
   };
 
-  const handleDeletePromotion = (promo_id: string) => {
-    setPromotions(promotions.filter(p => p.promo_id !== promo_id));
+  const handleDeletePromotion = async (promo_id: string) => {
+    await promotionsMutations.removeMutation.mutateAsync(promo_id as any);
     toast.success('Promotion deleted successfully!');
   };
 
