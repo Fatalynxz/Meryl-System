@@ -105,7 +105,7 @@ function toUiProduct(row: any, inventoryByProductId: Record<string, any>): UiPro
     color: row.color ?? "N/A",
     gender: row.gender ?? "N/A",
     cost_price: Number(row.cost_price ?? 0),
-    price: Number(row.cost_price ?? 0),
+    price: Number(row.price ?? row.cost_price ?? 0),
     reorder_level: Number(row.reorder_level ?? firstInventory?.reorder_level ?? 0),
     stock: Number(firstInventory?.stock_quantity ?? 0),
     status: toUiStatus(row.status),
@@ -213,6 +213,7 @@ export function ProductManagement() {
     try {
       const created = await productMutations.createMutation.mutateAsync({
         product_name: formData.name,
+        brand: formData.brand,
         category_id: formData.category_id,
         size: formData.size || null,
         color: formData.color || null,
@@ -247,6 +248,7 @@ export function ProductManagement() {
         id: editingProduct.product_id,
         payload: {
           product_name: formData.name,
+          brand: formData.brand,
           category_id: formData.category_id || editingProduct.category_id,
           size: formData.size || null,
           color: formData.color || null,
