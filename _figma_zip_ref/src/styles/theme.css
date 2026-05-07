@@ -1,0 +1,313 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  --background: #0E0E12;
+  --foreground: #F5F5F7;
+  --card: #16161C;
+  --card-foreground: #F5F5F7;
+  --brand-red: #E5202A;
+  --brand-red-soft: #FF4D57;
+  --brand-yellow: #FFD60A;
+  --brand-yellow-soft: #FFE566;
+  --surface-1: #16161C;
+  --surface-2: #1D1D25;
+  --surface-3: #24242E;
+  --popover: #1D1D25;
+  --popover-foreground: #F5F5F7;
+  --primary: #E5202A;
+  --primary-foreground: #ffffff;
+  --secondary: #1D1D25;
+  --secondary-foreground: #F5F5F7;
+  --muted: #1D1D25;
+  --muted-foreground: #8A8A95;
+  --accent: #24242E;
+  --accent-foreground: #F5F5F7;
+  --destructive: #E5202A;
+  --destructive-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.08);
+  --input-background: #1D1D25;
+  --switch-background: #cbced4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #030213;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /**
+  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
+  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  */
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
+
+@layer utilities {
+  /* Dark-theme remap for inner pages that hard-coded light Tailwind utilities */
+  .bg-white { background-color: #16161C !important; }
+  .bg-gray-50 { background-color: #0E0E12 !important; }
+  .bg-gray-100 { background-color: #1D1D25 !important; }
+  .bg-gray-200 { background-color: #24242E !important; }
+
+  .text-gray-900, .text-gray-800 { color: #F5F5F7 !important; }
+  .text-gray-700 { color: #E5E5EA !important; }
+  .text-gray-600 { color: #B5B5BD !important; }
+  .text-gray-500 { color: #8A8A95 !important; }
+  .text-gray-400 { color: #6B6B75 !important; }
+  .text-gray-300 { color: #5A5A65 !important; }
+
+  .border-gray-100, .border-gray-200, .border-gray-300 { border-color: rgba(255,255,255,0.08) !important; }
+  .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+  .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(255,255,255,0.08) !important; }
+
+  /* Soft red/yellow tints — keep them visible on dark */
+  .bg-red-50 { background-color: rgba(229,32,42,0.10) !important; }
+  .bg-red-100 { background-color: rgba(229,32,42,0.18) !important; }
+  .bg-red-200 { background-color: rgba(229,32,42,0.28) !important; }
+  /* Inner pages used bg-red-600/700/800/900 as card/surface backgrounds — remap to dark surfaces */
+  .bg-red-600 { background-color: #1D1D25 !important; }
+  .bg-red-700 { background-color: #16161C !important; }
+  .bg-red-800 { background-color: #1D1D25 !important; }
+  .bg-red-900 { background-color: #0E0E12 !important; }
+  .border-red-600, .border-red-700, .border-red-800, .border-red-900 {
+    border-color: rgba(255,255,255,0.06) !important;
+  }
+  /* Hover variants used in tables/buttons */
+  .hover\:bg-red-600:hover { background-color: #24242E !important; }
+  .hover\:bg-red-700:hover { background-color: #1D1D25 !important; }
+  .hover\:bg-red-800:hover { background-color: #1D1D25 !important; }
+  .hover\:bg-red-900:hover { background-color: #0E0E12 !important; }
+
+  /* Inner pages: unify body/heading text to white (matches dashboard) */
+  .text-yellow-100 { color: #F5F5F7 !important; }
+  .text-yellow-200 { color: #E5E5EA !important; }
+  .text-yellow-300 { color: #FFFFFF !important; }
+  /* Yellow accents (icons, highlights) keep brand yellow */
+  .text-yellow-400 { color: #FFD60A !important; }
+  .text-yellow-500 { color: #F5C400 !important; }
+  .text-yellow-600 { color: #E0B800 !important; }
+  /* Dark text used on yellow buttons — keep dark for contrast */
+  .text-red-900 { color: #1A1A22 !important; }
+
+  /* Yellow buttons — keep prominent and use brand yellow */
+  .bg-yellow-300 { background-color: #FFD60A !important; }
+  .bg-yellow-400 { background-color: #FFD60A !important; }
+  .bg-yellow-500 { background-color: #F5C400 !important; }
+  .hover\:bg-yellow-400:hover { background-color: #FFE566 !important; }
+  .hover\:bg-yellow-500:hover { background-color: #F5C400 !important; }
+  .hover\:bg-yellow-600:hover { background-color: #E0B800 !important; }
+  .border-yellow-400, .border-yellow-500 { border-color: #FFD60A !important; }
+
+  /* === Status badges: strong contrast on dark === */
+  /* Completed / success */
+  .bg-green-600, .bg-green-500, .bg-green-700 {
+    background-color: rgba(34,197,94,0.18) !important;
+    color: #4ADE80 !important;
+    border: 1px solid rgba(34,197,94,0.35) !important;
+  }
+  /* Pending / warning */
+  .bg-yellow-600, .bg-yellow-700 {
+    background-color: rgba(255,214,10,0.18) !important;
+    color: #FFD60A !important;
+    border: 1px solid rgba(255,214,10,0.40) !important;
+  }
+  /* Cancelled / refunded / destructive — bg-red-900 (now mapped to dark) needs override for badge use */
+  [class*="bg-red-900"][class*="text-yellow"] {
+    background-color: rgba(229,32,42,0.18) !important;
+    color: #FF6B72 !important;
+    border: 1px solid rgba(229,32,42,0.40) !important;
+  }
+  /* Approved / info */
+  .bg-blue-600, .bg-blue-500, .bg-blue-700 {
+    background-color: rgba(59,130,246,0.18) !important;
+    color: #60A5FA !important;
+    border: 1px solid rgba(59,130,246,0.40) !important;
+  }
+  /* Force readable text on those badge backgrounds */
+  .bg-green-600.text-white, .bg-blue-600.text-white { color: #fff !important; }
+
+  /* Placeholders inside dark inputs */
+  .placeholder\:text-yellow-300\/50::placeholder { color: rgba(255,214,10,0.5) !important; }
+  .placeholder\:text-yellow-200\/50::placeholder { color: rgba(255,229,102,0.5) !important; }
+  .bg-yellow-50 { background-color: rgba(255,214,10,0.10) !important; }
+  .bg-yellow-100 { background-color: rgba(255,214,10,0.18) !important; }
+  .bg-yellow-200 { background-color: rgba(255,214,10,0.28) !important; }
+  .bg-green-50 { background-color: rgba(34,197,94,0.12) !important; }
+  .bg-green-100 { background-color: rgba(34,197,94,0.18) !important; }
+  .bg-blue-50 { background-color: rgba(59,130,246,0.12) !important; }
+  .bg-blue-100 { background-color: rgba(59,130,246,0.18) !important; }
+
+  .text-red-600, .text-red-700, .text-red-800 { color: #FF6B72 !important; }
+  .text-yellow-600, .text-yellow-700, .text-yellow-800, .text-yellow-900 { color: #FFD60A !important; }
+  .text-green-600, .text-green-700, .text-green-800 { color: #4ADE80 !important; }
+
+  .border-red-200, .border-red-300 { border-color: rgba(229,32,42,0.30) !important; }
+  .border-yellow-200, .border-yellow-300 { border-color: rgba(255,214,10,0.30) !important; }
+
+  /* Inputs and tables */
+  input, textarea, select {
+    color: #F5F5F7;
+  }
+  table thead { background-color: #1D1D25 !important; }
+  table tbody tr { border-color: rgba(255,255,255,0.06); }
+  table tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+
+  /* Soft shadow rather than harsh black on dark */
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

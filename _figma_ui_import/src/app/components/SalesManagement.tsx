@@ -281,7 +281,7 @@ export function SalesManagement() {
           <div className="mb-4 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-yellow-400" />
             <Input
-              placeholder="Search by order ID, customer, or product..."
+              placeholder="Search by sales ID, customer, or product..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
@@ -292,7 +292,7 @@ export function SalesManagement() {
             <Table className="w-full min-w-[1180px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Order ID</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Product</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
@@ -325,7 +325,7 @@ export function SalesManagement() {
                           onValueChange={(value) => void handleStatusUpdate(sale, value as SaleStatus)}
                           disabled={updatingSaleId === sale.sales_id}
                         >
-                          <SelectTrigger className="h-8 min-w-[130px] bg-red-600 border-red-800 text-yellow-200 mx-auto">
+                          <SelectTrigger className="h-8 w-full bg-red-600 border-red-800 text-yellow-200">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-red-700 border-red-800 text-yellow-200">

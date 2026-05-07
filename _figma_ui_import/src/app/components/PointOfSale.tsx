@@ -410,7 +410,7 @@ export function PointOfSale() {
     if (paid < total) return toast.error("Insufficient payment amount");
 
     // Map UI payment method to database value
-    const dbPaymentMethod = paymentMethod === "Cash" ? "cash" : "online";
+    const dbPaymentMethod = paymentMethod === "Cash" ? "cash" : "gcash";
 
     const selectedCustomer = customerOptions.find((c) => c.value === customerName);
     let p_customer_id = selectedCustomer?.customer_id ?? null;

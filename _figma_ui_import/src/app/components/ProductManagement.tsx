@@ -546,18 +546,7 @@ function ProductForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="sku" className="text-yellow-300">
-            SKU
-          </Label>
-          <Input
-            id="sku"
-            value={formData.sku}
-            onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-            className="bg-red-600 border-red-800 text-yellow-200"
-          />
-        </div>
+      <div className="grid grid-cols-1 gap-4">
         <div className="space-y-2">
           <Label htmlFor="price" className="text-yellow-300">
             Selling Price (₱) *
