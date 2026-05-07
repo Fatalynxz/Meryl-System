@@ -409,6 +409,9 @@ export function PointOfSale() {
     const paid = paymentMethod === "Cash" ? Number(cashReceived || 0) : total;
     if (paid < total) return toast.error("Insufficient payment amount");
 
+    // Map UI payment method to database value
+    const dbPaymentMethod = paymentMethod === "Cash" ? "cash" : "online";
+
     const selectedCustomer = customerOptions.find((c) => c.value === customerName);
     let p_customer_id = selectedCustomer?.customer_id ?? null;
     let receiptCustomerName = selectedCustomer?.label ?? "Walk-in Customer";
@@ -434,7 +437,7 @@ export function PointOfSale() {
     const { data, error } = await supabase.rpc("complete_sale", {
       p_user_id: user.user_id,
       p_customer_id,
-      p_payment_method: paymentMethod,
+      p_payment_method: dbPaymentMethod,
       p_amount_paid: paid,
       p_items: items,
     });
