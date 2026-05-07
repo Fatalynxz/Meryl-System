@@ -554,8 +554,9 @@ function ProductForm({
           <Input
             id="price"
             type="number"
-            value={formData.price}
-            onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value || "0") })}
+            value={formData.price === 0 ? "" : formData.price}
+            onChange={(e) => setFormData({ ...formData, price: e.target.value === "" ? 0 : Math.max(0, parseFloat(e.target.value) || 0) })}
+            onBlur={(e) => setFormData({ ...formData, price: e.target.value === "" ? 0 : Math.max(0, parseFloat(e.target.value) || 0) })}
             className="bg-red-600 border-red-800 text-yellow-200"
           />
         </div>
@@ -569,8 +570,9 @@ function ProductForm({
           <Input
             id="stock"
             type="number"
-            value={formData.stock}
-            onChange={(e) => setFormData({ ...formData, stock: parseInt(e.target.value || "0", 10) })}
+            value={formData.stock === 0 ? "" : formData.stock}
+            onChange={(e) => setFormData({ ...formData, stock: e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+            onBlur={(e) => setFormData({ ...formData, stock: e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
             className="bg-red-600 border-red-800 text-yellow-200"
           />
         </div>
@@ -581,8 +583,9 @@ function ProductForm({
           <Input
             id="reorder_level"
             type="number"
-            value={formData.reorder_level}
-            onChange={(e) => setFormData({ ...formData, reorder_level: parseInt(e.target.value || "0", 10) })}
+            value={formData.reorder_level === 0 ? "" : formData.reorder_level}
+            onChange={(e) => setFormData({ ...formData, reorder_level: e.target.value === "" ? 0 : Math.max(0, parseInt(e.target.value, 10) || 0) })}
+            onBlur={(e) => setFormData({ ...formData, reorder_level: e.target.value === "" ? 0 : Math.max(10, parseInt(e.target.value, 10) || 10) })}
             className="bg-red-600 border-red-800 text-yellow-200"
           />
         </div>
