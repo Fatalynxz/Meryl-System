@@ -1847,6 +1847,22 @@ select option {
     padding: 12px 14px;
 }
 
+select option:hover {
+    background: #ffe4a8 !important;
+    color: #7a1800 !important;
+}
+
+select option:checked {
+    background: linear-gradient(#f0a815, #f0a815) !important;
+    background-color: #f0a815 !important;
+    color: #7a1800 !important;
+}
+
+select option:focus {
+    background: #ffe4a8 !important;
+    color: #7a1800 !important;
+}
+
 select option[disabled] {
     color: #8f6e52;
 }
@@ -6307,7 +6323,12 @@ small {
 
 input,
 select,
-textarea,
+textarea {
+    background: rgba(255, 0, 0, 0.18);
+    border: 1px solid rgba(255, 211, 61, 0.1);
+    color: #fff7d6;
+}
+
 .pos-page input,
 .pos-page select,
 .pos-page textarea,
@@ -6329,9 +6350,9 @@ textarea,
 .inventory-page input,
 .inventory-page select,
 .inventory-page textarea {
-    background: var(--fin-surface-2);
-    border: 1px solid var(--fin-border);
-    color: var(--fin-text);
+    background: rgba(255, 0, 0, 0.18);
+    border: 1px solid rgba(255, 211, 61, 0.1);
+    color: #fff7d6;
 }
 
 input::placeholder,

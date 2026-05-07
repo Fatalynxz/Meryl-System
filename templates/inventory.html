@@ -130,6 +130,8 @@
                                 <th>Product</th>
                                 <th>Brand</th>
                                 <th>Category</th>
+                                <th>Color</th>
+                                <th>Gender</th>
                                 <th>Size</th>
                                 <th>Price</th>
                                 <th>Stock</th>
@@ -140,13 +142,15 @@
                         <tbody id="inventoryTableBody">
                             {% for product in inventory_products %}
                             <tr
-                                data-search="{{ (product.sku ~ ' ' ~ product.product_name ~ ' ' ~ product.brand ~ ' ' ~ product.category)|lower }}"
+                                data-search="{{ (product.sku ~ ' ' ~ product.product_name ~ ' ' ~ product.brand ~ ' ' ~ product.category ~ ' ' ~ product.color ~ ' ' ~ product.gender)|lower }}"
                                 data-id="{{ product.product_id }}"
                                 data-sku="{{ product.sku }}"
                                 data-name="{{ product.product_name }}"
                                 data-brand="{{ product.brand }}"
                                 data-category="{{ product.category }}"
                                 data-category-id="{{ product.category_id if product.category_id is defined else '' }}"
+                                data-color="{{ product.color if product.color else 'Default' }}"
+                                data-gender="{{ product.gender if product.gender else '' }}"
                                 data-size="{{ product.size }}"
                                 data-price="{{ product.base_price }}"
                                 data-stock="{{ product.stock_quantity }}"
@@ -156,6 +160,8 @@
                                 <td>{{ product.product_name }}</td>
                                 <td>{{ product.brand }}</td>
                                 <td>{{ product.category }}</td>
+                                <td>{{ product.color if product.color else 'Default' }}</td>
+                                <td>{{ product.gender if product.gender else '-' }}</td>
                                 <td>{{ product.size }}</td>
                                 <td>
                                     <strong>&#8369;{{ product.final_price|currency }}</strong>
@@ -225,12 +231,17 @@
                                 </select>
                             </label>
                             <label class="field">
-                                <span>Size</span>
-                                <input type="text" name="size" id="formSize" placeholder="e.g. 39">
+                                <span>Color</span>
+                                <input type="text" name="color" id="formColor" placeholder="e.g. Red, Blue, Black" value="Default">
                             </label>
                             <label class="field">
-                                <span>SKU</span>
-                                <div class="static-field" id="formSkuDisplay">Auto-generated after save</div>
+                                <span>Gender</span>
+                                <select name="gender" id="formGender">
+                                    <option value="">Select Gender</option>
+                                    <option value="Men">Men</option>
+                                    <option value="Women">Women</option>
+                                    <option value="Kids">Kids</option>
+                                </select>
                             </label>
                             <label class="field">
                                 <span>Stock Quantity</span>
@@ -400,6 +411,8 @@
                 }
                 document.getElementById('formProductName').value = row.dataset.name || '';
                 document.getElementById('formBrand').value = row.dataset.brand || 'Meryl';
+                document.getElementById('formColor').value = row.dataset.color || 'Default';
+                document.getElementById('formGender').value = row.dataset.gender || '';
                 document.getElementById('formSize').value = row.dataset.size || '';
                 document.getElementById('formCostPrice').value = row.dataset.price || '0';
                 document.getElementById('formStockQuantity').value = row.dataset.stock || '0';
