@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Package, Calendar } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Package, Calendar, ArrowUp, ArrowDown, Info } from "lucide-react";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { useProducts, useSales } from "../../lib/hooks";
 
 function formatPeso(value: number) {
@@ -29,9 +30,49 @@ function toDate(value: string | null | undefined) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+// Custom tooltip component for better readability
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-red-800 border border-yellow-400 rounded p-2">
+        <p className="text-yellow-300 text-xs font-bold">{payload[0].payload.week || payload[0].name}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} style={{ color: entry.color }} className="text-xs">
+            {entry.name}: {entry.value} units
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+// Bar chart with labels
+const CustomBar = (props: any) => {
+  const { fill, x, y, width, height, value } = props;
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} fill={fill} />
+      {value > 0 && (
+        <text
+          x={x + width / 2}
+          y={y - 5}
+          fill="#fef08a"
+          textAnchor="middle"
+          fontSize="12"
+          fontWeight="bold"
+        >
+          {value}
+        </text>
+      )}
+    </g>
+  );
+};
+
 export function PredictiveAnalytics() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
+  const [dateRange] = useState("30days"); // Can be extended to be dynamic
 
   const sales = (salesQuery.data as any[]) ?? [];
   const products = (productsQuery.data as any[]) ?? [];
@@ -43,6 +84,7 @@ export function PredictiveAnalytics() {
     inventoryTurnover,
     salesForecast,
     demandTrends,
+    demandTrendsTotal,
     fastMovingProducts,
     slowMovingProducts,
     restockingRecommendations,
@@ -159,6 +201,13 @@ export function PredictiveAnalytics() {
       weeklyBuckets.push(bucket);
     }
 
+    // Calculate total units sold in each category
+    const totalRunning = weeklyBuckets.reduce((sum, w) => sum + w.running, 0);
+    const totalCasual = weeklyBuckets.reduce((sum, w) => sum + w.casual, 0);
+    const totalSports = weeklyBuckets.reduce((sum, w) => sum + w.sports, 0);
+    const totalFormal = weeklyBuckets.reduce((sum, w) => sum + w.formal, 0);
+    const grandTotal = totalRunning + totalCasual + totalSports + totalFormal;
+
     const productStats = new Map<string, { name: string; category: string; sold: number; revenue: number }>();
     salesDetails30.forEach((item) => {
       const key = String(item.productId ?? "");
@@ -253,6 +302,7 @@ export function PredictiveAnalytics() {
       inventoryTurnover: turnoverDisplay,
       salesForecast: forecastData,
       demandTrends: weeklyBuckets,
+      demandTrendsTotal: { running: totalRunning, casual: totalCasual, sports: totalSports, formal: totalFormal, grand: grandTotal },
       fastMovingProducts: fast,
       slowMovingProducts: slow,
       restockingRecommendations: restockRows,
@@ -260,18 +310,39 @@ export function PredictiveAnalytics() {
   }, [products, sales]);
 
   if (salesQuery.isLoading || productsQuery.isLoading) {
-    return <div className="text-sm text-white/60">Loading predictive analytics...</div>;
+    return <div className="text-sm text-white/60">Loading analytics...</div>;
   }
+
+  const getVelocityColor = (velocity: number) => {
+    if (velocity >= 1) return "bg-green-600";
+    if (velocity >= 0.5) return "bg-yellow-600";
+    return "bg-orange-600";
+  };
+
+  const getDaysColor = (days: number) => {
+    if (days <= 30) return "bg-red-600";
+    if (days <= 90) return "bg-yellow-600";
+    return "bg-green-600";
+  };
+
+  const getSummaryColor = (value: number, total: number) => {
+    const percentage = (value / total) * 100;
+    if (percentage > 35) return "bg-green-600";
+    if (percentage > 20) return "bg-yellow-600";
+    return "bg-orange-600";
+  };
 
   return (
     <div className="space-y-6">
+      {/* Key Metrics Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-red-700 border-red-800">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-200">Forecast Accuracy</p>
-                <p className="text-2xl text-yellow-300">{forecastAccuracy.toFixed(1)}%</p>
+                <p className="text-2xl font-bold text-yellow-300">{forecastAccuracy.toFixed(1)}%</p>
+                <p className="text-xs text-yellow-300/60 mt-1">Model confidence level</p>
               </div>
               <CheckCircle className="h-8 w-8 text-yellow-400" />
             </div>
@@ -282,7 +353,8 @@ export function PredictiveAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-200">Predicted Next Month</p>
-                <p className="text-2xl text-yellow-300">{formatPeso(predictedNextMonth / 1000)}K</p>
+                <p className="text-2xl font-bold text-yellow-300">{formatPeso(predictedNextMonth / 1000)}K</p>
+                <p className="text-xs text-yellow-300/60 mt-1">Est. revenue</p>
               </div>
               <TrendingUp className="h-8 w-8 text-yellow-400" />
             </div>
@@ -292,8 +364,9 @@ export function PredictiveAnalytics() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Items Need Restock</p>
-                <p className="text-2xl text-yellow-300">{itemsNeedRestock}</p>
+                <p className="text-sm text-yellow-200">Restock Alerts</p>
+                <p className="text-2xl font-bold text-yellow-300">{itemsNeedRestock}</p>
+                <p className="text-xs text-yellow-300/60 mt-1">Items running low</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-yellow-400" />
             </div>
@@ -304,7 +377,8 @@ export function PredictiveAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-200">Inventory Turnover</p>
-                <p className="text-2xl text-yellow-300">{inventoryTurnover.toFixed(1)}x</p>
+                <p className="text-2xl font-bold text-yellow-300">{inventoryTurnover.toFixed(1)}x</p>
+                <p className="text-xs text-yellow-300/60 mt-1">Per month</p>
               </div>
               <Package className="h-8 w-8 text-yellow-400" />
             </div>
@@ -312,12 +386,14 @@ export function PredictiveAnalytics() {
         </Card>
       </div>
 
+      {/* Sales Forecast */}
       <Card className="bg-red-700 border-red-800">
         <CardHeader>
           <CardTitle className="text-yellow-300 flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
             Sales Forecast - Next 6 Months
           </CardTitle>
+          <p className="text-xs text-yellow-300/60 mt-2">Actual vs Predicted Sales Trend</p>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -334,169 +410,200 @@ export function PredictiveAnalytics() {
           <div className="mt-4 grid grid-cols-6 gap-2">
             {salesForecast.map((item) => (
               <div key={item.id} className="text-center">
-                <p className="text-yellow-200 text-xs">{item.month}</p>
-                <Badge className="bg-yellow-400 text-red-900 text-xs">{item.confidence}%</Badge>
+                <p className="text-yellow-200 text-xs font-semibold">{item.month}</p>
+                <Badge className="bg-yellow-400 text-red-900 text-xs">{item.confidence}% Confidence</Badge>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
+      {/* Product Demand Trends */}
       <Card className="bg-red-700 border-red-800">
         <CardHeader>
-          <CardTitle className="text-yellow-300 flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Product Demand Trends by Category
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-yellow-300 flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Product Demand Trends by Category
+              </CardTitle>
+              <p className="text-xs text-yellow-300/60 mt-2">Compare sales performance across categories over 4 weeks</p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <BarChart data={demandTrends}>
               <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
               <XAxis dataKey="week" stroke="#fef08a" />
               <YAxis stroke="#fef08a" />
-              <Tooltip contentStyle={{ backgroundColor: "#991b1b", border: "1px solid #7f1d1d", color: "#fef08a" }} />
+              <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ color: "#fef08a" }} />
-              <Bar key="running-bar" dataKey="running" fill="#fef08a" name="Running" />
-              <Bar key="casual-bar" dataKey="casual" fill="#facc15" name="Casual" />
-              <Bar key="sports-bar" dataKey="sports" fill="#fde047" name="Sports" />
-              <Bar key="formal-bar" dataKey="formal" fill="#fef9c3" name="Formal / Other" />
+              <Bar dataKey="running" fill="#fef08a" name="Running Shoes" shape={<CustomBar />} />
+              <Bar dataKey="casual" fill="#facc15" name="Casual Shoes" shape={<CustomBar />} />
+              <Bar dataKey="sports" fill="#fde047" name="Sports Shoes" shape={<CustomBar />} />
+              <Bar dataKey="formal" fill="#fef9c3" name="Formal / Other" shape={<CustomBar />} />
             </BarChart>
           </ResponsiveContainer>
+
+          {/* Category Breakdown Summary */}
+          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-red-800 rounded p-3">
+              <p className="text-xs text-yellow-300/60 font-semibold">Running Shoes</p>
+              <p className="text-lg font-bold text-yellow-300">{demandTrendsTotal.running}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <div className={`h-2 flex-1 rounded ${getSummaryColor(demandTrendsTotal.running, demandTrendsTotal.grand)}`}></div>
+                <span className="text-xs text-yellow-300/60">{demandTrendsTotal.grand > 0 ? ((demandTrendsTotal.running / demandTrendsTotal.grand) * 100).toFixed(0) : 0}%</span>
+              </div>
+            </div>
+            <div className="bg-red-800 rounded p-3">
+              <p className="text-xs text-yellow-300/60 font-semibold">Casual Shoes</p>
+              <p className="text-lg font-bold text-yellow-300">{demandTrendsTotal.casual}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <div className={`h-2 flex-1 rounded ${getSummaryColor(demandTrendsTotal.casual, demandTrendsTotal.grand)}`}></div>
+                <span className="text-xs text-yellow-300/60">{demandTrendsTotal.grand > 0 ? ((demandTrendsTotal.casual / demandTrendsTotal.grand) * 100).toFixed(0) : 0}%</span>
+              </div>
+            </div>
+            <div className="bg-red-800 rounded p-3">
+              <p className="text-xs text-yellow-300/60 font-semibold">Sports Shoes</p>
+              <p className="text-lg font-bold text-yellow-300">{demandTrendsTotal.sports}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <div className={`h-2 flex-1 rounded ${getSummaryColor(demandTrendsTotal.sports, demandTrendsTotal.grand)}`}></div>
+                <span className="text-xs text-yellow-300/60">{demandTrendsTotal.grand > 0 ? ((demandTrendsTotal.sports / demandTrendsTotal.grand) * 100).toFixed(0) : 0}%</span>
+              </div>
+            </div>
+            <div className="bg-red-800 rounded p-3">
+              <p className="text-xs text-yellow-300/60 font-semibold">Formal / Other</p>
+              <p className="text-lg font-bold text-yellow-300">{demandTrendsTotal.formal}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <div className={`h-2 flex-1 rounded ${getSummaryColor(demandTrendsTotal.formal, demandTrendsTotal.grand)}`}></div>
+                <span className="text-xs text-yellow-300/60">{demandTrendsTotal.grand > 0 ? ((demandTrendsTotal.formal / demandTrendsTotal.grand) * 100).toFixed(0) : 0}%</span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
+      {/* Fast vs Slow Moving Products */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Fast-Moving Products */}
         <Card className="bg-red-700 border-red-800">
           <CardHeader>
-            <CardTitle className="text-yellow-300 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-green-400" />
-              Fast-Moving Products
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-yellow-300 flex items-center gap-2">
+                <ArrowUp className="w-5 h-5 text-green-400" />
+                Fast-Moving Products
+              </CardTitle>
+              <Badge className="bg-green-600 text-white">{fastMovingProducts.length} Products</Badge>
+            </div>
+            <p className="text-xs text-yellow-300/60 mt-2">High-velocity items selling well - Keep stock levels high</p>
           </CardHeader>
           <CardContent>
             <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-              <Table className="w-full">
+              <Table className="w-full text-sm">
                 <TableHeader>
                   <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                     <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
-                    <TableHead className="text-yellow-300 whitespace-nowrap">Sold (30d)</TableHead>
-                    <TableHead className="text-yellow-300 whitespace-nowrap">Velocity</TableHead>
-                    <TableHead className="text-yellow-300 whitespace-nowrap">Forecast</TableHead>
+                    <TableHead className="text-yellow-300 whitespace-nowrap text-center">Units Sold (30d)</TableHead>
+                    <TableHead className="text-yellow-300 whitespace-nowrap text-center">Daily Rate</TableHead>
+                    <TableHead className="text-yellow-300 whitespace-nowrap text-center">30d Forecast</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {fastMovingProducts.map((product) => (
-                    <TableRow key={product.id} className="border-red-800">
-                      <TableCell className="min-w-[150px]">
+                  {fastMovingProducts.map((product, idx) => (
+                    <TableRow key={product.id} className="border-red-800 hover:bg-red-600/30">
+                      <TableCell className="min-w-[140px]">
                         <div>
-                          <p className="text-yellow-200 whitespace-nowrap">{product.name}</p>
-                          <p className="text-yellow-300 text-xs whitespace-nowrap">{product.category}</p>
+                          <p className="text-yellow-200 whitespace-nowrap font-semibold flex items-center gap-2">
+                            {idx + 1}. {product.name}
+                          </p>
+                          <p className="text-yellow-300 text-xs whitespace-nowrap mt-1">{product.category}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="text-yellow-300 whitespace-nowrap">{product.sold}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <Badge className="bg-green-600 text-white">{product.velocity.toFixed(1)}/day</Badge>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <ArrowUp className="w-4 h-4 text-green-400" />
+                          <span className="text-yellow-300 font-bold">{product.sold}</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="text-yellow-300 whitespace-nowrap">{product.forecastNext30} units</TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={`${getVelocityColor(product.velocity)} text-white text-xs`}>
+                          {product.velocity.toFixed(2)}/day
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center text-yellow-300 font-semibold">{product.forecastNext30} units</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
+            <div className="mt-4 p-3 bg-green-700/20 border border-green-600/30 rounded text-xs text-yellow-300">
+              💡 <span className="font-semibold">Tip:</span> Ensure adequate inventory levels for these bestsellers to avoid stockouts.
+            </div>
           </CardContent>
         </Card>
 
+        {/* Slow-Moving Products */}
         <Card className="bg-red-700 border-red-800">
           <CardHeader>
-            <CardTitle className="text-yellow-300 flex items-center gap-2">
-              <TrendingDown className="w-5 h-5 text-orange-400" />
-              Slow-Moving Products
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-yellow-300 flex items-center gap-2">
+                <ArrowDown className="w-5 h-5 text-orange-400" />
+                Slow-Moving Products
+              </CardTitle>
+              <Badge className="bg-orange-600 text-white">{slowMovingProducts.length} Products</Badge>
+            </div>
+            <p className="text-xs text-yellow-300/60 mt-2">Low-velocity items - Consider promotions or markdowns</p>
           </CardHeader>
           <CardContent>
             <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-              <Table className="w-full">
+              <Table className="w-full text-sm">
                 <TableHeader>
                   <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                     <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
-                    <TableHead className="text-yellow-300 whitespace-nowrap">Sold (30d)</TableHead>
-                    <TableHead className="text-yellow-300 whitespace-nowrap">Days</TableHead>
-                    <TableHead className="text-yellow-300 whitespace-nowrap">Action</TableHead>
+                    <TableHead className="text-yellow-300 whitespace-nowrap text-center">Units (30d)</TableHead>
+                    <TableHead className="text-yellow-300 whitespace-nowrap text-center">Days in Stock</TableHead>
+                    <TableHead className="text-yellow-300 whitespace-nowrap text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {slowMovingProducts.map((product) => (
-                    <TableRow key={product.id} className="border-red-800">
-                      <TableCell className="min-w-[150px]">
+                  {slowMovingProducts.map((product, idx) => (
+                    <TableRow key={product.id} className="border-red-800 hover:bg-red-600/30">
+                      <TableCell className="min-w-[140px]">
                         <div>
-                          <p className="text-yellow-200 whitespace-nowrap">{product.name}</p>
-                          <p className="text-yellow-300 text-xs whitespace-nowrap">{product.category}</p>
+                          <p className="text-yellow-200 whitespace-nowrap font-semibold flex items-center gap-2">
+                            {idx + 1}. {product.name}
+                          </p>
+                          <p className="text-yellow-300 text-xs whitespace-nowrap mt-1">{product.category}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="text-yellow-300 whitespace-nowrap">{product.sold}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <Badge className="bg-orange-600 text-white">{product.daysInStock}d</Badge>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <ArrowDown className="w-4 h-4 text-orange-400" />
+                          <span className="text-yellow-300 font-bold">{product.sold}</span>
+                        </div>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <Badge className="bg-yellow-400 text-red-900 text-xs">{product.recommendation}</Badge>
+                      <TableCell className="text-center">
+                        <Badge className={`${getDaysColor(product.daysInStock)} text-white text-xs`}>
+                          {product.daysInStock}d
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button variant="ghost" size="sm" className="bg-yellow-400 text-red-900 hover:bg-yellow-500 text-xs font-bold px-3">
+                          {product.recommendation}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+            </div>
+            <div className="mt-4 p-3 bg-orange-700/20 border border-orange-600/30 rounded text-xs text-yellow-300">
+              💡 <span className="font-semibold">Tip:</span> Apply promotional strategies to move inventory and free up capital.
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <Card className="bg-red-700 border-red-800">
-        <CardHeader>
-          <CardTitle className="text-yellow-300 flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" />
-            Intelligent Restocking Recommendations
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Current Stock</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Recommended</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Urgency</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Stockout In</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Order Qty</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {restockingRecommendations.map((item) => (
-                  <TableRow key={item.id} className="border-red-800">
-                    <TableCell className="text-yellow-200 whitespace-nowrap">{item.product}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <Badge className={item.currentStock < 10 ? "bg-red-900 text-yellow-200" : "bg-yellow-400 text-red-900"}>
-                        {item.currentStock} units
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap">{item.recommendedStock} units</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <Badge className={item.urgency === "high" ? "bg-red-900 text-yellow-200" : "bg-yellow-600 text-red-900"}>
-                        {item.urgency.toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap">{item.daysUntilStockout} days</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <Badge className="bg-green-600 text-white">Order {item.orderQuantity}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
-
