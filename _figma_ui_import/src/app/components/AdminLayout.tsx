@@ -44,7 +44,7 @@ export function AdminLayout() {
     { id: 'products', label: 'Inventory', icon: Package },
     { id: 'sales', label: 'Sales', icon: ShoppingCart },
     { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'analytics', label: 'Predictive', icon: TrendingUp },
+    { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'promotions', label: 'Promotions', icon: Tag },
     { id: 'returns', label: 'Returns', icon: RotateCcw },
     { id: 'reports', label: 'Reports', icon: BarChart3 },

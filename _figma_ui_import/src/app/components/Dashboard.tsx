@@ -336,7 +336,7 @@ export function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} tickLine={false} axisLine={false} interval={0} />
                 <Tooltip
                   contentStyle={{
                     background: "#0E0E12",
