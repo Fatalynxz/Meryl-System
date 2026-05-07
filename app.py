@@ -304,7 +304,7 @@ def fetch_raw_rows(table_name, query="*"):
 def adapt_product_payload_for_schema(payload, error):
     """
     Gracefully handle legacy product schemas that do not yet include
-    newer columns like `brand`.
+    newer columns like `brand` or `gender`.
     """
     error_text = str(error)
     updated_payload = dict(payload)
@@ -318,6 +318,14 @@ def adapt_product_payload_for_schema(payload, error):
         updated_payload.pop("brand", None)
         adapted = True
         adaptation_notes.append("missing_brand_column")
+
+    if (
+        "Could not find the 'gender' column of 'product'" in error_text
+        and "gender" in updated_payload
+    ):
+        updated_payload.pop("gender", None)
+        adapted = True
+        adaptation_notes.append("missing_gender_column")
 
     if "product_status_check" in error_text or "violates check constraint" in error_text:
         current_status = str(updated_payload.get("status") or "").strip().lower()
