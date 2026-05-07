@@ -137,6 +137,7 @@ export function PointOfSale() {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProductKey, setSelectedProductKey] = useState<string>("");
+  const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
   const [discount, setDiscount] = useState<number>(0);
@@ -172,7 +173,7 @@ export function PointOfSale() {
       variants.push({
         product_id: row.product_id,
         product_name: row.product_name,
-        brand: "N/A",
+        brand: row.brand ?? "Meryl",
         color: row.color ?? "N/A",
         size: row.size ?? "N/A",
         price: Number(row.cost_price ?? 0),
@@ -225,7 +226,7 @@ export function PointOfSale() {
   const productGroups: ProductGroup[] = useMemo(
     () =>
       productInventory.reduce((acc, variant) => {
-        const key = `${variant.product_name}-${variant.color}`;
+        const key = variant.product_name;
         const existing = acc.find((g) => g.key === key);
         if (existing) existing.variants.push(variant);
         else acc.push({ key, product_name: variant.product_name, color: variant.color, variants: [variant] });
@@ -234,16 +235,27 @@ export function PointOfSale() {
     [productInventory],
   );
 
-  const availableSizes = selectedProductKey
-    ? productGroups.find((g) => g.key === selectedProductKey)?.variants || []
+  const availableColors = selectedProductKey
+    ? Array.from(new Set(
+        productInventory
+          .filter((v) => v.product_name === selectedProductKey)
+          .map((v) => v.color)
+      ))
+    : [];
+
+  const availableSizes = (selectedProductKey && selectedColor)
+    ? productInventory
+        .filter((v) => v.product_name === selectedProductKey && v.color === selectedColor)
+        .map((v) => ({ ...v }))
     : [];
 
   const addToCart = () => {
     if (!selectedProductKey) return toast.error("Please select a product");
+    if (!selectedColor) return toast.error("Please select a color");
     if (!selectedSize) return toast.error("Please select a size");
 
     const selectedVariant = productInventory.find(
-      (v) => `${v.product_name}-${v.color}` === selectedProductKey && v.size === selectedSize,
+      (v) => v.product_name === selectedProductKey && v.color === selectedColor && v.size === selectedSize,
     );
     if (!selectedVariant) return;
     if (quantity > selectedVariant.stock_quantity) {
@@ -315,6 +327,7 @@ export function PointOfSale() {
     }
 
     setSelectedProductKey("");
+    setSelectedColor("");
     setSelectedSize("");
     setQuantity(1);
     setDiscount(0);
@@ -471,23 +484,46 @@ export function PointOfSale() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label className="text-yellow-300">Select Product (Name & Color)</Label>
+                <Label className="text-yellow-300">Select Product</Label>
                 <Select
                   value={selectedProductKey}
                   onValueChange={(value) => {
                     setSelectedProductKey(value);
+                    setSelectedColor("");
                     setSelectedSize("");
                   }}
                 >
                   <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                    <SelectValue placeholder="Choose product name and color" />
+                    <SelectValue placeholder="Choose product name" />
                   </SelectTrigger>
                   <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                     {productGroups.map((group) => (
                       <SelectItem key={group.key} value={group.key}>
-                        {group.product_name} - {group.color}
+                        {group.product_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-yellow-300">Select Color</Label>
+                <Select
+                  value={selectedColor}
+                  onValueChange={(value) => {
+                    setSelectedColor(value);
+                    setSelectedSize("");
+                  }}
+                  disabled={!selectedProductKey}
+                >
+                  <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                    <SelectValue placeholder={selectedProductKey ? "Choose color" : "Select product first"} />
+                  </SelectTrigger>
+                  <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                    {availableColors.map((color) => (
+                      <SelectItem key={color} value={color}>
+                        {color}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -495,9 +531,9 @@ export function PointOfSale() {
               </div>
               <div className="space-y-2">
                 <Label className="text-yellow-300">Select Size</Label>
-                <Select value={selectedSize} onValueChange={setSelectedSize} disabled={!selectedProductKey}>
+                <Select value={selectedSize} onValueChange={setSelectedSize} disabled={!selectedColor}>
                   <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                    <SelectValue placeholder={selectedProductKey ? "Choose size" : "Select product first"} />
+                    <SelectValue placeholder={selectedColor ? "Choose size" : "Select color first"} />
                   </SelectTrigger>
                   <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                     {availableSizes.map((variant) => (
@@ -557,6 +593,7 @@ export function PointOfSale() {
                   <TableHeader>
                   <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                       <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap">Brand</TableHead>
                       <TableHead className="text-yellow-300 whitespace-nowrap">Color</TableHead>
                       <TableHead className="text-yellow-300 whitespace-nowrap">Size</TableHead>
                       <TableHead className="text-yellow-300 whitespace-nowrap">Price</TableHead>
@@ -574,8 +611,9 @@ export function PointOfSale() {
                       return (
                         <TableRow key={item.id} className="border-red-800">
                           <TableCell className="text-yellow-200 whitespace-nowrap">
-                            <div>{item.brand} {item.productName}</div>
+                            {item.productName}
                           </TableCell>
+                          <TableCell className="text-yellow-200 whitespace-nowrap">{item.brand}</TableCell>
                           <TableCell className="text-yellow-200 whitespace-nowrap">{item.color}</TableCell>
                           <TableCell className="text-yellow-200 whitespace-nowrap">{item.size}</TableCell>
                           <TableCell className="text-yellow-300 whitespace-nowrap">₱{item.price}</TableCell>
@@ -777,11 +815,11 @@ export function PointOfSale() {
                 {receiptData.items.map((item: CartItem, index: number) => (
                   <div key={index} className="text-yellow-200 text-sm mb-2">
                     <div className="flex justify-between">
-                      <span>{item.brand} {item.productName}</span>
+                      <span>{item.productName} ({item.color} - Size {item.size})</span>
                       <span>₱{(item.price * item.quantity - (item.price * item.quantity * item.discount) / 100).toFixed(2)}</span>
                     </div>
                     <div className="text-xs text-yellow-300/70 ml-2">
-                      {item.quantity} x ₱{item.price} {item.discount > 0 && `(${item.discount}% off)`}
+                      Brand: {item.brand} | {item.quantity} x ₱{item.price} {item.discount > 0 && `(${item.discount}% off)`}
                     </div>
                   </div>
                 ))}
