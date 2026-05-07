@@ -310,4 +310,25 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Fix autofill white background on inputs and selects */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #1D1D25 inset !important;
+    -webkit-text-fill-color: #F5F5F7 !important;
+  }
+
+  /* Ensure dropdown items don't turn white on click */
+  [data-slot="select-item"]:focus,
+  [data-slot="select-item"][data-state="highlighted"] {
+    background-color: #24242E !important;
+    color: #F5F5F7 !important;
+  }
+
+  /* Override suggested content white background */
+  input:-webkit-autofill::first-line {
+    color: #F5F5F7;
+  }
 }

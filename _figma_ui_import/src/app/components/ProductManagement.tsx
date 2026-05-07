@@ -28,6 +28,7 @@ type UiProduct = {
   category_id: string | null;
   size: string;
   color: string;
+  gender: string;
   cost_price: number;
   price: number;
   reorder_level: number;
@@ -43,6 +44,7 @@ type ProductFormData = {
   category_id: string;
   size: string;
   color: string;
+  gender: string;
   cost_price: number;
   price: number;
   reorder_level: number;
@@ -80,6 +82,7 @@ const defaultForm: ProductFormData = {
   category_id: "",
   size: "",
   color: "",
+  gender: "",
   cost_price: 0,
   price: 0,
   reorder_level: 10,
@@ -100,6 +103,7 @@ function toUiProduct(row: any, inventoryByProductId: Record<string, any>): UiPro
     category_id: row.category_id ?? null,
     size: row.size ?? "N/A",
     color: row.color ?? "N/A",
+    gender: row.gender ?? "N/A",
     cost_price: Number(row.cost_price ?? 0),
     price: Number(row.cost_price ?? 0),
     reorder_level: Number(row.reorder_level ?? firstInventory?.reorder_level ?? 0),
@@ -156,6 +160,7 @@ export function ProductManagement() {
       category_id: product.category_id ?? "",
       size: product.size,
       color: product.color,
+      gender: product.gender,
       cost_price: product.cost_price,
       price: product.price,
       reorder_level: product.reorder_level,
@@ -211,6 +216,7 @@ export function ProductManagement() {
         category_id: formData.category_id,
         size: formData.size || null,
         color: formData.color || null,
+        gender: formData.gender || null,
         cost_price: formData.price ?? formData.cost_price ?? 0,
         reorder_level: formData.reorder_level ?? 10,
         status: toDbStatus(formData.status ?? "Active"),
@@ -244,6 +250,7 @@ export function ProductManagement() {
           category_id: formData.category_id || editingProduct.category_id,
           size: formData.size || null,
           color: formData.color || null,
+          gender: formData.gender || null,
           cost_price: formData.price ?? formData.cost_price ?? 0,
           reorder_level: formData.reorder_level ?? editingProduct.reorder_level,
           status: toDbStatus(formData.status ?? editingProduct.status),
@@ -329,6 +336,8 @@ export function ProductManagement() {
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Product</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Brand</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Category</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Color</TableHead>
+                <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Gender</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap text-center py-4 px-3">Size</TableHead>
                 <TableHead className="text-yellow-300 whitespace-nowrap py-4 px-3">
                   <div className="w-full text-center">Price</div>
@@ -350,6 +359,8 @@ export function ProductManagement() {
                   <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3 text-center">{product.name}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap py-4 px-3 text-center">{product.brand}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap truncate py-4 px-3 text-center">{product.category}</TableCell>
+                  <TableCell className="text-yellow-200 whitespace-nowrap text-center py-4 px-3">{product.color}</TableCell>
+                  <TableCell className="text-yellow-200 whitespace-nowrap text-center py-4 px-3">{product.gender}</TableCell>
                   <TableCell className="text-yellow-200 whitespace-nowrap text-center py-4 px-3">{product.size}</TableCell>
                   <TableCell className="text-yellow-300 whitespace-nowrap py-4 px-3">
                     <div className="w-full text-center">PHP {product.price}</div>
@@ -514,6 +525,27 @@ function ProductForm({
           />
         </div>
         <div className="space-y-2">
+          <Label htmlFor="gender" className="text-yellow-300">
+            Gender
+          </Label>
+          <Select
+            value={formData.gender}
+            onValueChange={(value) => setFormData({ ...formData, gender: value })}
+          >
+            <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+              <SelectValue placeholder="Select gender" />
+            </SelectTrigger>
+            <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+              <SelectItem value="Men">Men</SelectItem>
+              <SelectItem value="Women">Women</SelectItem>
+              <SelectItem value="Kids">Kids</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
           <Label htmlFor="sku" className="text-yellow-300">
             SKU
           </Label>
@@ -524,9 +556,6 @@ function ProductForm({
             className="bg-red-600 border-red-800 text-yellow-200"
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="price" className="text-yellow-300">
             Selling Price (₱) *
