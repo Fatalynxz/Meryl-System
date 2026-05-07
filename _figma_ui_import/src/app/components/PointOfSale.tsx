@@ -378,7 +378,7 @@ export function PointOfSale() {
         name,
         contact_number: phone,
         email: fallbackEmail,
-        status: "Active",
+        status: "active",
         date_registered: new Date().toISOString().slice(0, 10),
       })
       .select("customer_id,name")
@@ -555,8 +555,10 @@ export function PointOfSale() {
               <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
                 <Table className="w-full">
                   <TableHeader>
-                    <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                  <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                       <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap">Color</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap">Size</TableHead>
                       <TableHead className="text-yellow-300 whitespace-nowrap">Price</TableHead>
                       <TableHead className="text-yellow-300 whitespace-nowrap">Qty</TableHead>
                       <TableHead className="text-yellow-300 whitespace-nowrap">Discount</TableHead>
@@ -574,6 +576,8 @@ export function PointOfSale() {
                           <TableCell className="text-yellow-200 whitespace-nowrap">
                             <div>{item.brand} {item.productName}</div>
                           </TableCell>
+                          <TableCell className="text-yellow-200 whitespace-nowrap">{item.color}</TableCell>
+                          <TableCell className="text-yellow-200 whitespace-nowrap">{item.size}</TableCell>
                           <TableCell className="text-yellow-300 whitespace-nowrap">₱{item.price}</TableCell>
                           <TableCell>
                             <Input
@@ -703,9 +707,7 @@ export function PointOfSale() {
                   </SelectTrigger>
                   <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                     <SelectItem value="Cash">Cash</SelectItem>
-                    <SelectItem value="Credit Card">Credit Card</SelectItem>
-                    <SelectItem value="Debit Card">Debit Card</SelectItem>
-                    <SelectItem value="Mobile Payment">Mobile Payment</SelectItem>
+                    <SelectItem value="GCash">GCash</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
