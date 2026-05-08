@@ -4,7 +4,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Package, Calendar, ArrowUp, ArrowDown, Info } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 import { useProducts, useSales } from "../../lib/hooks";
 
 function formatPeso(value: number) {
@@ -514,6 +514,50 @@ export function PredictiveAnalytics() {
               <Bar dataKey="formal" fill="#fef9c3" name="Formal / Other" shape={<CustomBar />} />
             </BarChart>
           </ResponsiveContainer>
+
+          {/* Category Distribution Pie Chart */}
+          <div className="mt-8">
+            <h3 className="text-yellow-300 font-semibold mb-4">Category Distribution</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: "Running Shoes", value: demandTrendsTotal.running, fill: "#fef08a" },
+                    { name: "Casual Shoes", value: demandTrendsTotal.casual, fill: "#facc15" },
+                    { name: "Sports Shoes", value: demandTrendsTotal.sports, fill: "#fde047" },
+                    { name: "Formal / Other", value: demandTrendsTotal.formal, fill: "#fef9c3" },
+                  ].filter(item => item.value > 0)}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#fef08a"
+                  dataKey="value"
+                >
+                  {[
+                    { name: "Running Shoes", value: demandTrendsTotal.running, fill: "#fef08a" },
+                    { name: "Casual Shoes", value: demandTrendsTotal.casual, fill: "#facc15" },
+                    { name: "Sports Shoes", value: demandTrendsTotal.sports, fill: "#fde047" },
+                    { name: "Formal / Other", value: demandTrendsTotal.formal, fill: "#fef9c3" },
+                  ]
+                    .filter(item => item.value > 0)
+                    .map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#7f1d1d",
+                    border: "1px solid #fef08a",
+                    borderRadius: "4px",
+                  }}
+                  formatter={(value) => [`${value} units`, "Sales"]}
+                  labelStyle={{ color: "#fef08a" }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
           {/* Category Breakdown Summary */}
           <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
