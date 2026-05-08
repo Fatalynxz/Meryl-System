@@ -1,6 +1,6 @@
 import { createRow, getRowById, listRows, removeRow, updateRow } from "./_common";
 
-const PRODUCT_JOIN = "*, category:category(*), inventory:inventory(*)";
+const PRODUCT_JOIN = "*, category(*), inventory(*)";
 
 export const productsApi = {
   list: () => listRows("product", PRODUCT_JOIN, "created_at"),
