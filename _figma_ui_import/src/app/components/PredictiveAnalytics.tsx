@@ -105,6 +105,17 @@ export function PredictiveAnalytics() {
         const status = String(payment?.payment_status ?? "").trim().toLowerCase();
         const isCompleted = status === "completed" || status === "paid";
         const details = Array.isArray((sale as any).sales_details) ? (sale as any).sales_details : [];
+
+        // DEBUG: Log first sale detail to check category structure
+        if (details.length > 0 && Math.random() < 0.1) {
+          console.log("📊 Sample sales detail:", {
+            product_name: details[0]?.product?.product_name,
+            category_direct: details[0]?.product?.category_name,
+            category_array: details[0]?.product?.category,
+            full_product: details[0]?.product,
+          });
+        }
+
         return { date, amount, isCompleted, details };
       })
       .filter((row) => row.date && row.isCompleted) as Array<{
@@ -190,23 +201,39 @@ export function PredictiveAnalytics() {
       const start = new Date(end);
       start.setDate(end.getDate() - 6);
       const bucket = { id: `w${4 - i}`, week: `Week ${4 - i}`, running: 0, casual: 0, sports: 0, formal: 0 };
+
       salesDetails90.forEach((item) => {
         if (item.saleDate < start || item.saleDate > end) return;
 
         // Get category name from multiple possible sources
         let rawCategory = "";
+        let categorySource = "unknown";
 
         // Try: product.category[0].category_name
         if (Array.isArray(item.product?.category) && item.product.category[0]?.category_name) {
           rawCategory = String(item.product.category[0].category_name).toLowerCase();
+          categorySource = "array[0].category_name";
         }
         // Try: product.category_name (direct property)
         else if (item.product?.category_name) {
           rawCategory = String(item.product.category_name).toLowerCase();
+          categorySource = "category_name";
         }
         // Try: product.product_name (fallback - some products might have category in name)
         else if (item.product?.product_name) {
           rawCategory = String(item.product.product_name).toLowerCase();
+          categorySource = "product_name";
+        }
+
+        // DEBUG: Log categorization for first few items
+        if (Math.random() < 0.15) {
+          console.log("📊 Category match:", {
+            product: item.product?.product_name,
+            rawCategory,
+            categorySource,
+            category_object: item.product?.category,
+            qty: item.qty,
+          });
         }
 
         // Categorize based on keyword matching
@@ -218,6 +245,14 @@ export function PredictiveAnalytics() {
       });
       weeklyBuckets.push(bucket);
     }
+
+    console.log("📊 Weekly buckets summary:", {
+      total_running: weeklyBuckets.reduce((sum, w) => sum + w.running, 0),
+      total_casual: weeklyBuckets.reduce((sum, w) => sum + w.casual, 0),
+      total_sports: weeklyBuckets.reduce((sum, w) => sum + w.sports, 0),
+      total_formal: weeklyBuckets.reduce((sum, w) => sum + w.formal, 0),
+      details90count: salesDetails90.length,
+    });
 
     // Calculate total units sold in each category
     const totalRunning = weeklyBuckets.reduce((sum, w) => sum + w.running, 0);
