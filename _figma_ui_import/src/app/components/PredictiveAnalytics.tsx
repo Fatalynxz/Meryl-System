@@ -97,6 +97,40 @@ export function PredictiveAnalytics() {
     const last90Start = new Date(now);
     last90Start.setDate(now.getDate() - 90);
 
+    // Helper function to extract category name correctly from product
+    const getCategoryName = (product: any): string => {
+      if (!product) return "formal"; // Default fallback
+
+      // Priority 1: category[0].category_name (array format from Supabase)
+      if (Array.isArray(product.category) && product.category.length > 0) {
+        const catName = product.category[0]?.category_name;
+        if (catName) return String(catName).toLowerCase().trim();
+      }
+
+      // Priority 2: category_name (direct property)
+      if (product.category_name) {
+        return String(product.category_name).toLowerCase().trim();
+      }
+
+      // Priority 3: category object with name property
+      if (typeof product.category === 'object' && product.category?.category_name) {
+        return String(product.category.category_name).toLowerCase().trim();
+      }
+
+      return "formal"; // Default fallback
+    };
+
+    // Helper function to map category names to bucket keys
+    const getCategoryBucket = (categoryName: string): 'running' | 'casual' | 'sports' | 'formal' => {
+      if (!categoryName) return 'formal';
+
+      const cat = categoryName.toLowerCase().trim();
+      if (cat.includes('running')) return 'running';
+      if (cat.includes('casual')) return 'casual';
+      if (cat.includes('sport')) return 'sports';
+      return 'formal';
+    };
+
     const salesRows = sales
       .map((sale) => {
         const date = toDate(sale.transaction_date ?? sale.created_at);
@@ -205,43 +239,21 @@ export function PredictiveAnalytics() {
       salesDetails90.forEach((item) => {
         if (item.saleDate < start || item.saleDate > end) return;
 
-        // Get category name from multiple possible sources
-        let rawCategory = "";
-        let categorySource = "unknown";
-
-        // Try: product.category[0].category_name
-        if (Array.isArray(item.product?.category) && item.product.category[0]?.category_name) {
-          rawCategory = String(item.product.category[0].category_name).toLowerCase();
-          categorySource = "array[0].category_name";
-        }
-        // Try: product.category_name (direct property)
-        else if (item.product?.category_name) {
-          rawCategory = String(item.product.category_name).toLowerCase();
-          categorySource = "category_name";
-        }
-        // Try: product.product_name (fallback - some products might have category in name)
-        else if (item.product?.product_name) {
-          rawCategory = String(item.product.product_name).toLowerCase();
-          categorySource = "product_name";
-        }
+        const categoryName = getCategoryName(item.product);
+        const bucketKey = getCategoryBucket(categoryName);
 
         // DEBUG: Log categorization for first few items
         if (Math.random() < 0.15) {
           console.log("📊 Category match:", {
             product: item.product?.product_name,
-            rawCategory,
-            categorySource,
-            category_object: item.product?.category,
+            categoryName,
+            bucketKey,
             qty: item.qty,
+            category_raw: item.product?.category,
           });
         }
 
-        // Categorize based on keyword matching
-        if (rawCategory.includes("running")) bucket.running += item.qty;
-        else if (rawCategory.includes("casual")) bucket.casual += item.qty;
-        else if (rawCategory.includes("sport")) bucket.sports += item.qty;
-        else if (rawCategory.includes("formal")) bucket.formal += item.qty;
-        else bucket.formal += item.qty; // Default to formal/other
+        bucket[bucketKey] += item.qty;
       });
       weeklyBuckets.push(bucket);
     }
@@ -252,6 +264,7 @@ export function PredictiveAnalytics() {
       total_sports: weeklyBuckets.reduce((sum, w) => sum + w.sports, 0),
       total_formal: weeklyBuckets.reduce((sum, w) => sum + w.formal, 0),
       details90count: salesDetails90.length,
+      buckets: weeklyBuckets,
     });
 
     // Calculate total units sold in each category
@@ -267,13 +280,8 @@ export function PredictiveAnalytics() {
       if (!key) return;
       const name = String(item.product?.product_name ?? "Unknown Product");
 
-      // Get category name from multiple possible sources
-      let category = "Uncategorized";
-      if (Array.isArray(item.product?.category) && item.product.category[0]?.category_name) {
-        category = String(item.product.category[0].category_name);
-      } else if (item.product?.category_name) {
-        category = String(item.product.category_name);
-      }
+      // Use the same helper function for category extraction
+      const category = getCategoryName(item.product);
 
       const prev = productStats.get(key) ?? { name, category, sold: 0, revenue: 0 };
       productStats.set(key, {
