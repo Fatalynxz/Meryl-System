@@ -394,13 +394,6 @@ export function PredictiveAnalytics() {
     return "bg-green-600";
   };
 
-  const getSummaryColor = (value: number, total: number) => {
-    const percentage = (value / total) * 100;
-    if (percentage > 35) return "bg-green-600";
-    if (percentage > 20) return "bg-yellow-600";
-    return "bg-orange-600";
-  };
-
   return (
     <div className="space-y-6">
       {/* Key Metrics Summary */}
@@ -559,38 +552,27 @@ export function PredictiveAnalytics() {
             </ResponsiveContainer>
           </div>
 
-          {/* Category Breakdown Summary */}
-          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-red-800 rounded p-3">
-              <p className="text-xs text-yellow-300/60 font-semibold">Running Shoes</p>
-              <p className="text-lg font-bold text-yellow-300">{demandTrendsTotal.running}</p>
-              <div className="mt-1 flex items-center gap-2">
-                <div className={`h-2 flex-1 rounded ${getSummaryColor(demandTrendsTotal.running, demandTrendsTotal.grand)}`}></div>
-                <span className="text-xs text-yellow-300/60">{demandTrendsTotal.grand > 0 ? ((demandTrendsTotal.running / demandTrendsTotal.grand) * 100).toFixed(0) : 0}%</span>
+          {/* Total Units Summary */}
+          <div className="mt-8 p-4 bg-gradient-to-r from-yellow-600/20 to-yellow-400/10 border border-yellow-400/40 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-yellow-300/70 font-semibold">TOTAL UNITS SOLD (90 days)</p>
+                <p className="text-4xl font-bold text-yellow-300 mt-1">{demandTrendsTotal.grand}</p>
               </div>
-            </div>
-            <div className="bg-red-800 rounded p-3">
-              <p className="text-xs text-yellow-300/60 font-semibold">Casual Shoes</p>
-              <p className="text-lg font-bold text-yellow-300">{demandTrendsTotal.casual}</p>
-              <div className="mt-1 flex items-center gap-2">
-                <div className={`h-2 flex-1 rounded ${getSummaryColor(demandTrendsTotal.casual, demandTrendsTotal.grand)}`}></div>
-                <span className="text-xs text-yellow-300/60">{demandTrendsTotal.grand > 0 ? ((demandTrendsTotal.casual / demandTrendsTotal.grand) * 100).toFixed(0) : 0}%</span>
-              </div>
-            </div>
-            <div className="bg-red-800 rounded p-3">
-              <p className="text-xs text-yellow-300/60 font-semibold">Sports Shoes</p>
-              <p className="text-lg font-bold text-yellow-300">{demandTrendsTotal.sports}</p>
-              <div className="mt-1 flex items-center gap-2">
-                <div className={`h-2 flex-1 rounded ${getSummaryColor(demandTrendsTotal.sports, demandTrendsTotal.grand)}`}></div>
-                <span className="text-xs text-yellow-300/60">{demandTrendsTotal.grand > 0 ? ((demandTrendsTotal.sports / demandTrendsTotal.grand) * 100).toFixed(0) : 0}%</span>
-              </div>
-            </div>
-            <div className="bg-red-800 rounded p-3">
-              <p className="text-xs text-yellow-300/60 font-semibold">Formal / Other</p>
-              <p className="text-lg font-bold text-yellow-300">{demandTrendsTotal.formal}</p>
-              <div className="mt-1 flex items-center gap-2">
-                <div className={`h-2 flex-1 rounded ${getSummaryColor(demandTrendsTotal.formal, demandTrendsTotal.grand)}`}></div>
-                <span className="text-xs text-yellow-300/60">{demandTrendsTotal.grand > 0 ? ((demandTrendsTotal.formal / demandTrendsTotal.grand) * 100).toFixed(0) : 0}%</span>
+              <div className="text-right">
+                <p className="text-xs text-yellow-300/70 mb-2">Top Category</p>
+                <p className="text-lg font-bold text-yellow-300">
+                  {demandTrendsTotal.running >= demandTrendsTotal.casual &&
+                   demandTrendsTotal.running >= demandTrendsTotal.sports &&
+                   demandTrendsTotal.running >= demandTrendsTotal.formal
+                    ? "Running"
+                    : demandTrendsTotal.casual >= demandTrendsTotal.sports &&
+                      demandTrendsTotal.casual >= demandTrendsTotal.formal
+                    ? "Casual"
+                    : demandTrendsTotal.sports >= demandTrendsTotal.formal
+                    ? "Sports"
+                    : "Formal/Other"}
+                </p>
               </div>
             </div>
           </div>
