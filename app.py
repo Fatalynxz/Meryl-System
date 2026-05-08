@@ -102,6 +102,15 @@ from app_modules.analytics.app_predictive import (
     build_predictive_context as predictive_build_context,
     build_reports_context as predictive_build_reports_context,
 )
+from app_modules.analytics.app_inventory_analytics import (
+    build_inventory_turnover_context as analytics_build_inventory_turnover_context,
+)
+from app_modules.analytics.app_returns_predictor import (
+    build_returns_analysis_context as analytics_build_returns_analysis_context,
+)
+from app_modules.analytics.app_pricing_engine import (
+    build_pricing_context as analytics_build_pricing_context,
+)
 from app_modules.sales.app_pos import (
     add_product_to_cart as pos_add_product_to_cart,
     build_receipt_payload as pos_build_receipt_payload,
@@ -1616,6 +1625,45 @@ def reports():
         build_reports_context=build_reports_context,
     )
     return render_page("reports.html", **context)
+
+
+@app.route("/inventory-analytics")
+@login_required
+@roles_required("admin", "inventory_staff")
+def inventory_analytics():
+    context = analytics_build_inventory_turnover_context(
+        fetch_rows=fetch_rows,
+        build_product_lookup=build_product_lookup,
+        safe_int=safe_int,
+        safe_float=safe_float,
+    )
+    return render_page("inventory_analytics.html", **context)
+
+
+@app.route("/returns-analysis")
+@login_required
+@roles_required("admin")
+def returns_analysis():
+    context = analytics_build_returns_analysis_context(
+        fetch_rows=fetch_rows,
+        build_product_lookup=build_product_lookup,
+        safe_int=safe_int,
+        safe_float=safe_float,
+    )
+    return render_page("returns_analysis.html", **context)
+
+
+@app.route("/pricing-recommendations")
+@login_required
+@roles_required("admin")
+def pricing_recommendations():
+    context = analytics_build_pricing_context(
+        fetch_rows=fetch_rows,
+        build_product_lookup=build_product_lookup,
+        safe_int=safe_int,
+        safe_float=safe_float,
+    )
+    return render_page("pricing_recommendations.html", **context)
 
 
 @app.route("/pos")
