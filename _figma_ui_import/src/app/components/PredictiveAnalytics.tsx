@@ -650,9 +650,6 @@ export function PredictiveAnalytics() {
                 </TableBody>
               </Table>
             </div>
-            <div className="mt-4 p-3 bg-green-700/20 border border-green-600/30 rounded text-xs text-yellow-300">
-              💡 <span className="font-semibold">Tip:</span> Ensure adequate inventory levels for these bestsellers to avoid stockouts.
-            </div>
           </CardContent>
         </Card>
 
@@ -710,9 +707,6 @@ export function PredictiveAnalytics() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
-            <div className="mt-4 p-3 bg-orange-700/20 border border-orange-600/30 rounded text-xs text-yellow-300">
-              💡 <span className="font-semibold">Tip:</span> Apply promotional strategies to move inventory and free up capital.
             </div>
           </CardContent>
         </Card>
