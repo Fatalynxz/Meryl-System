@@ -170,7 +170,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = "secret123"
-REACT_DIST_DIR = Path(__file__).resolve().parent / "_figma_ui_import" / "dist"
+REACT_DIST_DIR = Path(__file__).resolve().parent / "frontend" / "dist"
 REACT_ASSETS_DIR = REACT_DIST_DIR / "assets"
 
 # Supabase initialization (lazy-loaded)
