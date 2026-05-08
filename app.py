@@ -1666,6 +1666,61 @@ def pricing_recommendations():
     return render_page("pricing_recommendations.html", **context)
 
 
+# ===== JSON API Endpoints for React Frontend =====
+@app.route("/api/analytics/inventory-turnover")
+@login_required
+@roles_required("admin", "inventory_staff")
+def api_inventory_turnover():
+    """JSON API endpoint for inventory turnover analytics."""
+    from flask import jsonify
+    try:
+        context = analytics_build_inventory_turnover_context(
+            fetch_rows=fetch_rows,
+            build_product_lookup=build_product_lookup,
+            safe_int=safe_int,
+            safe_float=safe_float,
+        )
+        return jsonify(context), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/analytics/returns-analysis")
+@login_required
+@roles_required("admin")
+def api_returns_analysis():
+    """JSON API endpoint for returns analysis."""
+    from flask import jsonify
+    try:
+        context = analytics_build_returns_analysis_context(
+            fetch_rows=fetch_rows,
+            build_product_lookup=build_product_lookup,
+            safe_int=safe_int,
+            safe_float=safe_float,
+        )
+        return jsonify(context), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/analytics/pricing-recommendations")
+@login_required
+@roles_required("admin")
+def api_pricing_recommendations():
+    """JSON API endpoint for pricing recommendations."""
+    from flask import jsonify
+    try:
+        context = analytics_build_pricing_context(
+            fetch_rows=fetch_rows,
+            build_product_lookup=build_product_lookup,
+            safe_int=safe_int,
+            safe_float=safe_float,
+        )
+        return jsonify(context), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/pos")
 @login_required
 def pos():
