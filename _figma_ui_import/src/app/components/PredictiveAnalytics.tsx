@@ -4,7 +4,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Package, Calendar, ArrowUp, ArrowDown, Info } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Area, AreaChart, ComposedChart } from "recharts";
 import { useProducts, useSales } from "../../lib/hooks";
 
 function formatPeso(value: number) {
@@ -449,7 +449,7 @@ export function PredictiveAnalytics() {
       </div>
 
       {/* Sales Forecast */}
-      <Card className="bg-red-700 border-red-800">
+      <Card className="bg-red-700 border-red-800 overflow-hidden">
         <CardHeader>
           <CardTitle className="text-yellow-300 flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
@@ -458,22 +458,53 @@ export function PredictiveAnalytics() {
           <p className="text-xs text-yellow-300/60 mt-2">Actual vs Predicted Sales Trend</p>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={salesForecast}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
-              <XAxis dataKey="month" stroke="#fef08a" />
-              <YAxis stroke="#fef08a" />
-              <Tooltip contentStyle={{ backgroundColor: "#991b1b", border: "1px solid #7f1d1d", color: "#fef08a" }} />
-              <Legend wrapperStyle={{ color: "#fef08a" }} />
-              <Line key="actual-line" type="monotone" dataKey="actual" stroke="#fef08a" strokeWidth={2} name="Actual Sales (PHP)" />
-              <Line key="predicted-line" type="monotone" dataKey="predicted" stroke="#facc15" strokeWidth={2} strokeDasharray="5 5" name="Predicted Sales (PHP)" />
-            </LineChart>
-          </ResponsiveContainer>
+          {/* Forecast Chart */}
+          <div className="bg-gradient-to-br from-red-900/40 to-red-950/60 rounded-lg p-4 border border-red-800/50">
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={salesForecast} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                <defs>
+                  <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#fef08a" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#fef08a" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorPredicted" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#facc15" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#facc15" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#7f1d1d/50" />
+                <XAxis dataKey="month" stroke="#fef08a" />
+                <YAxis stroke="#fef08a" />
+                <Tooltip contentStyle={{ backgroundColor: "#7f1d1d", border: "2px solid #fef08a", borderRadius: "6px", color: "#fef08a" }} cursor={{ stroke: "#fef08a", strokeWidth: 1 }} />
+                <Legend wrapperStyle={{ color: "#fef08a", paddingTop: "16px" }} />
+                <Area type="monotone" dataKey="actual" stroke="#fef08a" strokeWidth={2} fill="url(#colorActual)" name="Actual Sales (PHP)" isAnimationActive={false} />
+                <Area type="monotone" dataKey="predicted" stroke="#facc15" strokeWidth={2} strokeDasharray="5 5" fill="url(#colorPredicted)" name="Predicted Sales (PHP)" isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Forecast Stats */}
+          <div className="mt-6 grid grid-cols-2 gap-4">
+            <div className="bg-red-800 rounded p-4 border border-red-700">
+              <p className="text-xs text-yellow-300/60 font-semibold">CURRENT ACTUAL</p>
+              <p className="text-2xl font-bold text-yellow-300 mt-1">{formatPeso(salesForecast[salesForecast.length - 1]?.actual || 0)}</p>
+              <p className="text-xs text-yellow-300/50 mt-1">{salesForecast[salesForecast.length - 1]?.month}</p>
+            </div>
+            <div className="bg-red-800 rounded p-4 border border-red-700">
+              <p className="text-xs text-yellow-300/60 font-semibold">FORECAST NEXT</p>
+              <p className="text-2xl font-bold text-yellow-300 mt-1">{formatPeso(salesForecast[salesForecast.length - 1]?.predicted || 0)}</p>
+              <p className="text-xs text-yellow-300/50 mt-1">{salesForecast[salesForecast.length - 1]?.month}</p>
+            </div>
+          </div>
+
+          {/* Confidence Badges */}
           <div className="mt-4 grid grid-cols-6 gap-2">
             {salesForecast.map((item) => (
               <div key={item.id} className="text-center">
                 <p className="text-yellow-200 text-xs font-semibold">{item.month}</p>
-                <Badge className="bg-yellow-400 text-red-900 text-xs">{item.confidence}% Confidence</Badge>
+                <Badge className={`${item.confidence >= 90 ? "bg-green-600" : item.confidence >= 80 ? "bg-yellow-400" : "bg-orange-500"} text-white text-xs`}>
+                  {item.confidence}%
+                </Badge>
               </div>
             ))}
           </div>
