@@ -192,11 +192,29 @@ export function PredictiveAnalytics() {
       const bucket = { id: `w${4 - i}`, week: `Week ${4 - i}`, running: 0, casual: 0, sports: 0, formal: 0 };
       salesDetails90.forEach((item) => {
         if (item.saleDate < start || item.saleDate > end) return;
-        const rawCategory = String(item.product?.category?.[0]?.category_name ?? item.product?.category_name ?? "").toLowerCase();
+
+        // Get category name from multiple possible sources
+        let rawCategory = "";
+
+        // Try: product.category[0].category_name
+        if (Array.isArray(item.product?.category) && item.product.category[0]?.category_name) {
+          rawCategory = String(item.product.category[0].category_name).toLowerCase();
+        }
+        // Try: product.category_name (direct property)
+        else if (item.product?.category_name) {
+          rawCategory = String(item.product.category_name).toLowerCase();
+        }
+        // Try: product.product_name (fallback - some products might have category in name)
+        else if (item.product?.product_name) {
+          rawCategory = String(item.product.product_name).toLowerCase();
+        }
+
+        // Categorize based on keyword matching
         if (rawCategory.includes("running")) bucket.running += item.qty;
         else if (rawCategory.includes("casual")) bucket.casual += item.qty;
         else if (rawCategory.includes("sport")) bucket.sports += item.qty;
-        else bucket.formal += item.qty;
+        else if (rawCategory.includes("formal")) bucket.formal += item.qty;
+        else bucket.formal += item.qty; // Default to formal/other
       });
       weeklyBuckets.push(bucket);
     }
@@ -213,7 +231,15 @@ export function PredictiveAnalytics() {
       const key = String(item.productId ?? "");
       if (!key) return;
       const name = String(item.product?.product_name ?? "Unknown Product");
-      const category = String(item.product?.category?.[0]?.category_name ?? item.product?.category_name ?? "Uncategorized");
+
+      // Get category name from multiple possible sources
+      let category = "Uncategorized";
+      if (Array.isArray(item.product?.category) && item.product.category[0]?.category_name) {
+        category = String(item.product.category[0].category_name);
+      } else if (item.product?.category_name) {
+        category = String(item.product.category_name);
+      }
+
       const prev = productStats.get(key) ?? { name, category, sold: 0, revenue: 0 };
       productStats.set(key, {
         name,
