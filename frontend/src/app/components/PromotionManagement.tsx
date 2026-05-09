@@ -1023,11 +1023,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
       </div>
       <div className="space-y-2">
         <Label htmlFor="targetProducts" className="text-yellow-300">Target Products *</Label>
-        <div
-          className={`space-y-3 rounded-lg border p-3 transition-all duration-200 ${
-            isAllProductsSelected ? 'border-yellow-500/70 shadow-[0_0_0_1px_rgba(250,204,21,0.35)]' : 'border-red-800'
-          }`}
-        >
+        <div className="space-y-3 rounded-lg border border-red-800 p-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-yellow-300 text-xs">Categories (choose one or more)</Label>
@@ -1060,7 +1056,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                 variant="outline"
                 className={`border transition-all duration-200 ${
                   isAllProductsSelected
-                    ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-300 animate-pulse'
+                    ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-300'
                     : 'border-red-800 bg-red-600 text-yellow-200 hover:bg-red-500'
                 }`}
                 onClick={() => {
