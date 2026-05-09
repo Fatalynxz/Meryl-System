@@ -932,7 +932,8 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
     if (!selectedCategories.length) return productOptions;
     return productOptions.filter((p) => selectedCategories.includes(p.category));
   }, [productOptions, selectedCategories]);
-  const isAllProductsSelected = selectedCategories.length === 0 && selectedProducts.length === 0;
+  const targetProductsValue = String(formData.targetProducts ?? '').trim();
+  const isAllProductsSelected = targetProductsValue.toLowerCase() === 'all products';
 
   const syncTargetProducts = (categories: string[], products: string[]) => {
     setFormData({
@@ -1062,7 +1063,10 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                 onClick={() => {
                   setSelectedCategories([]);
                   setSelectedProducts([]);
-                  syncTargetProducts([], []);
+                  setFormData({
+                    ...formData,
+                    targetProducts: 'All Products',
+                  });
                 }}
               >
                 {isAllProductsSelected ? <Check className="w-4 h-4 mr-1" /> : null}
@@ -1107,7 +1111,10 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
             onClick={() => {
               setSelectedCategories([]);
               setSelectedProducts([]);
-              syncTargetProducts([], []);
+              setFormData({
+                ...formData,
+                targetProducts: 'All Products',
+              });
             }}
             className="bg-red-600 border-red-800 text-yellow-200 cursor-pointer"
           />
