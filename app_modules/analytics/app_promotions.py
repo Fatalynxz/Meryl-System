@@ -15,8 +15,8 @@ def sync_promotion_notifications(
     fetch_rows,
     build_customer_lookup,
 ):
-    promo_id = safe_int(promo_id, 0)
-    if promo_id <= 0 or not table_exists("notification"):
+    promo_id = str(promo_id or "").strip()
+    if not promo_id or not table_exists("notification"):
         return
 
     supabase.table("notification").delete().eq("promo_id", promo_id).execute()
@@ -24,26 +24,27 @@ def sync_promotion_notifications(
     promo_product_rows = (
         supabase.table("promo_product").select("product_id").eq("promo_id", promo_id).execute().data or []
     )
-    product_ids = {
-        safe_int(row.get("product_id"), 0)
-        for row in promo_product_rows
-        if safe_int(row.get("product_id"), 0) > 0
-    }
+    product_ids = {str(row.get("product_id") or "").strip() for row in promo_product_rows if row.get("product_id")}
     if not product_ids:
         return
 
     completed_sales, _ = build_sale_status_maps()
-    sales_transactions = {safe_int(row.get("sales_id"), 0): row for row in fetch_rows("sales_transaction")}
+    completed_sales_ids = {str(sale_id).strip() for sale_id in completed_sales}
+    sales_transactions = {
+        str(row.get("sales_id") or "").strip(): row
+        for row in fetch_rows("sales_transaction")
+        if row.get("sales_id") is not None
+    }
     customer_lookup = build_customer_lookup()
     customer_ids = set()
     for detail in fetch_rows("sales_details"):
-        if safe_int(detail.get("product_id"), 0) not in product_ids:
+        if str(detail.get("product_id") or "").strip() not in product_ids:
             continue
-        sales_id = safe_int(detail.get("sales_id"), 0)
-        if sales_id not in completed_sales:
+        sales_id = str(detail.get("sales_id") or "").strip()
+        if sales_id not in completed_sales_ids:
             continue
-        customer_id = safe_int(sales_transactions.get(sales_id, {}).get("customer_id"), 0)
-        if customer_id > 0:
+        customer_id = str(sales_transactions.get(sales_id, {}).get("customer_id") or "").strip()
+        if customer_id:
             customer_ids.add(customer_id)
 
     notification_payloads = []
@@ -79,16 +80,23 @@ def send_promotion_notifications_via_brevo(
     `sync_promotion_notifications`.
     """
     if not table_exists("notification"):
+        print(f"❌ BREVO DEBUG: notification table missing")
         return {"enabled": False, "sent": 0, "failed": 0, "reason": "notification_table_missing"}
 
-    promo_id = safe_int(promo_id, 0)
-    if promo_id <= 0:
+    promo_id = str(promo_id or "").strip()
+    if not promo_id:
+        print(f"❌ BREVO DEBUG: Invalid promo_id: {promo_id}")
         return {"enabled": False, "sent": 0, "failed": 0, "reason": "invalid_promo_id"}
 
-    if not api_key or not sender_email:
-        return {"enabled": False, "sent": 0, "failed": 0, "reason": "brevo_not_configured"}
+    if not api_key:
+        print(f"❌ BREVO DEBUG: Missing BREVO_API_KEY environment variable!")
+        return {"enabled": False, "sent": 0, "failed": 0, "reason": "brevo_api_key_missing"}
 
-    promo_lookup = {safe_int(row.get("promo_id"), 0): row for row in fetch_rows("promotion")}
+    if not sender_email:
+        print(f"❌ BREVO DEBUG: Missing BREVO_SENDER_EMAIL environment variable!")
+        return {"enabled": False, "sent": 0, "failed": 0, "reason": "brevo_sender_email_missing"}
+
+    promo_lookup = {str(row.get("promo_id") or "").strip(): row for row in fetch_rows("promotion")}
     promo = promo_lookup.get(promo_id, {})
     promo_name = str(promo.get("promo_name") or "Promotion").strip()
     discount_type = str(promo.get("discount_type") or "").strip()
@@ -105,11 +113,17 @@ def send_promotion_notifications_via_brevo(
         or []
     )
 
+    print(f"📧 BREVO DEBUG: Found {len(notification_rows)} customers to notify for promo_id={promo_id}")
+    if not notification_rows:
+        print(f"⚠️  BREVO DEBUG: No customers found - maybe no one bought products in this promotion?")
+        return {"enabled": True, "sent": 0, "failed": 0, "reason": "no_customers_found"}
+
     sent = 0
     failed = 0
     for row in notification_rows:
         email = str(row.get("email") or "").strip()
         if not email:
+            print(f"⚠️  BREVO DEBUG: Customer {row.get('customer_id')} has no email - skipping")
             failed += 1
             continue
 
@@ -143,9 +157,24 @@ def send_promotion_notifications_via_brevo(
                 },
             )
             with urllib.request.urlopen(request, timeout=20):
+                print(f"✅ BREVO: Email sent to {email}")
                 sent += 1
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
+        except urllib.error.HTTPError as e:
             status = "Failed"
+            error_body = e.read().decode('utf-8') if e.fp else ""
+            print(f"❌ BREVO HTTP ERROR {e.code} for {email}: {error_body}")
+            failed += 1
+        except urllib.error.URLError as e:
+            status = "Failed"
+            print(f"❌ BREVO URL ERROR for {email}: {e.reason}")
+            failed += 1
+        except TimeoutError as e:
+            status = "Failed"
+            print(f"❌ BREVO TIMEOUT for {email}")
+            failed += 1
+        except Exception as e:
+            status = "Failed"
+            print(f"❌ BREVO UNEXPECTED ERROR for {email}: {type(e).__name__}: {str(e)}")
             failed += 1
 
         try:

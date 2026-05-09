@@ -1617,6 +1617,40 @@ def promotions_delete(promo_id):
     return redirect("/promotions")
 
 
+@app.route("/api/promotions/<promo_id>/notify", methods=["POST"])
+@login_required
+def api_promotion_notify(promo_id):
+    try:
+        promo_id = str(promo_id or "").strip()
+        if not promo_id:
+            return {"ok": False, "error": "missing_promo_id"}, 400
+
+        sync_promotion_notifications(promo_id)
+        delivery = send_promotion_notifications_via_brevo(promo_id)
+
+        recipients = []
+        if table_exists("notification"):
+            rows = (
+                supabase()
+                .table("notification")
+                .select("notification_id, customer_id, promo_id, email, email_status, date_sent")
+                .eq("promo_id", promo_id)
+                .execute()
+                .data
+                or []
+            )
+            recipients = rows
+
+        return {
+            "ok": True,
+            "promo_id": promo_id,
+            "delivery": delivery,
+            "recipients": recipients,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 500
+
+
 @app.route("/reports")
 @login_required
 @roles_required("admin", "inventory_staff")

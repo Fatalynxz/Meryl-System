@@ -209,6 +209,24 @@ export function PromotionManagement() {
   const [isSavingPromotion, setIsSavingPromotion] = useState(false);
   const [isUpdatingPromotion, setIsUpdatingPromotion] = useState(false);
 
+  const triggerPromotionEmailNotification = async (promoId: string) => {
+    const response = await fetch(`/api/promotions/${encodeURIComponent(promoId)}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result?.ok === false) {
+      throw new Error(result?.error || 'Failed to send promotion notifications');
+    }
+    return result as {
+      ok: boolean;
+      promo_id: string;
+      delivery?: { enabled?: boolean; sent?: number; failed?: number; reason?: string };
+      recipients?: Notification[];
+    };
+  };
+
   const promotions: Promotion[] = useMemo(() => {
     const rows = (promotionsQuery.data as any[]) ?? [];
     return rows.map((row) => {
@@ -397,32 +415,41 @@ export function PromotionManagement() {
         status: toDbStatus(formData.status, formData.start_date),
       };
 
+      let createdPromotion: any;
       try {
-        await promotionsMutations.createMutation.mutateAsync(newPromotionPayload as any);
+        createdPromotion = await promotionsMutations.createMutation.mutateAsync(newPromotionPayload as any);
       } catch (error: any) {
         if (!isMissingTargetProductsColumnError(error)) throw error;
         const { target_products: _ignored, ...fallbackPayload } = newPromotionPayload as any;
-        await promotionsMutations.createMutation.mutateAsync(fallbackPayload);
+        createdPromotion = await promotionsMutations.createMutation.mutateAsync(fallbackPayload);
       }
 
-      // Send email notifications to all active customers
-      const activeCustomers = customers.filter(c => c.status === 'Active' && c.email);
-      const newNotifications: Notification[] = activeCustomers.map((customer, index) => ({
-        notification_id: `NOTIF-${Date.now()}-${index}`,
-        customer_id: customer.customer_id,
-        promo_id: 'NEW_PROMO',
-        email: customer.email,
-        email_status: 'Sent' as const,
-        date_sent: new Date().toISOString().split('T')[0]
-      }));
+      const createdPromoId = String(createdPromotion?.promo_id || newPromotionPayload.promo_id || '').trim();
+      let recipients: Notification[] = [];
+      let deliverySummary = { sent: 0, failed: 0, enabled: false, reason: '' };
+      if (createdPromoId) {
+        const notifyResult = await triggerPromotionEmailNotification(createdPromoId);
+        recipients = (notifyResult.recipients || []) as Notification[];
+        deliverySummary = {
+          sent: Number(notifyResult.delivery?.sent || 0),
+          failed: Number(notifyResult.delivery?.failed || 0),
+          enabled: Boolean(notifyResult.delivery?.enabled),
+          reason: String(notifyResult.delivery?.reason || ''),
+        };
+      }
 
-      setNotifications([...notifications, ...newNotifications]);
-      setLastNotificationBatch(newNotifications);
+      setNotifications([...notifications, ...recipients]);
+      setLastNotificationBatch(recipients);
       setIsAddDialogOpen(false);
       setFormData({});
-
-      toast.success(`Promotion created! Email notifications sent to ${activeCustomers.length} customers.`);
-      setShowNotificationDialog(true);
+      if (deliverySummary.enabled) {
+        toast.success(`Promotion created! Emails sent: ${deliverySummary.sent}, failed: ${deliverySummary.failed}.`);
+      } else {
+        toast.success(
+          `Promotion created. Email send skipped${deliverySummary.reason ? ` (${deliverySummary.reason})` : ''}.`,
+        );
+      }
+      setShowNotificationDialog(recipients.length > 0);
     } catch (error: any) {
       toast.error(error?.message ?? 'Unable to create promotion');
     } finally {
