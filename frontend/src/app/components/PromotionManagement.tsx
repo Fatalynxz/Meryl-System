@@ -210,15 +210,34 @@ export function PromotionManagement() {
   const [isUpdatingPromotion, setIsUpdatingPromotion] = useState(false);
 
   const triggerPromotionEmailNotification = async (promoId: string) => {
-    const response = await fetch(`/api/promotions/${encodeURIComponent(promoId)}/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-    });
-    const result = await response.json().catch(() => ({}));
+    const parseResult = async (response: Response) => response.json().catch(() => ({}));
+    const callNotify = async (url: string) => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const result = await parseResult(response);
+      return { response, result };
+    };
+
+    const secureUrl = `/api/promotions/${encodeURIComponent(promoId)}/notify`;
+    const publicUrl = `/api/promotions/${encodeURIComponent(promoId)}/notify/public`;
+
+    let { response, result } = await callNotify(secureUrl);
+
+    const needsPublicFallback =
+      !response.ok &&
+      String(result?.error || '').toLowerCase() === 'authentication_required';
+
+    if (needsPublicFallback) {
+      ({ response, result } = await callNotify(publicUrl));
+    }
+
     if (!response.ok || result?.ok === false) {
       throw new Error(result?.error || 'Failed to send promotion notifications');
     }
+
     return result as {
       ok: boolean;
       promo_id: string;
@@ -1030,6 +1049,19 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                   </Badge>
                 ))}
               </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-red-800 bg-red-600 text-yellow-200 hover:bg-red-500"
+                onClick={() => {
+                  setSelectedCategories([]);
+                  setSelectedProducts([]);
+                  syncTargetProducts([], []);
+                }}
+              >
+                All Products
+              </Button>
             </div>
 
             <div className="space-y-2">
