@@ -505,8 +505,20 @@ export function PromotionManagement() {
   };
 
   const handleDeletePromotion = async (promo_id: string) => {
-    await promotionsMutations.removeMutation.mutateAsync(promo_id as any);
-    toast.success('Promotion deleted successfully!');
+    try {
+      const response = await fetch(`/api/promotions/${encodeURIComponent(promo_id)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result?.ok === false) {
+        throw new Error(result?.error || 'Unable to delete promotion');
+      }
+      await promotionsQuery.refetch();
+      toast.success('Promotion deleted successfully!');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Unable to delete promotion');
+    }
   };
 
   const openEditDialog = (promotion: Promotion) => {

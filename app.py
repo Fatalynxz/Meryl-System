@@ -1657,6 +1657,25 @@ def api_promotion_notify(promo_id):
         return {"ok": False, "error": str(exc)}, 500
 
 
+@app.route("/api/promotions/<promo_id>", methods=["DELETE"])
+@login_required
+def api_promotion_delete(promo_id):
+    try:
+        promo_id = str(promo_id or "").strip()
+        if not promo_id:
+            return {"ok": False, "error": "missing_promo_id"}, 400
+
+        if table_exists("notification"):
+            supabase().table("notification").delete().eq("promo_id", promo_id).execute()
+        if table_exists("promo_product"):
+            supabase().table("promo_product").delete().eq("promo_id", promo_id).execute()
+
+        supabase().table("promotion").delete().eq("promo_id", promo_id).execute()
+        return {"ok": True, "promo_id": promo_id}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 500
+
+
 @app.route("/api/integrations/brevo/health", methods=["GET"])
 @login_required
 def api_brevo_health():
