@@ -36,12 +36,15 @@ def build_sale_status_maps(*, fetch_rows, safe_int, parse_iso_datetime, datetime
 
     # Fallback source of truth: payment status.
     # If a transaction was marked failed by admin flow, it is denied.
+    # Also treat paid/completed payments as completed sales.
     payment_rows = fetch_rows("payment")
     for payment in payment_rows:
         sales_id = str(payment.get("sales_id") or "").strip()
         payment_status = str(payment.get("payment_status") or "").strip().lower()
         if not sales_id:
             continue
+        if payment_status in {"completed", "paid", "success", "successful"}:
+            completed_sales.add(sales_id)
         if payment_status == "failed" and sales_id not in denied_sales:
             denied_sales[sales_id] = "Declined by administrator"
 
