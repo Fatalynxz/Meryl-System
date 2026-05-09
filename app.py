@@ -884,6 +884,8 @@ def login_required(view_func):
     @wraps(view_func)
     def wrapped_view(*args, **kwargs):
         if not session.get("current_user"):
+            if request.path.startswith("/api/"):
+                return {"ok": False, "error": "authentication_required"}, 401
             set_notice(get_login_required_notice(), "warning")
             return redirect(url_for("login"))
         return view_func(*args, **kwargs)
@@ -896,11 +898,15 @@ def roles_required(*allowed_roles):
         @wraps(view_func)
         def wrapped_view(*args, **kwargs):
             if not session.get("current_user"):
+                if request.path.startswith("/api/"):
+                    return {"ok": False, "error": "authentication_required"}, 401
                 set_notice(get_login_required_notice(), "warning")
                 return redirect(url_for("login"))
 
             current_role = session.get("current_user", {}).get("role")
             if current_role not in allowed_roles:
+                if request.path.startswith("/api/"):
+                    return {"ok": False, "error": "forbidden"}, 403
                 set_notice(get_access_denied_notice(), "warning")
                 return redirect("/")
             return view_func(*args, **kwargs)
