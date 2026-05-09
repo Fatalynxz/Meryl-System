@@ -391,27 +391,61 @@ export function PromotionManagement() {
     toast.success('Recommendation applied to promotion form');
   };
 
-  // Performance data for charts
-  const promotionPerformance = [
-    { id: 'pp1', name: 'Spring Sale', revenue: 8450, units: 78, roi: 245 },
-    { id: 'pp2', name: 'Weekend Special', revenue: 3200, units: 45, roi: 178 },
-    { id: 'pp3', name: 'Summer Clearance', revenue: 5680, units: 62, roi: 198 },
-    { id: 'pp4', name: 'Flash Sale', revenue: 2890, units: 34, roi: 156 },
-  ];
+  const promotionPerformance = useMemo(() => {
+    const rows = [...promotions]
+      .sort((a, b) => Number(b.salesGenerated || 0) - Number(a.salesGenerated || 0))
+      .slice(0, 6)
+      .map((p, index) => ({
+        id: p.promo_id || `pp${index + 1}`,
+        name: p.promo_name || `Promo ${index + 1}`,
+        revenue: Number(p.salesGenerated || 0),
+        units: Number(p.unitsAffected || 0),
+        roi: Number(p.effectiveness || 0),
+      }));
+    return rows;
+  }, [promotions]);
 
-  const discountEffectiveness = [
-    { id: 'de1', range: '10-20%', sales: 4200, conversions: 156 },
-    { id: 'de2', range: '20-30%', sales: 8450, conversions: 234 },
-    { id: 'de3', range: '30-40%', sales: 5600, conversions: 189 },
-    { id: 'de4', range: '40-50%', sales: 3200, conversions: 98 },
-  ];
+  const categoryImpact = useMemo(() => {
+    const colorPalette = ['#fef08a', '#facc15', '#fde047', '#fef9c3', '#fcd34d', '#f59e0b'];
+    const productsById = new Map<string, string>();
+    for (const p of productRows) {
+      const pid = String(p.product_id ?? '').trim();
+      if (!pid) continue;
+      const categoryName = String(p.category?.[0]?.category_name ?? p.category?.category_name ?? 'General').trim() || 'General';
+      productsById.set(pid, categoryName);
+    }
 
-  const categoryImpact = [
-    { id: 'ci1', name: 'Running', value: 42, color: '#fef08a' },
-    { id: 'ci2', name: 'Casual', value: 28, color: '#facc15' },
-    { id: 'ci3', name: 'Sports', value: 18, color: '#fde047' },
-    { id: 'ci4', name: 'Formal', value: 12, color: '#fef9c3' },
-  ];
+    const categoryQty = new Map<string, number>();
+    const salesRows = (salesQuery.data as any[]) ?? [];
+    for (const sale of salesRows) {
+      const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
+      const paymentStatus = String(payment?.payment_status ?? '').toLowerCase();
+      if (!['completed', 'paid', 'successful', 'success'].includes(paymentStatus)) continue;
+
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      for (const d of details) {
+        const pid = String(d.product_id ?? '').trim();
+        if (!pid) continue;
+        const categoryName = productsById.get(pid) || 'General';
+        const qty = Number(d.quantity ?? 0);
+        categoryQty.set(categoryName, (categoryQty.get(categoryName) ?? 0) + qty);
+      }
+    }
+
+    const total = Array.from(categoryQty.values()).reduce((sum, qty) => sum + qty, 0);
+    const items = Array.from(categoryQty.entries())
+      .map(([name, qty], index) => ({
+        id: `ci${index + 1}`,
+        name,
+        value: total > 0 ? Number(((qty / total) * 100).toFixed(1)) : 0,
+        color: colorPalette[index % colorPalette.length],
+      }))
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+
+    return items.length > 0 ? items : [{ id: 'ci0', name: 'No Sales Yet', value: 100, color: '#fef9c3' }];
+  }, [productRows, salesQuery.data]);
 
   const handleAddPromotion = async () => {
     if (!formData.promo_name || !formData.targetProducts || !formData.start_date || !formData.end_date) {
