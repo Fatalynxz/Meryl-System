@@ -282,6 +282,28 @@ export function ProductManagement() {
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       toast.success("Product deleted successfully!");
     } catch (error: any) {
+      const message = String(error?.message ?? "").toLowerCase();
+      const isFkViolation =
+        error?.code === "23503" ||
+        message.includes("violates foreign key constraint") ||
+        message.includes("sales_details_product_id_fkey");
+
+      if (isFkViolation) {
+        try {
+          await productMutations.updateMutation.mutateAsync({
+            id,
+            payload: { status: "inactive" },
+          });
+          await queryClient.invalidateQueries({ queryKey: ["products"] });
+          await queryClient.invalidateQueries({ queryKey: ["inventory"] });
+          toast.success("Product has sales history, so it was archived (Inactive) instead of deleted.");
+          return;
+        } catch (archiveError: any) {
+          toast.error(archiveError?.message ?? "Failed to archive product");
+          return;
+        }
+      }
+
       toast.error(error?.message ?? "Failed to delete product");
     }
   };
@@ -610,5 +632,4 @@ function ProductForm({
     </div>
   );
 }
-
 
