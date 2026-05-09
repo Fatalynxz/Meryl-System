@@ -427,15 +427,20 @@ export function PromotionManagement() {
       const createdPromoId = String(createdPromotion?.promo_id || newPromotionPayload.promo_id || '').trim();
       let recipients: Notification[] = [];
       let deliverySummary = { sent: 0, failed: 0, enabled: false, reason: '' };
+      let notifyWarning = '';
       if (createdPromoId) {
-        const notifyResult = await triggerPromotionEmailNotification(createdPromoId);
-        recipients = (notifyResult.recipients || []) as Notification[];
-        deliverySummary = {
-          sent: Number(notifyResult.delivery?.sent || 0),
-          failed: Number(notifyResult.delivery?.failed || 0),
-          enabled: Boolean(notifyResult.delivery?.enabled),
-          reason: String(notifyResult.delivery?.reason || ''),
-        };
+        try {
+          const notifyResult = await triggerPromotionEmailNotification(createdPromoId);
+          recipients = (notifyResult.recipients || []) as Notification[];
+          deliverySummary = {
+            sent: Number(notifyResult.delivery?.sent || 0),
+            failed: Number(notifyResult.delivery?.failed || 0),
+            enabled: Boolean(notifyResult.delivery?.enabled),
+            reason: String(notifyResult.delivery?.reason || ''),
+          };
+        } catch (notifyError: any) {
+          notifyWarning = String(notifyError?.message || 'notification_failed');
+        }
       }
 
       setNotifications([...notifications, ...recipients]);
@@ -445,9 +450,12 @@ export function PromotionManagement() {
       if (deliverySummary.enabled) {
         toast.success(`Promotion created! Emails sent: ${deliverySummary.sent}, failed: ${deliverySummary.failed}.`);
       } else {
-        toast.success(
-          `Promotion created. Email send skipped${deliverySummary.reason ? ` (${deliverySummary.reason})` : ''}.`,
-        );
+        const reason = notifyWarning || deliverySummary.reason;
+        if (reason) {
+          toast.warning(`Promotion created. Email send skipped (${reason}).`);
+        } else {
+          toast.success('Promotion created.');
+        }
       }
       setShowNotificationDialog(recipients.length > 0);
     } catch (error: any) {
