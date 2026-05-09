@@ -1651,6 +1651,45 @@ def api_promotion_notify(promo_id):
         return {"ok": False, "error": str(exc)}, 500
 
 
+@app.route("/api/integrations/brevo/health", methods=["GET"])
+@login_required
+def api_brevo_health():
+    try:
+        api_key = os.getenv("BREVO_API_KEY", "").strip()
+        sender_email = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+        sender_name = os.getenv("BREVO_SENDER_NAME", "Meryl Shoes").strip() or "Meryl Shoes"
+
+        notification_table_ready = table_exists("notification")
+        promotion_table_ready = table_exists("promotion")
+
+        issues = []
+        if not api_key:
+            issues.append("BREVO_API_KEY is missing")
+        if not sender_email:
+            issues.append("BREVO_SENDER_EMAIL is missing")
+        if not notification_table_ready:
+            issues.append("notification table is missing")
+        if not promotion_table_ready:
+            issues.append("promotion table is missing")
+
+        return {
+            "ok": len(issues) == 0,
+            "brevo": {
+                "api_key_configured": bool(api_key),
+                "sender_email_configured": bool(sender_email),
+                "sender_email": sender_email if sender_email else None,
+                "sender_name": sender_name,
+            },
+            "database": {
+                "notification_table_ready": notification_table_ready,
+                "promotion_table_ready": promotion_table_ready,
+            },
+            "issues": issues,
+        }
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 500
+
+
 @app.route("/reports")
 @login_required
 @roles_required("admin", "inventory_staff")
