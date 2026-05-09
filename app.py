@@ -1636,16 +1636,30 @@ def api_promotion_notify(promo_id):
 
         recipients = []
         if table_exists("notification"):
+            customer_lookup = {}
+            for row in (supabase().table("customer").select("customer_id, email").execute().data or []):
+                key = str(row.get("customer_id") or "").strip()
+                if key:
+                    customer_lookup[key] = str(row.get("email") or "").strip()
+
             rows = (
                 supabase()
                 .table("notification")
-                .select("notification_id, customer_id, promo_id, email, email_status, date_sent")
+                .select("notification_id, customer_id, promo_id, email_status, date_sent")
                 .eq("promo_id", promo_id)
                 .execute()
                 .data
                 or []
             )
-            recipients = rows
+            recipients = []
+            for row in rows:
+                customer_id = str(row.get("customer_id") or "").strip()
+                recipients.append(
+                    {
+                        **row,
+                        "email": customer_lookup.get(customer_id, ""),
+                    }
+                )
 
         return {
             "ok": True,
@@ -1673,16 +1687,30 @@ def api_promotion_notify_public(promo_id):
 
         recipients = []
         if table_exists("notification"):
+            customer_lookup = {}
+            for row in (supabase().table("customer").select("customer_id, email").execute().data or []):
+                key = str(row.get("customer_id") or "").strip()
+                if key:
+                    customer_lookup[key] = str(row.get("email") or "").strip()
+
             rows = (
                 supabase()
                 .table("notification")
-                .select("notification_id, customer_id, promo_id, email, email_status, date_sent")
+                .select("notification_id, customer_id, promo_id, email_status, date_sent")
                 .eq("promo_id", promo_id)
                 .execute()
                 .data
                 or []
             )
-            recipients = rows
+            recipients = []
+            for row in rows:
+                customer_id = str(row.get("customer_id") or "").strip()
+                recipients.append(
+                    {
+                        **row,
+                        "email": customer_lookup.get(customer_id, ""),
+                    }
+                )
 
         return {
             "ok": True,

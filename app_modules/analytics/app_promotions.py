@@ -106,12 +106,19 @@ def send_promotion_notifications_via_brevo(
 
     notification_rows = (
         supabase.table("notification")
-        .select("notification_id, email, email_status, customer_id")
+        .select("notification_id, email_status, customer_id")
         .eq("promo_id", promo_id)
         .execute()
         .data
         or []
     )
+
+    customer_lookup = {}
+    for row in fetch_rows("customer"):
+        key = str(row.get("customer_id") or "").strip()
+        if not key:
+            continue
+        customer_lookup[key] = row
 
     print(f"📧 BREVO DEBUG: Found {len(notification_rows)} customers to notify for promo_id={promo_id}")
     if not notification_rows:
@@ -121,7 +128,8 @@ def send_promotion_notifications_via_brevo(
     sent = 0
     failed = 0
     for row in notification_rows:
-        email = str(row.get("email") or "").strip()
+        customer = customer_lookup.get(str(row.get("customer_id") or "").strip(), {})
+        email = str(customer.get("email") or "").strip()
         if not email:
             print(f"⚠️  BREVO DEBUG: Customer {row.get('customer_id')} has no email - skipping")
             failed += 1
