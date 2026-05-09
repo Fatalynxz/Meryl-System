@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X } from 'lucide-react';
+import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useCustomers, useProducts, usePromotions, usePromotionsMutations, useSales } from '../../lib/hooks';
@@ -932,6 +932,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
     if (!selectedCategories.length) return productOptions;
     return productOptions.filter((p) => selectedCategories.includes(p.category));
   }, [productOptions, selectedCategories]);
+  const isAllProductsSelected = selectedCategories.length === 0 && selectedProducts.length === 0;
 
   const syncTargetProducts = (categories: string[], products: string[]) => {
     setFormData({
@@ -1022,7 +1023,11 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
       </div>
       <div className="space-y-2">
         <Label htmlFor="targetProducts" className="text-yellow-300">Target Products *</Label>
-        <div className="space-y-3 rounded-lg border border-red-800 p-3">
+        <div
+          className={`space-y-3 rounded-lg border p-3 transition-all duration-200 ${
+            isAllProductsSelected ? 'border-yellow-500/70 shadow-[0_0_0_1px_rgba(250,204,21,0.35)]' : 'border-red-800'
+          }`}
+        >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-yellow-300 text-xs">Categories (choose one or more)</Label>
@@ -1053,14 +1058,19 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                 type="button"
                 size="sm"
                 variant="outline"
-                className="border-red-800 bg-red-600 text-yellow-200 hover:bg-red-500"
+                className={`border transition-all duration-200 ${
+                  isAllProductsSelected
+                    ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-300 animate-pulse'
+                    : 'border-red-800 bg-red-600 text-yellow-200 hover:bg-red-500'
+                }`}
                 onClick={() => {
                   setSelectedCategories([]);
                   setSelectedProducts([]);
                   syncTargetProducts([], []);
                 }}
               >
-                All Products
+                {isAllProductsSelected ? <Check className="w-4 h-4 mr-1" /> : null}
+                {isAllProductsSelected ? 'All Products Selected' : 'All Products'}
               </Button>
             </div>
 
@@ -1098,8 +1108,16 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
             id="targetProducts"
             value={formData.targetProducts || 'All Products'}
             readOnly
-            className="bg-red-600 border-red-800 text-yellow-200"
+            onClick={() => {
+              setSelectedCategories([]);
+              setSelectedProducts([]);
+              syncTargetProducts([], []);
+            }}
+            className="bg-red-600 border-red-800 text-yellow-200 cursor-pointer"
           />
+          <p className="text-xs text-yellow-300/80">
+            Tip: Click <span className="text-yellow-300">All Products</span> button or click the field above to target all products.
+          </p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
