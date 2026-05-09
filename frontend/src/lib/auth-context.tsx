@@ -31,7 +31,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function readStoredUser(): AuthUser | null {
   try {
-    const raw = localStorage.getItem(MERYL_USER_STORAGE_KEY);
+    const raw = sessionStorage.getItem(MERYL_USER_STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as AuthUser;
   } catch {
@@ -44,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // One-time cleanup for old persistent login behavior.
+    localStorage.removeItem(MERYL_USER_STORAGE_KEY);
     setUser(readStoredUser());
     setLoading(false);
   }, []);
@@ -59,13 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authUser = (data as AuthUser | null) ?? null;
     if (!authUser) return null;
 
-    localStorage.setItem(MERYL_USER_STORAGE_KEY, JSON.stringify(authUser));
+    sessionStorage.setItem(MERYL_USER_STORAGE_KEY, JSON.stringify(authUser));
     setUser(authUser);
     return authUser;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(MERYL_USER_STORAGE_KEY);
+    sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
     setUser(null);
   }, []);
 
@@ -84,4 +86,3 @@ export function useAuth() {
   }
   return context;
 }
-
