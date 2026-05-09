@@ -512,7 +512,15 @@ export function PromotionManagement() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.ok === false) {
-        throw new Error(result?.error || 'Unable to delete promotion');
+        const reason = String(result?.error || '');
+        if (reason === 'authentication_required') {
+          // Fallback for React/Supabase-auth sessions that don't have Flask session cookie.
+          await promotionsMutations.removeMutation.mutateAsync(promo_id as any);
+          await promotionsQuery.refetch();
+          toast.success('Promotion deleted successfully!');
+          return;
+        }
+        throw new Error(reason || 'Unable to delete promotion');
       }
       await promotionsQuery.refetch();
       toast.success('Promotion deleted successfully!');
