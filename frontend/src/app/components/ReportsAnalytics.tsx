@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText } from 'lucide-react';
@@ -60,6 +59,7 @@ export function ReportsAnalytics() {
   const [timeRange, setTimeRange] = useState('30days');
   const [reportType, setReportType] = useState('overview');
   const [groupBy, setGroupBy] = useState('daily');
+  const [salesBreakdownPeriod, setSalesBreakdownPeriod] = useState('daily');
   const [compareMode, setCompareMode] = useState(false);
   const [comparePeriod, setComparePeriod] = useState('previousPeriod');
   const salesQuery = useSales();
@@ -238,6 +238,54 @@ export function ReportsAnalytics() {
     return Array.from(byProduct.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   }, [productLookup, salesRows, timeRange]);
 
+  const topBrands = useMemo(() => {
+    const { now, start } = rangeWindow(timeRange);
+    const byBrand = new Map<string, { name: string; sales: number; revenue: number }>();
+
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date || date < start || date > now) return;
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+
+      details.forEach((detail: any) => {
+        const product = productLookup.get(String(detail.product_id ?? '')) ?? detail.product;
+        const brand = String(product?.brand ?? 'N/A');
+        const qty = Number(detail.quantity ?? 0);
+        const revenue = Number(detail.subtotal ?? 0);
+        const prev = byBrand.get(brand) ?? { name: brand, sales: 0, revenue: 0 };
+        prev.sales += qty;
+        prev.revenue += revenue;
+        byBrand.set(brand, prev);
+      });
+    });
+
+    return Array.from(byBrand.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  }, [productLookup, salesRows, timeRange]);
+
+  const topSizes = useMemo(() => {
+    const { now, start } = rangeWindow(timeRange);
+    const bySize = new Map<string, { name: string; sales: number; revenue: number }>();
+
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date || date < start || date > now) return;
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+
+      details.forEach((detail: any) => {
+        const product = productLookup.get(String(detail.product_id ?? '')) ?? detail.product;
+        const size = String(product?.size ?? 'N/A');
+        const qty = Number(detail.quantity ?? 0);
+        const revenue = Number(detail.subtotal ?? 0);
+        const prev = bySize.get(size) ?? { name: size, sales: 0, revenue: 0 };
+        prev.sales += qty;
+        prev.revenue += revenue;
+        bySize.set(size, prev);
+      });
+    });
+
+    return Array.from(bySize.values()).sort((a, b) => b.sales - a.sales).slice(0, 5);
+  }, [productLookup, salesRows, timeRange]);
+
   const revenueByCategory = useMemo(() => {
     const { now, start, previousStart } = rangeWindow(timeRange);
     const current = new Map<string, number>();
@@ -297,15 +345,47 @@ export function ReportsAnalytics() {
     ];
   }, [currentMetrics]);
 
-  const dailySalesBreakdown = useMemo(() => {
+  const salesBreakdownRows = useMemo(() => {
     const { now, start } = rangeWindow(timeRange);
-    const grouped = new Map<string, { date: Date; pairs: number; gross: number; discount: number; net: number }>();
+    const grouped = new Map<string, { label: string; date: Date; pairs: number; gross: number; discount: number; net: number }>();
+
+    const getBreakdownKey = (date: Date) => {
+      if (salesBreakdownPeriod === 'monthly') {
+        return {
+          key: date.toISOString().slice(0, 7),
+          label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          date: new Date(date.getFullYear(), date.getMonth(), 1),
+        };
+      }
+
+      if (salesBreakdownPeriod === 'weekly') {
+        const weekStart = new Date(date);
+        const day = weekStart.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        weekStart.setDate(weekStart.getDate() + diffToMonday);
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+
+        return {
+          key: weekStart.toISOString().slice(0, 10),
+          label: `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+          date: weekStart,
+        };
+      }
+
+      return {
+        key: date.toISOString().slice(0, 10),
+        label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        date,
+      };
+    };
 
     salesRows.forEach((sale) => {
       const date = saleDate(sale);
       if (!date || date < start || date > now) return;
-      const key = date.toISOString().slice(0, 10);
-      const prev = grouped.get(key) ?? { date, pairs: 0, gross: 0, discount: 0, net: 0 };
+      const period = getBreakdownKey(date);
+      const prev = grouped.get(period.key) ?? { label: period.label, date: period.date, pairs: 0, gross: 0, discount: 0, net: 0 };
       const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
 
       details.forEach((detail: any) => {
@@ -319,20 +399,20 @@ export function ReportsAnalytics() {
         prev.net += subtotal;
       });
 
-      grouped.set(key, prev);
+      grouped.set(period.key, prev);
     });
 
     return Array.from(grouped.values())
       .sort((a, b) => a.date.getTime() - b.date.getTime())
       .map((row, index) => ({
         id: `daily-${index}`,
-        date: row.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        date: row.label,
         pairs: row.pairs,
         gross: row.gross,
         discount: row.discount,
         net: row.net,
       }));
-  }, [salesRows, timeRange]);
+  }, [salesBreakdownPeriod, salesRows, timeRange]);
 
   const inventoryStatusRows = useMemo(() => (
     productRows
@@ -577,8 +657,10 @@ export function ReportsAnalytics() {
               <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                 <SelectItem value="overview">Overview Report</SelectItem>
                 <SelectItem value="sales">Sales Analysis</SelectItem>
+                <SelectItem value="revenue">Revenue Report</SelectItem>
                 <SelectItem value="inventory">Inventory Report</SelectItem>
                 <SelectItem value="promotions">Promotions Report</SelectItem>
+                <SelectItem value="forecast">Forecast Report</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -689,73 +771,54 @@ export function ReportsAnalytics() {
         </Card>
       </div>
 
-      <Card className="bg-red-700 border-red-800">
-        <CardHeader>
-          <CardTitle className="text-yellow-300 flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Executive Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
-            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-              <p className="text-yellow-200/70">Report Period</p>
-              <p className="text-yellow-300">{businessSummary.period}</p>
-            </div>
-            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-              <p className="text-yellow-200/70">Store Location</p>
-              <p className="text-yellow-300">{businessSummary.store}</p>
-            </div>
-            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-              <p className="text-yellow-200/70">Average Transaction Value</p>
-              <p className="text-yellow-300">{money(businessSummary.atv)}</p>
-            </div>
-            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-              <p className="text-yellow-200/70">Prepared By</p>
-              <p className="text-yellow-300">{businessSummary.preparedBy}</p>
-            </div>
-            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-              <p className="text-yellow-200/70">Best-Selling Brand</p>
-              <p className="text-yellow-300">{businessSummary.bestBrand}</p>
-            </div>
-            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-              <p className="text-yellow-200/70">Best-Selling Size</p>
-              <p className="text-yellow-300">{businessSummary.bestSize}</p>
-            </div>
-            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-              <p className="text-yellow-200/70">Gross Revenue</p>
-              <p className="text-yellow-300">{money(businessSummary.grossRevenue)}</p>
-            </div>
-            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-              <p className="text-yellow-200/70">Discounts Given</p>
-              <p className="text-yellow-300">{money(businessSummary.discounts)}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Selected Report Section */}
+      {reportType === 'overview' && (
+        <div className="space-y-4">
+          <Card className="bg-red-700 border-red-800">
+            <CardHeader>
+              <CardTitle className="text-yellow-300 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Executive Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
+                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+                  <p className="text-yellow-200/70">Report Period</p>
+                  <p className="text-yellow-300">{businessSummary.period}</p>
+                </div>
+                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+                  <p className="text-yellow-200/70">Store Location</p>
+                  <p className="text-yellow-300">{businessSummary.store}</p>
+                </div>
+                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+                  <p className="text-yellow-200/70">Average Transaction Value</p>
+                  <p className="text-yellow-300">{money(businessSummary.atv)}</p>
+                </div>
+                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+                  <p className="text-yellow-200/70">Prepared By</p>
+                  <p className="text-yellow-300">{businessSummary.preparedBy}</p>
+                </div>
+                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+                  <p className="text-yellow-200/70">Best-Selling Brand</p>
+                  <p className="text-yellow-300">{businessSummary.bestBrand}</p>
+                </div>
+                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+                  <p className="text-yellow-200/70">Best-Selling Size</p>
+                  <p className="text-yellow-300">{businessSummary.bestSize}</p>
+                </div>
+                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+                  <p className="text-yellow-200/70">Gross Revenue</p>
+                  <p className="text-yellow-300">{money(businessSummary.grossRevenue)}</p>
+                </div>
+                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+                  <p className="text-yellow-200/70">Discounts Given</p>
+                  <p className="text-yellow-300">{money(businessSummary.discounts)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Main Analytics Tabs */}
-      <Tabs defaultValue="sales" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-red-700 border border-red-800">
-          <TabsTrigger value="sales" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-red-900 text-yellow-200">
-            Sales Trends
-          </TabsTrigger>
-          <TabsTrigger value="revenue" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-red-900 text-yellow-200">
-            Revenue
-          </TabsTrigger>
-          <TabsTrigger value="inventory" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-red-900 text-yellow-200">
-            Inventory
-          </TabsTrigger>
-          <TabsTrigger value="promotions" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-red-900 text-yellow-200">
-            Promotions
-          </TabsTrigger>
-          <TabsTrigger value="forecast" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-red-900 text-yellow-200">
-            Forecast
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Sales Trends Tab */}
-        <TabsContent value="sales" className="space-y-4">
           <Card className="bg-red-700 border-red-800">
             <CardHeader>
               <CardTitle className="text-yellow-300 flex items-center gap-2">
@@ -764,7 +827,7 @@ export function ReportsAnalytics() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
+              <ResponsiveContainer width="100%" height={320}>
                 <LineChart data={comparisonSalesTrends} margin={{ top: 12, right: 32, left: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
                   <XAxis dataKey="date" stroke="#fef08a" />
@@ -772,104 +835,45 @@ export function ReportsAnalytics() {
                   <YAxis yAxisId="units" orientation="right" stroke="#fef08a" allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
-                    formatter={(value, name) => {
-                      if (String(name).includes('Revenue') || String(name).includes('Period')) return [money(Number(value)), name];
-                      return [Number(value).toLocaleString(), name];
-                    }}
+                    formatter={(value, name) => (String(name).includes('Revenue') || String(name).includes('Period') ? [money(Number(value)), name] : [Number(value).toLocaleString(), name])}
                   />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Line yAxisId="revenue" key="revenue-line" type="monotone" dataKey="revenue" stroke="#facc15" strokeWidth={3} dot={{ r: 4 }} name="Revenue (PHP)" />
-                  <Line yAxisId="units" key="sales-line" type="monotone" dataKey="sales" stroke="#fef08a" strokeWidth={2} dot={{ r: 3 }} name="Units Sold" />
+                  <Line yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#facc15" strokeWidth={3} dot={{ r: 4 }} name="Revenue (PHP)" />
+                  <Line yAxisId="units" type="monotone" dataKey="sales" stroke="#fef08a" strokeWidth={2} dot={{ r: 3 }} name="Units Sold" />
                   {compareMode && (
-                    <Line
-                      yAxisId="revenue"
-                      key="compare-revenue-line"
-                      type="monotone"
-                      dataKey="previousRevenue"
-                      stroke="#38bdf8"
-                      strokeDasharray="5 5"
-                      strokeWidth={3}
-                      dot={{ r: 3, fill: '#38bdf8', strokeWidth: 0 }}
-                      name={comparePeriodLabel}
-                    />
+                    <Line yAxisId="revenue" type="monotone" dataKey="previousRevenue" stroke="#e5e7eb" strokeDasharray="6 6" strokeWidth={3} dot={{ r: 3 }} name={comparePeriodLabel} />
                   )}
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="bg-red-700 border-red-800">
-              <CardHeader>
-                <CardTitle className="text-yellow-300">
-                  {compareMode ? `Current vs ${comparePeriodLabel}` : 'Current Period Summary'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {monthlyComparison.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center border-b border-red-600 pb-3">
-                      <div>
-                        <p className="text-yellow-200">{item.metric}</p>
-                        <p className="text-yellow-300 text-lg">{formatComparisonValue(item, 'current')}</p>
-                        {compareMode && (
-                          <p className="text-yellow-200/70 text-xs">
-                            Previous: {formatComparisonValue(item, 'previous')}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {compareMode ? (
-                          <>
-                            <Badge className={item.change >= 0 ? "bg-green-600 text-white" : "bg-red-900 text-yellow-200"}>
-                              {item.change > 0 ? '+' : ''}{item.change.toFixed(1)}%
-                            </Badge>
-                            <p className="text-yellow-200 text-xs mt-1">vs previous</p>
-                          </>
-                        ) : (
-                          <Badge className="bg-yellow-400 text-red-900">Live</Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-red-700 border-red-800">
-              <CardHeader>
-                <CardTitle className="text-yellow-300">Top Performing Products</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {topProducts.slice(0, 5).map((product) => (
-                    <div key={product.id} className="flex justify-between items-center border-b border-red-600 pb-2">
-                      <div className="flex-1">
-                        <p className="text-yellow-200">{product.name}</p>
-                        <p className="text-yellow-300 text-xs">{product.sales} units sold</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-yellow-300">{money(product.revenue)}</p>
-                        <Badge className="bg-yellow-400 text-red-900 text-xs mt-1">
-                          {product.margin}% margin
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
+      {reportType === 'sales' && (
+        <div className="space-y-4">
           <Card className="bg-red-700 border-red-800">
-            <CardHeader>
-              <CardTitle className="text-yellow-300">Daily Sales Breakdown</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
+              <CardTitle className="text-yellow-300 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                Sales Breakdown
+              </CardTitle>
+              <Select value={salesBreakdownPeriod} onValueChange={setSalesBreakdownPeriod}>
+                <SelectTrigger className="w-52 bg-red-900 border-red-800 text-yellow-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                  <SelectItem value="daily">Daily / Specific Dates</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow className="border-red-800 hover:bg-red-900/30">
-                    <TableHead className="text-yellow-300">Date</TableHead>
+                    <TableHead className="text-yellow-300">Period</TableHead>
                     <TableHead className="text-yellow-300 text-center">Pairs Sold</TableHead>
                     <TableHead className="text-yellow-300 text-center">Gross Revenue</TableHead>
                     <TableHead className="text-yellow-300 text-center">Discount Applied</TableHead>
@@ -877,7 +881,7 @@ export function ReportsAnalytics() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {dailySalesBreakdown.map((row) => (
+                  {salesBreakdownRows.map((row) => (
                     <TableRow key={row.id} className="border-red-800 hover:bg-red-900/30">
                       <TableCell className="text-yellow-200">{row.date}</TableCell>
                       <TableCell className="text-yellow-200 text-center">{row.pairs}</TableCell>
@@ -886,108 +890,113 @@ export function ReportsAnalytics() {
                       <TableCell className="text-yellow-300 text-center">{money(row.net)}</TableCell>
                     </TableRow>
                   ))}
-                  {!dailySalesBreakdown.length && (
+                  {!salesBreakdownRows.length && (
                     <TableRow className="border-red-800">
-                      <TableCell colSpan={5} className="text-center text-yellow-200 py-6">
-                        No completed sales found for this date range.
-                      </TableCell>
+                      <TableCell colSpan={5} className="text-center text-yellow-200 py-6">No completed sales found for this date range.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
 
-        {/* Revenue Tab */}
-        <TabsContent value="revenue" className="space-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Card className="bg-red-700 border-red-800">
+              <CardHeader><CardTitle className="text-yellow-300">Top Products</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {topProducts.map((product) => (
+                  <div key={product.id} className="flex justify-between items-center border-b border-red-600 pb-2">
+                    <div><p className="text-yellow-200">{product.name}</p><p className="text-yellow-300 text-xs">{product.sales} units sold</p></div>
+                    <p className="text-yellow-300">{money(product.revenue)}</p>
+                  </div>
+                ))}
+                {!topProducts.length && <p className="text-yellow-200 text-sm">No product sales yet.</p>}
+              </CardContent>
+            </Card>
+            <Card className="bg-red-700 border-red-800">
+              <CardHeader><CardTitle className="text-yellow-300">Top Brands</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {topBrands.map((brand) => (
+                  <div key={brand.name} className="flex justify-between items-center border-b border-red-600 pb-2">
+                    <div><p className="text-yellow-200">{brand.name}</p><p className="text-yellow-300 text-xs">{brand.sales} pairs</p></div>
+                    <p className="text-yellow-300">{money(brand.revenue)}</p>
+                  </div>
+                ))}
+                {!topBrands.length && <p className="text-yellow-200 text-sm">No brand sales yet.</p>}
+              </CardContent>
+            </Card>
+            <Card className="bg-red-700 border-red-800">
+              <CardHeader><CardTitle className="text-yellow-300">Top Sizes</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {topSizes.map((size) => (
+                  <div key={size.name} className="flex justify-between items-center border-b border-red-600 pb-2">
+                    <div><p className="text-yellow-200">Size {size.name}</p><p className="text-yellow-300 text-xs">{size.sales} pairs</p></div>
+                    <p className="text-yellow-300">{money(size.revenue)}</p>
+                  </div>
+                ))}
+                {!topSizes.length && <p className="text-yellow-200 text-sm">No size sales yet.</p>}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {reportType === 'revenue' && (
+        <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="bg-red-700 border-red-800">
-              <CardHeader>
-                <CardTitle className="text-yellow-300">Revenue by Category</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-yellow-300">Revenue by Category</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={revenueByCategory}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
                     <XAxis dataKey="category" stroke="#fef08a" />
                     <YAxis stroke="#fef08a" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
-                    />
+                    <Tooltip contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }} />
                     <Legend wrapperStyle={{ color: '#fef08a' }} />
-                    <Bar key="revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue (PHP)" />
+                    <Bar dataKey="revenue" fill="#fef08a" name="Revenue (PHP)" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-
             <Card className="bg-red-700 border-red-800">
-              <CardHeader>
-                <CardTitle className="text-yellow-300">Category Distribution</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle className="text-yellow-300">Category Distribution</CardTitle></CardHeader>
               <CardContent className="flex justify-center">
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
-                    <Pie
-                      data={categoryDistribution}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name} ${value}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoryDistribution.map((entry) => (
-                        <Cell key={entry.id} fill={entry.color} />
-                      ))}
+                    <Pie data={categoryDistribution} cx="50%" cy="50%" labelLine={false} label={({ name, value }) => `${name} ${value}%`} outerRadius={100} dataKey="value">
+                      {categoryDistribution.map((entry) => <Cell key={entry.id} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
-                    />
+                    <Tooltip contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
-
           <Card className="bg-red-700 border-red-800">
-            <CardHeader>
-              <CardTitle className="text-yellow-300">Category Performance Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {revenueByCategory.map((category) => (
-                  <div key={category.id} className="border-b border-red-600 pb-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <p className="text-yellow-200">{category.category}</p>
-                      <div className="flex items-center gap-4">
-                        <Badge className="bg-yellow-400 text-red-900">
-                          {category.percentage}% of total
-                        </Badge>
-                        <Badge className={category.growth > 0 ? "bg-green-600 text-white" : "bg-red-900 text-yellow-200"}>
-                          {category.growth > 0 ? '+' : ''}{category.growth.toFixed(1)}%
-                        </Badge>
-                      </div>
+            <CardHeader><CardTitle className="text-yellow-300">Category Performance Details</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {revenueByCategory.map((category) => (
+                <div key={category.id} className="border-b border-red-600 pb-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-yellow-200">{category.category}</p>
+                    <div className="flex items-center gap-3">
+                      <Badge className="bg-yellow-400 text-red-900">{category.percentage}% of total</Badge>
+                      <Badge className={category.growth > 0 ? 'bg-green-600 text-white' : 'bg-red-900 text-yellow-200'}>{category.growth > 0 ? '+' : ''}{category.growth.toFixed(1)}%</Badge>
                     </div>
-                    <p className="text-yellow-300 text-lg">{money(category.revenue)}</p>
                   </div>
-                ))}
-              </div>
+                  <p className="text-yellow-300 text-lg">{money(category.revenue)}</p>
+                </div>
+              ))}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* Inventory Tab */}
-        <TabsContent value="inventory" className="space-y-4">
+      {reportType === 'inventory' && (
+        <div className="space-y-4">
           <Card className="bg-red-700 border-red-800">
-            <CardHeader>
-              <CardTitle className="text-yellow-300 flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Inventory Turnover Rate
-              </CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-yellow-300 flex items-center gap-2"><Package className="w-5 h-5" />Inventory Turnover Rate</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={inventoryTurnover}>
@@ -995,199 +1004,104 @@ export function ReportsAnalytics() {
                   <XAxis dataKey="month" stroke="#fef08a" />
                   <YAxis yAxisId="left" stroke="#fef08a" />
                   <YAxis yAxisId="right" orientation="right" stroke="#facc15" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
-                  />
+                  <Tooltip contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }} />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Line key="turnover-line" yAxisId="left" type="monotone" dataKey="turnover" stroke="#fef08a" strokeWidth={2} name="Turnover Rate" />
-                  <Line key="avgdays-line" yAxisId="right" type="monotone" dataKey="avgDays" stroke="#facc15" strokeWidth={2} name="Avg Days to Sell" />
+                  <Line yAxisId="left" type="monotone" dataKey="turnover" stroke="#fef08a" strokeWidth={2} name="Turnover Rate" />
+                  <Line yAxisId="right" type="monotone" dataKey="avgDays" stroke="#facc15" strokeWidth={2} name="Avg Days to Sell" />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
           <Card className="bg-red-700 border-red-800">
-            <CardHeader>
-              <CardTitle className="text-yellow-300">Inventory & Stock Status</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-yellow-300">Inventory & Stock Status</CardTitle></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow className="border-red-800 hover:bg-red-900/30">
-                    <TableHead className="text-yellow-300">Item ID</TableHead>
-                    <TableHead className="text-yellow-300">Brand & Model</TableHead>
-                    <TableHead className="text-yellow-300 text-center">Size</TableHead>
-                    <TableHead className="text-yellow-300 text-center">Color</TableHead>
-                    <TableHead className="text-yellow-300 text-center">In Stock</TableHead>
-                    <TableHead className="text-yellow-300 text-center">Reorder Level</TableHead>
-                    <TableHead className="text-yellow-300 text-center">Status</TableHead>
+                    <TableHead className="text-yellow-300">Item ID</TableHead><TableHead className="text-yellow-300">Brand & Model</TableHead><TableHead className="text-yellow-300 text-center">Size</TableHead><TableHead className="text-yellow-300 text-center">Color</TableHead><TableHead className="text-yellow-300 text-center">In Stock</TableHead><TableHead className="text-yellow-300 text-center">Reorder</TableHead><TableHead className="text-yellow-300 text-center">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {inventoryStatusRows.map((row) => (
                     <TableRow key={row.id} className="border-red-800 hover:bg-red-900/30">
-                      <TableCell className="text-yellow-200">{row.itemId}</TableCell>
-                      <TableCell className="text-yellow-200">{row.name}</TableCell>
-                      <TableCell className="text-yellow-200 text-center">{row.size}</TableCell>
-                      <TableCell className="text-yellow-200 text-center">{row.color}</TableCell>
-                      <TableCell className="text-yellow-200 text-center">{row.stock}</TableCell>
-                      <TableCell className="text-yellow-200 text-center">{row.reorder}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge
-                          className={
-                            row.status === 'Critical'
-                              ? 'bg-red-900 text-red-200'
-                              : row.status === 'Reorder Required'
-                                ? 'bg-yellow-400 text-red-900'
-                                : row.status === 'Overstock'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-green-700 text-white'
-                          }
-                        >
-                          {row.status}
-                        </Badge>
-                      </TableCell>
+                      <TableCell className="text-yellow-200">{row.itemId}</TableCell><TableCell className="text-yellow-200">{row.name}</TableCell><TableCell className="text-yellow-200 text-center">{row.size}</TableCell><TableCell className="text-yellow-200 text-center">{row.color}</TableCell><TableCell className="text-yellow-200 text-center">{row.stock}</TableCell><TableCell className="text-yellow-200 text-center">{row.reorder}</TableCell>
+                      <TableCell className="text-center"><Badge className={row.status === 'Critical' ? 'bg-red-900 text-red-200' : row.status === 'Reorder Required' ? 'bg-yellow-400 text-red-900' : row.status === 'Overstock' ? 'bg-blue-600 text-white' : 'bg-green-700 text-white'}>{row.status}</Badge></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* Promotions Tab */}
-        <TabsContent value="promotions" className="space-y-4">
+      {reportType === 'promotions' && (
+        <div className="space-y-4">
           <Card className="bg-red-700 border-red-800">
-            <CardHeader>
-              <CardTitle className="text-yellow-300">Promotion Effectiveness Analysis</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-yellow-300">Promotion Effectiveness Analysis</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={promotionEffectiveness}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
                   <XAxis dataKey="promotion" stroke="#fef08a" />
                   <YAxis stroke="#fef08a" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
-                  />
+                  <Tooltip contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }} />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Bar key="promo-revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue (PHP)" />
-                  <Bar key="promo-roi-bar" dataKey="roi" fill="#facc15" name="ROI (%)" />
+                  <Bar dataKey="revenue" fill="#fef08a" name="Revenue (PHP)" />
+                  <Bar dataKey="roi" fill="#facc15" name="ROI (%)" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-
           <Card className="bg-red-700 border-red-800">
-            <CardHeader>
-              <CardTitle className="text-yellow-300">Promotion Performance Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {promotionEffectiveness.map((promo) => (
-                  <div key={promo.id} className="flex justify-between items-center border-b border-red-600 pb-3">
-                    <div>
-                      <p className="text-yellow-200">{promo.promotion}</p>
-                      <p className="text-yellow-300 text-xs">Conversion: {promo.conversion}%</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <Badge className="bg-yellow-400 text-red-900">
-                        {money(promo.revenue)}
-                      </Badge>
-                      <Badge className="bg-green-600 text-white">
-                        {promo.roi}% ROI
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <CardHeader><CardTitle className="text-yellow-300">Promotion Performance Summary</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {promotionEffectiveness.map((promo) => (
+                <div key={promo.id} className="flex justify-between items-center border-b border-red-600 pb-3">
+                  <div><p className="text-yellow-200">{promo.promotion}</p><p className="text-yellow-300 text-xs">Conversion: {promo.conversion}%</p></div>
+                  <div className="flex gap-3"><Badge className="bg-yellow-400 text-red-900">{money(promo.revenue)}</Badge><Badge className="bg-green-600 text-white">{promo.roi}% ROI</Badge></div>
+                </div>
+              ))}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      )}
 
-        {/* Forecast Tab */}
-        <TabsContent value="forecast" className="space-y-4">
+      {reportType === 'forecast' && (
+        <div className="space-y-4">
           <Card className="bg-red-700 border-red-800">
-            <CardHeader>
-              <CardTitle className="text-yellow-300 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Forecasted Demand - Next 6 Months
-              </CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-yellow-300 flex items-center gap-2"><BarChart3 className="w-5 h-5" />Forecasted Demand - Next 6 Months</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={forecastedDemand}>
-                  <defs>
-                    <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#facc15" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#facc15" stopOpacity={0.2}/>
-                    </linearGradient>
-                  </defs>
+                  <defs><linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#facc15" stopOpacity={0.8}/><stop offset="95%" stopColor="#facc15" stopOpacity={0.2}/></linearGradient></defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
                   <XAxis dataKey="month" stroke="#fef08a" />
                   <YAxis stroke="#fef08a" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
-                  />
+                  <Tooltip contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }} />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Area key="forecast-area" type="monotone" dataKey="forecast" stroke="#facc15" fillOpacity={1} fill="url(#colorForecast)" name="Forecasted Demand" />
+                  <Area type="monotone" dataKey="forecast" stroke="#facc15" fillOpacity={1} fill="url(#colorForecast)" name="Forecasted Demand" />
                 </AreaChart>
               </ResponsiveContainer>
-              <div className="mt-4 grid grid-cols-6 gap-2">
-                {forecastedDemand.map((item) => (
-                  <div key={item.id} className="text-center">
-                    <p className="text-yellow-200 text-sm">{item.month}</p>
-                    <p className="text-yellow-300">{item.forecast.toLocaleString()} units</p>
-                    <Badge className="bg-yellow-400 text-red-900 text-xs mt-1">
-                      {item.confidence}%
-                    </Badge>
-                  </div>
-                ))}
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-6 gap-2">
+                {forecastedDemand.map((item) => <div key={item.id} className="text-center"><p className="text-yellow-200 text-sm">{item.month}</p><p className="text-yellow-300">{item.forecast.toLocaleString()} units</p><Badge className="bg-yellow-400 text-red-900 text-xs mt-1">{item.confidence}%</Badge></div>)}
               </div>
             </CardContent>
           </Card>
-
           <Card className="bg-red-700 border-red-800">
-            <CardHeader>
-              <CardTitle className="text-yellow-300 flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Forecast Insights
-              </CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-yellow-300 flex items-center gap-2"><FileText className="w-5 h-5" />Forecast Insights</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-3 text-yellow-200">
-                <div className="flex items-start gap-3 border-b border-red-600 pb-3">
-                  <TrendingUp className="w-5 h-5 text-green-400 mt-1" />
-                  <div>
-                    <p className="text-yellow-300">Peak Demand Window</p>
-                    <p className="text-sm">
-                      {highestForecast.month} has the highest forecast at {highestForecast.forecast.toLocaleString()} units with {highestForecast.confidence}% confidence.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 border-b border-red-600 pb-3">
-                  <Package className="w-5 h-5 text-yellow-400 mt-1" />
-                  <div>
-                    <p className="text-yellow-300">Inventory Planning</p>
-                    <p className="text-sm">
-                      Use the product-level prediction table to prepare replenishment for months with rising demand.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Coins className="w-5 h-5 text-yellow-400 mt-1" />
-                  <div>
-                    <p className="text-yellow-300">Demand Outlook</p>
-                    <p className="text-sm">
-                      Expected total demand for the next 6 months: {totalForecastDemand.toLocaleString()} units with average {averageForecastConfidence}% confidence.
-                    </p>
-                  </div>
-                </div>
+                <div className="flex items-start gap-3 border-b border-red-600 pb-3"><TrendingUp className="w-5 h-5 text-green-400 mt-1" /><div><p className="text-yellow-300">Peak Demand Window</p><p className="text-sm">{highestForecast.month} has the highest forecast at {highestForecast.forecast.toLocaleString()} units with {highestForecast.confidence}% confidence.</p></div></div>
+                <div className="flex items-start gap-3 border-b border-red-600 pb-3"><Package className="w-5 h-5 text-yellow-400 mt-1" /><div><p className="text-yellow-300">Inventory Planning</p><p className="text-sm">Use the product-level prediction table to prepare replenishment for months with rising demand.</p></div></div>
+                <div className="flex items-start gap-3"><Coins className="w-5 h-5 text-yellow-400 mt-1" /><div><p className="text-yellow-300">Demand Outlook</p><p className="text-sm">Expected total demand for the next 6 months: {totalForecastDemand.toLocaleString()} units with average {averageForecastConfidence}% confidence.</p></div></div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }
+
+
