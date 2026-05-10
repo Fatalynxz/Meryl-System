@@ -364,39 +364,21 @@ export function ReportsAnalytics() {
       {/* Header with Controls */}
       <div className="flex flex-wrap justify-between items-center gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          {[
-            { key: '7days', label: '7D' },
-            { key: '30days', label: '30D' },
-            { key: '90days', label: '90D' },
-            { key: 'ytd', label: 'YTD' },
-            { key: '12months', label: '1Y' },
-          ].map((item) => (
-            <Button
-              key={item.key}
-              size="sm"
-              variant="outline"
-              onClick={() => setTimeRange(item.key)}
-              className={
-                timeRange === item.key
-                  ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-500'
-                  : 'border-red-800 bg-red-700 text-yellow-200 hover:bg-red-600'
-              }
-            >
-              {item.label}
-            </Button>
-          ))}
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-40 bg-red-700 border-red-800 text-yellow-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-              <SelectItem value="7days">Last 7 Days</SelectItem>
-              <SelectItem value="30days">Last 30 Days</SelectItem>
-              <SelectItem value="90days">Last 90 Days</SelectItem>
-              <SelectItem value="12months">Last 12 Months</SelectItem>
-              <SelectItem value="ytd">Year to Date</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-yellow-200/70">Date Range</span>
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-44 bg-red-700 border-red-800 text-yellow-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                <SelectItem value="7days">Last 7 Days</SelectItem>
+                <SelectItem value="30days">Last 30 Days</SelectItem>
+                <SelectItem value="90days">Last 90 Days</SelectItem>
+                <SelectItem value="12months">Last 12 Months</SelectItem>
+                <SelectItem value="ytd">Year to Date</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Select value={reportType} onValueChange={setReportType}>
             <SelectTrigger className="w-48 bg-red-700 border-red-800 text-yellow-200">
               <SelectValue />
