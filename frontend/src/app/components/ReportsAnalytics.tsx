@@ -7,137 +7,330 @@ import { Badge } from './ui/badge';
 import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
+import { usePredictions, useProducts, usePromotions, useSales } from '../../lib/hooks';
+
+function isCompletedSale(sale: any) {
+  const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
+  const status = String(payment?.payment_status ?? '').toLowerCase();
+  return ['completed', 'paid', 'success', 'successful'].includes(status);
+}
+
+function saleDate(sale: any) {
+  const date = new Date(sale.transaction_date ?? sale.created_at ?? '');
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function money(value: number) {
+  if (value >= 1000000) return `PHP ${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `PHP ${(value / 1000).toFixed(1)}K`;
+  return `PHP ${value.toFixed(2)}`;
+}
+
+function percentChange(current: number, previous: number) {
+  if (!previous && !current) return 0;
+  if (!previous) return 100;
+  return ((current - previous) / previous) * 100;
+}
+
+function rangeWindow(timeRange: string) {
+  const now = new Date();
+  const rangeDaysMap: Record<string, number> = {
+    '7days': 7,
+    '30days': 30,
+    '90days': 90,
+    '12months': 365,
+    ytd: Math.max(1, Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000) + 1),
+  };
+  const days = rangeDaysMap[timeRange] ?? 30;
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(now.getDate() - (days - 1));
+  const previousStart = new Date(start);
+  previousStart.setDate(start.getDate() - days);
+  return { now, start, previousStart, days };
+}
 
 export function ReportsAnalytics() {
   const [timeRange, setTimeRange] = useState('30days');
   const [reportType, setReportType] = useState('overview');
   const [groupBy, setGroupBy] = useState('daily');
   const [compareMode, setCompareMode] = useState(false);
+  const salesQuery = useSales();
+  const productsQuery = useProducts();
+  const promotionsQuery = usePromotions();
+  const predictionsQuery = usePredictions();
 
-  // Sales trends data
-  const salesTrends = [
-    { id: 'st1', date: '2026-02-01', sales: 18500, revenue: 22400, customers: 142 },
-    { id: 'st2', date: '2026-02-05', sales: 21200, revenue: 25800, customers: 168 },
-    { id: 'st3', date: '2026-02-10', sales: 19800, revenue: 24100, customers: 156 },
-    { id: 'st4', date: '2026-02-15', sales: 24500, revenue: 29600, customers: 189 },
-    { id: 'st5', date: '2026-02-20', sales: 26800, revenue: 32400, customers: 201 },
-    { id: 'st6', date: '2026-02-25', sales: 23400, revenue: 28200, customers: 178 },
-    { id: 'st7', date: '2026-03-01', sales: 28200, revenue: 34100, customers: 215 },
-    { id: 'st8', date: '2026-03-05', sales: 31500, revenue: 38000, customers: 234 },
-  ];
+  const salesRows = ((salesQuery.data as any[]) ?? []).filter(isCompletedSale);
+  const productRows = (productsQuery.data as any[]) ?? [];
+  const promotionRows = (promotionsQuery.data as any[]) ?? [];
+  const predictionRows = (predictionsQuery.data as any[]) ?? [];
 
-  // Revenue performance by category
-  const revenueByCategory = [
-    { id: 'rc1', category: 'Running', revenue: 45600, percentage: 38, growth: 12.5 },
-    { id: 'rc2', category: 'Casual', revenue: 32400, percentage: 27, growth: 8.3 },
-    { id: 'rc3', category: 'Sports', revenue: 24800, percentage: 21, growth: 15.2 },
-    { id: 'rc4', category: 'Lifestyle', revenue: 12200, percentage: 10, growth: 5.7 },
-    { id: 'rc5', category: 'Formal', revenue: 4800, percentage: 4, growth: -2.3 },
-  ];
+  const productLookup = useMemo(() => {
+    const map = new Map<string, any>();
+    productRows.forEach((product: any) => map.set(String(product.product_id ?? ''), product));
+    return map;
+  }, [productRows]);
 
-  // Inventory turnover
-  const inventoryTurnover = [
-    { id: 'it1', month: 'Oct', turnover: 4.2, avgDays: 86 },
-    { id: 'it2', month: 'Nov', turnover: 4.8, avgDays: 75 },
-    { id: 'it3', month: 'Dec', turnover: 5.5, avgDays: 65 },
-    { id: 'it4', month: 'Jan', turnover: 5.2, avgDays: 69 },
-    { id: 'it5', month: 'Feb', turnover: 6.1, avgDays: 59 },
-    { id: 'it6', month: 'Mar', turnover: 6.8, avgDays: 53 },
-  ];
-
-  // Promotion effectiveness
-  const promotionEffectiveness = [
-    { id: 'pe1', promotion: 'Spring Sale', revenue: 8450, roi: 245, conversion: 18.5 },
-    { id: 'pe2', promotion: 'Weekend Special', revenue: 3200, roi: 178, conversion: 12.3 },
-    { id: 'pe3', promotion: 'Flash Sale', revenue: 2890, roi: 156, conversion: 9.8 },
-    { id: 'pe4', promotion: 'BOGO Casual', revenue: 5680, roi: 198, conversion: 15.2 },
-  ];
-
-  // Forecasted demand
-  const forecastedDemand = [
-    { id: 'fd1', month: 'Apr', forecast: 38500, confidence: 87 },
-    { id: 'fd2', month: 'May', forecast: 42300, confidence: 85 },
-    { id: 'fd3', month: 'Jun', forecast: 45800, confidence: 82 },
-    { id: 'fd4', month: 'Jul', forecast: 41200, confidence: 80 },
-    { id: 'fd5', month: 'Aug', forecast: 39600, confidence: 78 },
-    { id: 'fd6', month: 'Sep', forecast: 43100, confidence: 81 },
-  ];
-
-  // Top performing products
-  const topProducts = [
-    { id: 'tp1', name: 'Nike Air Max 90', sales: 156, revenue: 18720, margin: 42 },
-    { id: 'tp2', name: 'Adidas Ultraboost', sales: 142, revenue: 25560, margin: 38 },
-    { id: 'tp3', name: 'Vans Old Skool', sales: 128, revenue: 8960, margin: 45 },
-    { id: 'tp4', name: 'Puma Suede', sales: 115, revenue: 9775, margin: 40 },
-    { id: 'tp5', name: 'New Balance 574', sales: 98, revenue: 9310, margin: 36 },
-  ];
-
-  const monthlyComparison = [
-    { id: 'mc1', metric: 'Revenue', current: 38000, previous: 32400, change: 17.3 },
-    { id: 'mc2', metric: 'Units Sold', current: 427, previous: 389, change: 9.8 },
-    { id: 'mc3', metric: 'Avg Order Value', current: 89, previous: 83, change: 7.2 },
-    { id: 'mc4', metric: 'Customer Count', current: 234, previous: 201, change: 16.4 },
-  ];
-
-  const categoryDistribution = [
-    { id: 'cd1', name: 'Running', value: 38, color: '#fef08a' },
-    { id: 'cd2', name: 'Casual', value: 27, color: '#facc15' },
-    { id: 'cd3', name: 'Sports', value: 21, color: '#fde047' },
-    { id: 'cd4', name: 'Lifestyle', value: 10, color: '#fef9c3' },
-    { id: 'cd5', name: 'Formal', value: 4, color: '#fefce8' },
-  ];
+  const currentMetrics = useMemo(() => {
+    const { now, start, previousStart } = rangeWindow(timeRange);
+    const current = salesRows.filter((sale) => {
+      const date = saleDate(sale);
+      return date && date >= start && date <= now;
+    });
+    const previous = salesRows.filter((sale) => {
+      const date = saleDate(sale);
+      return date && date >= previousStart && date < start;
+    });
+    const summarize = (rows: any[]) => {
+      const customers = new Set<string>();
+      let revenue = 0;
+      let units = 0;
+      rows.forEach((sale) => {
+        revenue += Number(sale.total_amount ?? 0);
+        if (sale.customer_id) customers.add(String(sale.customer_id));
+        const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+        details.forEach((detail: any) => {
+          units += Number(detail.quantity ?? 0);
+        });
+      });
+      return { revenue, units, customers: customers.size, transactions: rows.length };
+    };
+    return { current: summarize(current), previous: summarize(previous) };
+  }, [salesRows, timeRange]);
 
   const filteredSalesTrends = useMemo(() => {
-    const now = new Date();
-    const rangeDaysMap: Record<string, number> = {
-      '7days': 7,
-      '30days': 30,
-      '90days': 90,
-      '12months': 365,
-      ytd: Math.max(1, Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000) + 1),
-    };
-    const days = rangeDaysMap[timeRange] ?? 30;
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    start.setDate(now.getDate() - (days - 1));
-
-    const grouped = new Map<string, { sales: number; revenue: number; customers: number }>();
+    const { now, start } = rangeWindow(timeRange);
+    const grouped = new Map<string, { sales: number; revenue: number; customers: Set<string> }>();
     const makeLabel = (date: Date) => {
-      if (groupBy === 'monthly') return date.toLocaleDateString('en-US', { month: 'short' });
+      if (groupBy === 'monthly') return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       if (groupBy === 'weekly') return `W${Math.ceil(date.getDate() / 7)} ${date.toLocaleDateString('en-US', { month: 'short' })}`;
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
-
-    salesTrends.forEach((row) => {
-      const d = new Date(row.date);
-      if (Number.isNaN(d.getTime()) || d < start || d > now) return;
-      const key = makeLabel(d);
-      const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: 0 };
-      grouped.set(key, {
-        sales: prev.sales + row.sales,
-        revenue: prev.revenue + row.revenue,
-        customers: prev.customers + row.customers,
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date || date < start || date > now) return;
+      const key = makeLabel(date);
+      const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: new Set<string>() };
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      details.forEach((detail: any) => {
+        prev.sales += Number(detail.quantity ?? 0);
       });
+      prev.revenue += Number(sale.total_amount ?? 0);
+      if (sale.customer_id) prev.customers.add(String(sale.customer_id));
+      grouped.set(key, prev);
     });
-
     return Array.from(grouped.entries()).map(([date, agg], idx) => ({
       id: `flt-${idx}`,
       date,
       sales: Math.round(agg.sales),
       revenue: Math.round(agg.revenue),
-      customers: Math.round(agg.customers),
+      customers: agg.customers.size,
     }));
-  }, [groupBy, salesTrends, timeRange]);
+  }, [groupBy, salesRows, timeRange]);
 
   const comparisonSalesTrends = useMemo(() => {
     if (!compareMode) return [];
     return filteredSalesTrends.map((row, idx) => ({
       id: `cmp-${idx}`,
       ...row,
-      revenue: Math.round(row.revenue * 0.88),
-      sales: Math.round(row.sales * 0.9),
+      revenue: Math.round(row.revenue * ((currentMetrics.previous.revenue || 0) / Math.max(currentMetrics.current.revenue || 1, 1))),
+      sales: Math.round(row.sales * ((currentMetrics.previous.units || 0) / Math.max(currentMetrics.current.units || 1, 1))),
     }));
-  }, [compareMode, filteredSalesTrends]);
+  }, [compareMode, currentMetrics, filteredSalesTrends]);
+
+  const topProducts = useMemo(() => {
+    const { now, start } = rangeWindow(timeRange);
+    const byProduct = new Map<string, { id: string; name: string; sales: number; revenue: number; margin: number }>();
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date || date < start || date > now) return;
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      details.forEach((detail: any) => {
+        const product = productLookup.get(String(detail.product_id ?? ''));
+        const id = String(detail.product_id ?? '');
+        const prev = byProduct.get(id) ?? {
+          id,
+          name: product?.product_name ?? detail.product?.product_name ?? 'Unknown Product',
+          sales: 0,
+          revenue: 0,
+          margin: 0,
+        };
+        const revenue = Number(detail.subtotal ?? 0);
+        const cost = Number(product?.cost_price ?? 0) * Number(detail.quantity ?? 0);
+        prev.sales += Number(detail.quantity ?? 0);
+        prev.revenue += revenue;
+        prev.margin = prev.revenue > 0 ? Math.max(0, Math.round(((prev.revenue - cost) / prev.revenue) * 100)) : 0;
+        byProduct.set(id, prev);
+      });
+    });
+    return Array.from(byProduct.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  }, [productLookup, salesRows, timeRange]);
+
+  const revenueByCategory = useMemo(() => {
+    const { now, start, previousStart } = rangeWindow(timeRange);
+    const current = new Map<string, number>();
+    const previous = new Map<string, number>();
+    const addSale = (sale: any, target: Map<string, number>) => {
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      details.forEach((detail: any) => {
+        const product = productLookup.get(String(detail.product_id ?? ''));
+        const category = String(product?.category?.[0]?.category_name ?? product?.category?.category_name ?? 'Uncategorized');
+        target.set(category, (target.get(category) ?? 0) + Number(detail.subtotal ?? 0));
+      });
+    };
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date) return;
+      if (date >= start && date <= now) addSale(sale, current);
+      if (date >= previousStart && date < start) addSale(sale, previous);
+    });
+    const total = Array.from(current.values()).reduce((sum, value) => sum + value, 0);
+    return Array.from(current.entries())
+      .map(([category, revenue], index) => {
+        const prevRevenue = previous.get(category) ?? 0;
+        return {
+          id: `rc${index}`,
+          category,
+          revenue,
+          percentage: total > 0 ? Math.round((revenue / total) * 100) : 0,
+          growth: Number(percentChange(revenue, prevRevenue).toFixed(1)),
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [productLookup, salesRows, timeRange]);
+
+  const categoryDistribution = useMemo(() => {
+    const colors = ['#fef08a', '#facc15', '#fde047', '#fef9c3', '#fefce8', '#fcd34d'];
+    const rows = revenueByCategory.map((item, index) => ({
+      id: `cd${index}`,
+      name: item.category,
+      value: item.percentage,
+      color: colors[index % colors.length],
+    }));
+    return rows.length ? rows : [{ id: 'cd-empty', name: 'No Sales', value: 100, color: '#fef9c3' }];
+  }, [revenueByCategory]);
+
+  const monthlyComparison = useMemo(() => {
+    const averageOrder = currentMetrics.current.transactions
+      ? currentMetrics.current.revenue / currentMetrics.current.transactions
+      : 0;
+    const previousAverageOrder = currentMetrics.previous.transactions
+      ? currentMetrics.previous.revenue / currentMetrics.previous.transactions
+      : 0;
+    return [
+      { id: 'mc1', metric: 'Revenue', current: currentMetrics.current.revenue, previous: currentMetrics.previous.revenue, change: percentChange(currentMetrics.current.revenue, currentMetrics.previous.revenue), currency: true },
+      { id: 'mc2', metric: 'Units Sold', current: currentMetrics.current.units, previous: currentMetrics.previous.units, change: percentChange(currentMetrics.current.units, currentMetrics.previous.units), currency: false },
+      { id: 'mc3', metric: 'Avg Order Value', current: averageOrder, previous: previousAverageOrder, change: percentChange(averageOrder, previousAverageOrder), currency: true },
+      { id: 'mc4', metric: 'Customer Count', current: currentMetrics.current.customers, previous: currentMetrics.previous.customers, change: percentChange(currentMetrics.current.customers, currentMetrics.previous.customers), currency: false },
+    ];
+  }, [currentMetrics]);
+
+  const inventoryTurnover = useMemo(() => {
+    const stockByProduct = new Map<string, number>();
+    productRows.forEach((product: any) => {
+      const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
+      stockByProduct.set(String(product.product_id ?? ''), Number(inventory?.stock_quantity ?? 0));
+    });
+    const totalStock = Array.from(stockByProduct.values()).reduce((sum, value) => sum + value, 0);
+    return Array.from({ length: 6 }, (_, index) => {
+      const month = new Date();
+      month.setMonth(month.getMonth() - (5 - index));
+      const monthKey = month.toISOString().slice(0, 7);
+      let units = 0;
+      salesRows.forEach((sale) => {
+        const date = saleDate(sale);
+        if (!date || date.toISOString().slice(0, 7) !== monthKey) return;
+        const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+        details.forEach((detail: any) => {
+          units += Number(detail.quantity ?? 0);
+        });
+      });
+      const turnover = totalStock > 0 ? Number((units / totalStock).toFixed(2)) : 0;
+      const avgDays = units > 0 ? Math.max(1, Math.round((totalStock / units) * 30)) : 0;
+      return {
+        id: `it${index}`,
+        month: month.toLocaleDateString('en-US', { month: 'short' }),
+        turnover,
+        avgDays,
+      };
+    });
+  }, [productRows, salesRows]);
+
+  const latestTurnover = inventoryTurnover.at(-1)?.turnover ?? 0;
+  const latestAvgDays = inventoryTurnover.at(-1)?.avgDays ?? 0;
+  const previousTurnover = inventoryTurnover.at(-2)?.turnover ?? 0;
+  const previousAvgDays = inventoryTurnover.at(-2)?.avgDays ?? 0;
+
+  const promotionEffectiveness = useMemo(() => {
+    const totalUnits = Math.max(currentMetrics.current.units, 1);
+    return promotionRows.map((promo: any, index) => {
+      const promoProducts = Array.isArray(promo.promo_product) ? promo.promo_product : [];
+      const productIds = new Set(promoProducts.map((row: any) => String(row.product_id ?? row.product?.product_id ?? '')));
+      const start = new Date(promo.start_date ?? '');
+      const end = new Date(promo.end_date ?? '');
+      let revenue = 0;
+      let units = 0;
+      salesRows.forEach((sale) => {
+        const date = saleDate(sale);
+        if (!date || (!Number.isNaN(start.getTime()) && date < start) || (!Number.isNaN(end.getTime()) && date > end)) return;
+        const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+        details.forEach((detail: any) => {
+          const productId = String(detail.product_id ?? '');
+          if (productIds.size && !productIds.has(productId)) return;
+          revenue += Number(detail.subtotal ?? 0);
+          units += Number(detail.quantity ?? 0);
+        });
+      });
+      return {
+        id: String(promo.promo_id ?? `pe${index}`),
+        promotion: String(promo.promo_name ?? 'Promotion'),
+        revenue,
+        roi: Math.min(100, Math.round((units / totalUnits) * 100)),
+        conversion: Number(((units / totalUnits) * 100).toFixed(1)),
+      };
+    }).sort((a, b) => b.revenue - a.revenue);
+  }, [currentMetrics.current.units, promotionRows, salesRows]);
+
+  const forecastedDemand = useMemo(() => {
+    const futurePredictions = predictionRows
+      .map((row: any) => {
+        const date = new Date(row.prediction_date ?? row.created_at ?? '');
+        return { row, date };
+      })
+      .filter(({ date }) => !Number.isNaN(date.getTime()))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    const byMonth = new Map<string, { forecast: number; confidence: number[]; date: Date }>();
+    futurePredictions.forEach(({ row, date }) => {
+      const key = date.toISOString().slice(0, 7);
+      const prev = byMonth.get(key) ?? { forecast: 0, confidence: [], date };
+      prev.forecast += Number(row.predicted_demand ?? 0);
+      const history = Array.isArray(row.prediction_history) ? row.prediction_history[0] : row.prediction_history;
+      if (history?.prediction_accuracy != null) prev.confidence.push(Number(history.prediction_accuracy));
+      byMonth.set(key, prev);
+    });
+    const rows = Array.from(byMonth.values()).slice(0, 6).map((item, index) => ({
+      id: `fd${index}`,
+      month: item.date.toLocaleDateString('en-US', { month: 'short' }),
+      forecast: Math.round(item.forecast),
+      confidence: item.confidence.length
+        ? Math.round(item.confidence.reduce((sum, value) => sum + value, 0) / item.confidence.length)
+        : 75,
+    }));
+    if (rows.length) return rows;
+    const avgRevenue = filteredSalesTrends.length
+      ? filteredSalesTrends.reduce((sum, row) => sum + row.revenue, 0) / filteredSalesTrends.length
+      : 0;
+    return Array.from({ length: 6 }, (_, index) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() + index + 1);
+      return {
+        id: `fd-fallback-${index}`,
+        month: date.toLocaleDateString('en-US', { month: 'short' }),
+        forecast: Math.round(avgRevenue * (1 + index * 0.04)),
+        confidence: avgRevenue > 0 ? 70 : 0,
+      };
+    });
+  }, [filteredSalesTrends, predictionRows]);
 
   const handleExportReport = () => {
     const header = 'Date,Sales,Revenue,Customers';
@@ -152,6 +345,19 @@ export function ReportsAnalytics() {
     URL.revokeObjectURL(url);
     toast.success('Report exported successfully!');
   };
+
+  const revenueChange = percentChange(currentMetrics.current.revenue, currentMetrics.previous.revenue);
+  const unitsChange = percentChange(currentMetrics.current.units, currentMetrics.previous.units);
+  const turnoverChange = percentChange(latestTurnover, previousTurnover);
+  const avgDaysChange = previousAvgDays ? previousAvgDays - latestAvgDays : 0;
+  const totalForecastDemand = forecastedDemand.reduce((sum, item) => sum + item.forecast, 0);
+  const averageForecastConfidence = forecastedDemand.length
+    ? Math.round(forecastedDemand.reduce((sum, item) => sum + item.confidence, 0) / forecastedDemand.length)
+    : 0;
+  const highestForecast = forecastedDemand.reduce(
+    (best, item) => (item.forecast > best.forecast ? item : best),
+    forecastedDemand[0] ?? { month: 'N/A', forecast: 0, confidence: 0 },
+  );
 
   return (
     <div className="space-y-6">
@@ -238,8 +444,10 @@ export function ReportsAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-200">Total Revenue</p>
-                <p className="text-2xl text-yellow-300">₱119.8K</p>
-                <p className="text-xs text-green-400 mt-1">↑ 17.3% vs last period</p>
+                <p className="text-2xl text-yellow-300">{money(currentMetrics.current.revenue)}</p>
+                <p className={`text-xs mt-1 ${revenueChange >= 0 ? 'text-green-400' : 'text-red-300'}`}>
+                  {revenueChange >= 0 ? '+' : ''}{revenueChange.toFixed(1)}% vs last period
+                </p>
               </div>
               <Coins className="h-8 w-8 text-yellow-400" />
             </div>
@@ -250,8 +458,10 @@ export function ReportsAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-200">Units Sold</p>
-                <p className="text-2xl text-yellow-300">1,347</p>
-                <p className="text-xs text-green-400 mt-1">↑ 9.8% vs last period</p>
+                <p className="text-2xl text-yellow-300">{currentMetrics.current.units.toLocaleString()}</p>
+                <p className={`text-xs mt-1 ${unitsChange >= 0 ? 'text-green-400' : 'text-red-300'}`}>
+                  {unitsChange >= 0 ? '+' : ''}{unitsChange.toFixed(1)}% vs last period
+                </p>
               </div>
               <Package className="h-8 w-8 text-yellow-400" />
             </div>
@@ -262,8 +472,10 @@ export function ReportsAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-200">Inventory Turnover</p>
-                <p className="text-2xl text-yellow-300">6.8x</p>
-                <p className="text-xs text-green-400 mt-1">↑ 11.5% improvement</p>
+                <p className="text-2xl text-yellow-300">{latestTurnover.toFixed(2)}x</p>
+                <p className={`text-xs mt-1 ${turnoverChange >= 0 ? 'text-green-400' : 'text-red-300'}`}>
+                  {turnoverChange >= 0 ? '+' : ''}{turnoverChange.toFixed(1)}% vs last month
+                </p>
               </div>
               <TrendingUp className="h-8 w-8 text-yellow-400" />
             </div>
@@ -274,15 +486,16 @@ export function ReportsAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-yellow-200">Avg Days to Sell</p>
-                <p className="text-2xl text-yellow-300">53</p>
-                <p className="text-xs text-green-400 mt-1">↓ 6 days faster</p>
+                <p className="text-2xl text-yellow-300">{latestAvgDays || 0}</p>
+                <p className={`text-xs mt-1 ${avgDaysChange >= 0 ? 'text-green-400' : 'text-red-300'}`}>
+                  {avgDaysChange >= 0 ? `${avgDaysChange} days faster` : `${Math.abs(avgDaysChange)} days slower`}
+                </p>
               </div>
               <Calendar className="h-8 w-8 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
       </div>
-
       {/* Main Analytics Tabs */}
       <Tabs defaultValue="sales" className="w-full">
         <TabsList className="grid w-full grid-cols-5 bg-red-700 border border-red-800">
@@ -333,7 +546,7 @@ export function ReportsAnalytics() {
                   />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
                   <Area key="revenue-area" type="monotone" dataKey="revenue" stroke="#facc15" fillOpacity={1} fill="url(#colorRevenue)" name="Revenue (PHP)" />
-                  <Area key="sales-area" type="monotone" dataKey="sales" stroke="#fef08a" fillOpacity={1} fill="url(#colorSales)" name="Sales (PHP)" />
+                  <Area key="sales-area" type="monotone" dataKey="sales" stroke="#fef08a" fillOpacity={1} fill="url(#colorSales)" name="Units Sold" />
                   {compareMode && (
                     <Line
                       key="compare-revenue-line"
@@ -362,11 +575,13 @@ export function ReportsAnalytics() {
                     <div key={item.id} className="flex justify-between items-center border-b border-red-600 pb-3">
                       <div>
                         <p className="text-yellow-200">{item.metric}</p>
-                        <p className="text-yellow-300 text-lg">{typeof item.current === 'number' && item.current > 100 ? `₱${item.current.toLocaleString()}` : item.current}</p>
+                        <p className="text-yellow-300 text-lg">
+                          {item.currency ? money(item.current) : Math.round(item.current).toLocaleString()}
+                        </p>
                       </div>
                       <div className="text-right">
                         <Badge className={item.change > 0 ? "bg-green-600 text-white" : "bg-red-900 text-yellow-200"}>
-                          {item.change > 0 ? '↑' : '↓'} {Math.abs(item.change)}%
+                          {item.change > 0 ? '+' : ''}{item.change.toFixed(1)}%
                         </Badge>
                         <p className="text-yellow-200 text-xs mt-1">vs previous</p>
                       </div>
@@ -389,7 +604,7 @@ export function ReportsAnalytics() {
                         <p className="text-yellow-300 text-xs">{product.sales} units sold</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-yellow-300">₱{product.revenue.toLocaleString()}</p>
+                        <p className="text-yellow-300">{money(product.revenue)}</p>
                         <Badge className="bg-yellow-400 text-red-900 text-xs mt-1">
                           {product.margin}% margin
                         </Badge>
@@ -419,7 +634,7 @@ export function ReportsAnalytics() {
                       contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
                     />
                     <Legend wrapperStyle={{ color: '#fef08a' }} />
-                    <Bar key="revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue (₱)" />
+                    <Bar key="revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue (PHP)" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -470,11 +685,11 @@ export function ReportsAnalytics() {
                           {category.percentage}% of total
                         </Badge>
                         <Badge className={category.growth > 0 ? "bg-green-600 text-white" : "bg-red-900 text-yellow-200"}>
-                          {category.growth > 0 ? '↑' : '↓'} {Math.abs(category.growth)}%
+                          {category.growth > 0 ? '+' : ''}{category.growth.toFixed(1)}%
                         </Badge>
                       </div>
                     </div>
-                    <p className="text-yellow-300 text-lg">₱{category.revenue.toLocaleString()}</p>
+                    <p className="text-yellow-300 text-lg">{money(category.revenue)}</p>
                   </div>
                 ))}
               </div>
@@ -526,7 +741,7 @@ export function ReportsAnalytics() {
                     contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
                   />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Bar key="promo-revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue (₱)" />
+                  <Bar key="promo-revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue (PHP)" />
                   <Bar key="promo-roi-bar" dataKey="roi" fill="#facc15" name="ROI (%)" />
                 </BarChart>
               </ResponsiveContainer>
@@ -547,7 +762,7 @@ export function ReportsAnalytics() {
                     </div>
                     <div className="flex gap-3">
                       <Badge className="bg-yellow-400 text-red-900">
-                        ₱{promo.revenue.toLocaleString()}
+                        {money(promo.revenue)}
                       </Badge>
                       <Badge className="bg-green-600 text-white">
                         {promo.roi}% ROI
@@ -585,14 +800,14 @@ export function ReportsAnalytics() {
                     contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
                   />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Area key="forecast-area" type="monotone" dataKey="forecast" stroke="#facc15" fillOpacity={1} fill="url(#colorForecast)" name="Forecasted Revenue (₱)" />
+                  <Area key="forecast-area" type="monotone" dataKey="forecast" stroke="#facc15" fillOpacity={1} fill="url(#colorForecast)" name="Forecasted Demand" />
                 </AreaChart>
               </ResponsiveContainer>
               <div className="mt-4 grid grid-cols-6 gap-2">
                 {forecastedDemand.map((item) => (
                   <div key={item.id} className="text-center">
                     <p className="text-yellow-200 text-sm">{item.month}</p>
-                    <p className="text-yellow-300">₱{(item.forecast / 1000).toFixed(1)}K</p>
+                    <p className="text-yellow-300">{item.forecast.toLocaleString()} units</p>
                     <Badge className="bg-yellow-400 text-red-900 text-xs mt-1">
                       {item.confidence}%
                     </Badge>
@@ -614,22 +829,28 @@ export function ReportsAnalytics() {
                 <div className="flex items-start gap-3 border-b border-red-600 pb-3">
                   <TrendingUp className="w-5 h-5 text-green-400 mt-1" />
                   <div>
-                    <p className="text-yellow-300">Peak Season Expected</p>
-                    <p className="text-sm">June is forecasted to be the highest revenue month at ₱45.8K with 82% confidence.</p>
+                    <p className="text-yellow-300">Peak Demand Window</p>
+                    <p className="text-sm">
+                      {highestForecast.month} has the highest forecast at {highestForecast.forecast.toLocaleString()} units with {highestForecast.confidence}% confidence.
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 border-b border-red-600 pb-3">
                   <Package className="w-5 h-5 text-yellow-400 mt-1" />
                   <div>
                     <p className="text-yellow-300">Inventory Planning</p>
-                    <p className="text-sm">Recommend increasing stock levels by 25% for Q2 based on predicted demand surge.</p>
+                    <p className="text-sm">
+                      Use the product-level prediction table to prepare replenishment for months with rising demand.
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
                   <Coins className="w-5 h-5 text-yellow-400 mt-1" />
                   <div>
-                    <p className="text-yellow-300">Revenue Outlook</p>
-                    <p className="text-sm">Expected total revenue for next 6 months: ₱251,500 with average 83% confidence level.</p>
+                    <p className="text-yellow-300">Demand Outlook</p>
+                    <p className="text-sm">
+                      Expected total demand for the next 6 months: {totalForecastDemand.toLocaleString()} units with average {averageForecastConfidence}% confidence.
+                    </p>
                   </div>
                 </div>
               </div>
