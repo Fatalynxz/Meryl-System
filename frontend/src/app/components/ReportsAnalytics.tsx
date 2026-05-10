@@ -362,8 +362,8 @@ export function ReportsAnalytics() {
   return (
     <div className="space-y-6">
       {/* Header with Controls */}
-      <div className="flex flex-wrap justify-between items-center gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap justify-between items-end gap-4">
+        <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1">
             <span className="text-xs uppercase tracking-wide text-yellow-200/70">Date Range</span>
             <Select value={timeRange} onValueChange={setTimeRange}>
@@ -379,41 +379,47 @@ export function ReportsAnalytics() {
               </SelectContent>
             </Select>
           </div>
-          <Select value={reportType} onValueChange={setReportType}>
-            <SelectTrigger className="w-48 bg-red-700 border-red-800 text-yellow-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-              <SelectItem value="overview">Overview Report</SelectItem>
-              <SelectItem value="sales">Sales Analysis</SelectItem>
-              <SelectItem value="inventory">Inventory Report</SelectItem>
-              <SelectItem value="promotions">Promotions Report</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={groupBy} onValueChange={setGroupBy}>
-            <SelectTrigger className="w-36 bg-red-700 border-red-800 text-yellow-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-yellow-200/70">Report Type</span>
+            <Select value={reportType} onValueChange={setReportType}>
+              <SelectTrigger className="w-48 bg-red-700 border-red-800 text-yellow-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                <SelectItem value="overview">Overview Report</SelectItem>
+                <SelectItem value="sales">Sales Analysis</SelectItem>
+                <SelectItem value="inventory">Inventory Report</SelectItem>
+                <SelectItem value="promotions">Promotions Report</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-wide text-yellow-200/70">Group By</span>
+            <Select value={groupBy} onValueChange={setGroupBy}>
+              <SelectTrigger className="w-36 bg-red-700 border-red-800 text-yellow-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Button
             size="sm"
             variant="outline"
             onClick={() => setCompareMode((v) => !v)}
-            className={
+            className={`h-9 ${
               compareMode
                 ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-500'
                 : 'border-red-800 bg-red-700 text-yellow-200 hover:bg-red-600'
-            }
+            }`}
           >
             Compare
           </Button>
         </div>
-        <Button onClick={handleExportReport} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+        <Button onClick={handleExportReport} className="h-9 bg-yellow-400 text-red-900 hover:bg-yellow-500">
           <Download className="w-4 h-4 mr-2" />
           Export Report
         </Button>
