@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
@@ -48,6 +49,11 @@ function rangeWindow(timeRange: string) {
   const previousStart = new Date(start);
   previousStart.setDate(start.getDate() - days);
   return { now, start, previousStart, days };
+}
+
+function formatDateRange(start: Date, end: Date) {
+  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+  return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
 }
 
 export function ReportsAnalytics() {
@@ -118,7 +124,7 @@ export function ReportsAnalytics() {
 
   const filteredSalesTrends = useMemo(() => {
     const { now, start } = rangeWindow(timeRange);
-    const grouped = new Map<string, { sales: number; revenue: number; customers: Set<string> }>();
+    const grouped = new Map<string, { sales: number; revenue: number; customers: Set<string>; firstDate: Date }>();
     const makeLabel = (date: Date) => {
       if (groupBy === 'monthly') return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       if (groupBy === 'weekly') return `W${Math.ceil(date.getDate() / 7)} ${date.toLocaleDateString('en-US', { month: 'short' })}`;
@@ -128,22 +134,26 @@ export function ReportsAnalytics() {
       const date = saleDate(sale);
       if (!date || date < start || date > now) return;
       const key = makeLabel(date);
-      const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: new Set<string>() };
+      const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: new Set<string>(), firstDate: date };
       const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
       details.forEach((detail: any) => {
         prev.sales += Number(detail.quantity ?? 0);
       });
       prev.revenue += Number(sale.total_amount ?? 0);
       if (sale.customer_id) prev.customers.add(String(sale.customer_id));
+      if (date < prev.firstDate) prev.firstDate = date;
       grouped.set(key, prev);
     });
-    return Array.from(grouped.entries()).map(([date, agg], idx) => ({
-      id: `flt-${idx}`,
-      date,
-      sales: Math.round(agg.sales),
-      revenue: Math.round(agg.revenue),
-      customers: agg.customers.size,
-    }));
+    return Array.from(grouped.entries())
+      .map(([date, agg], idx) => ({
+        id: `flt-${idx}`,
+        date,
+        sortDate: agg.firstDate.getTime(),
+        sales: Math.round(agg.sales),
+        revenue: Math.round(agg.revenue),
+        customers: agg.customers.size,
+      }))
+      .sort((a, b) => a.sortDate - b.sortDate);
   }, [groupBy, salesRows, timeRange]);
 
   const comparisonSalesTrends = useMemo(() => {
@@ -286,6 +296,115 @@ export function ReportsAnalytics() {
       { id: 'mc4', metric: 'Customer Count', current: currentMetrics.current.customers, previous: currentMetrics.previous.customers, change: percentChange(currentMetrics.current.customers, currentMetrics.previous.customers), currency: false },
     ];
   }, [currentMetrics]);
+
+  const dailySalesBreakdown = useMemo(() => {
+    const { now, start } = rangeWindow(timeRange);
+    const grouped = new Map<string, { date: Date; pairs: number; gross: number; discount: number; net: number }>();
+
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date || date < start || date > now) return;
+      const key = date.toISOString().slice(0, 10);
+      const prev = grouped.get(key) ?? { date, pairs: 0, gross: 0, discount: 0, net: 0 };
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+
+      details.forEach((detail: any) => {
+        const qty = Number(detail.quantity ?? 0);
+        const price = Number(detail.price ?? 0);
+        const subtotal = Number(detail.subtotal ?? price * qty);
+        const gross = price * qty;
+        prev.pairs += qty;
+        prev.gross += gross;
+        prev.discount += Math.max(0, gross - subtotal);
+        prev.net += subtotal;
+      });
+
+      grouped.set(key, prev);
+    });
+
+    return Array.from(grouped.values())
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((row, index) => ({
+        id: `daily-${index}`,
+        date: row.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        pairs: row.pairs,
+        gross: row.gross,
+        discount: row.discount,
+        net: row.net,
+      }));
+  }, [salesRows, timeRange]);
+
+  const inventoryStatusRows = useMemo(() => (
+    productRows
+      .map((product: any) => {
+        const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
+        const stock = Number(inventory?.stock_quantity ?? 0);
+        const reorder = Number(product.reorder_level ?? inventory?.reorder_level ?? 10);
+        const status = stock <= Math.max(2, Math.floor(reorder * 0.4))
+          ? 'Critical'
+          : stock <= reorder
+            ? 'Reorder Required'
+            : stock >= reorder * 3
+              ? 'Overstock'
+              : 'Optimal';
+
+        return {
+          id: String(product.product_id ?? ''),
+          itemId: String(product.product_id ?? '').slice(0, 8).toUpperCase(),
+          name: `${product.brand ?? 'N/A'} ${product.product_name ?? 'Product'}`.trim(),
+          size: product.size ?? 'N/A',
+          color: product.color ?? 'N/A',
+          stock,
+          reorder,
+          status,
+        };
+      })
+      .sort((a, b) => a.stock - b.stock)
+      .slice(0, 8)
+  ), [productRows]);
+
+  const businessSummary = useMemo(() => {
+    const { now, start } = rangeWindow(timeRange);
+    const brandSales = new Map<string, number>();
+    const sizeSales = new Map<string, number>();
+    let grossRevenue = 0;
+    let discounts = 0;
+
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date || date < start || date > now) return;
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      details.forEach((detail: any) => {
+        const product = productLookup.get(String(detail.product_id ?? '')) ?? detail.product;
+        const qty = Number(detail.quantity ?? 0);
+        const brand = String(product?.brand ?? 'N/A');
+        const size = String(product?.size ?? 'N/A');
+        const gross = Number(detail.price ?? 0) * qty;
+        const subtotal = Number(detail.subtotal ?? gross);
+        brandSales.set(brand, (brandSales.get(brand) ?? 0) + qty);
+        sizeSales.set(size, (sizeSales.get(size) ?? 0) + qty);
+        grossRevenue += gross;
+        discounts += Math.max(0, gross - subtotal);
+      });
+    });
+
+    const bestBrand = Array.from(brandSales.entries()).sort((a, b) => b[1] - a[1])[0];
+    const bestSize = Array.from(sizeSales.entries()).sort((a, b) => b[1] - a[1])[0];
+    const atv = currentMetrics.current.transactions
+      ? currentMetrics.current.revenue / currentMetrics.current.transactions
+      : 0;
+
+    return {
+      period: formatDateRange(start, now),
+      store: 'Libertad St., Bacolod City Branch',
+      preparedBy: 'Store Manager',
+      atv,
+      bestBrand: bestBrand ? `${bestBrand[0]} (${bestBrand[1]} pairs)` : 'N/A',
+      bestSize: bestSize ? `${bestSize[0]} (${bestSize[1]} pairs)` : 'N/A',
+      grossRevenue,
+      discounts,
+    };
+  }, [currentMetrics, productLookup, salesRows, timeRange]);
 
   const inventoryTurnover = useMemo(() => {
     const stockByProduct = new Map<string, number>();
@@ -569,6 +688,52 @@ export function ReportsAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="bg-red-700 border-red-800">
+        <CardHeader>
+          <CardTitle className="text-yellow-300 flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Executive Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
+            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+              <p className="text-yellow-200/70">Report Period</p>
+              <p className="text-yellow-300">{businessSummary.period}</p>
+            </div>
+            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+              <p className="text-yellow-200/70">Store Location</p>
+              <p className="text-yellow-300">{businessSummary.store}</p>
+            </div>
+            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+              <p className="text-yellow-200/70">Average Transaction Value</p>
+              <p className="text-yellow-300">{money(businessSummary.atv)}</p>
+            </div>
+            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+              <p className="text-yellow-200/70">Prepared By</p>
+              <p className="text-yellow-300">{businessSummary.preparedBy}</p>
+            </div>
+            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+              <p className="text-yellow-200/70">Best-Selling Brand</p>
+              <p className="text-yellow-300">{businessSummary.bestBrand}</p>
+            </div>
+            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+              <p className="text-yellow-200/70">Best-Selling Size</p>
+              <p className="text-yellow-300">{businessSummary.bestSize}</p>
+            </div>
+            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+              <p className="text-yellow-200/70">Gross Revenue</p>
+              <p className="text-yellow-300">{money(businessSummary.grossRevenue)}</p>
+            </div>
+            <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
+              <p className="text-yellow-200/70">Discounts Given</p>
+              <p className="text-yellow-300">{money(businessSummary.discounts)}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Main Analytics Tabs */}
       <Tabs defaultValue="sales" className="w-full">
         <TabsList className="grid w-full grid-cols-5 bg-red-700 border border-red-800">
@@ -600,28 +765,24 @@ export function ReportsAnalytics() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={comparisonSalesTrends}>
-                  <defs>
-                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#fef08a" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#fef08a" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#facc15" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#facc15" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
+                <LineChart data={comparisonSalesTrends} margin={{ top: 12, right: 32, left: 8, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
                   <XAxis dataKey="date" stroke="#fef08a" />
-                  <YAxis stroke="#fef08a" />
+                  <YAxis yAxisId="revenue" stroke="#facc15" tickFormatter={(value) => money(Number(value)).replace('PHP ', '')} />
+                  <YAxis yAxisId="units" orientation="right" stroke="#fef08a" allowDecimals={false} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
+                    formatter={(value, name) => {
+                      if (String(name).includes('Revenue') || String(name).includes('Period')) return [money(Number(value)), name];
+                      return [Number(value).toLocaleString(), name];
+                    }}
                   />
                   <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Area key="revenue-area" type="monotone" dataKey="revenue" stroke="#facc15" fillOpacity={1} fill="url(#colorRevenue)" name="Revenue (PHP)" />
-                  <Area key="sales-area" type="monotone" dataKey="sales" stroke="#fef08a" fillOpacity={1} fill="url(#colorSales)" name="Units Sold" />
+                  <Line yAxisId="revenue" key="revenue-line" type="monotone" dataKey="revenue" stroke="#facc15" strokeWidth={3} dot={{ r: 4 }} name="Revenue (PHP)" />
+                  <Line yAxisId="units" key="sales-line" type="monotone" dataKey="sales" stroke="#fef08a" strokeWidth={2} dot={{ r: 3 }} name="Units Sold" />
                   {compareMode && (
                     <Line
+                      yAxisId="revenue"
                       key="compare-revenue-line"
                       type="monotone"
                       dataKey="previousRevenue"
@@ -632,7 +793,7 @@ export function ReportsAnalytics() {
                       name={comparePeriodLabel}
                     />
                   )}
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -699,6 +860,43 @@ export function ReportsAnalytics() {
               </CardContent>
             </Card>
           </div>
+
+          <Card className="bg-red-700 border-red-800">
+            <CardHeader>
+              <CardTitle className="text-yellow-300">Daily Sales Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-red-800 hover:bg-red-900/30">
+                    <TableHead className="text-yellow-300">Date</TableHead>
+                    <TableHead className="text-yellow-300 text-center">Pairs Sold</TableHead>
+                    <TableHead className="text-yellow-300 text-center">Gross Revenue</TableHead>
+                    <TableHead className="text-yellow-300 text-center">Discount Applied</TableHead>
+                    <TableHead className="text-yellow-300 text-center">Net Sales</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailySalesBreakdown.map((row) => (
+                    <TableRow key={row.id} className="border-red-800 hover:bg-red-900/30">
+                      <TableCell className="text-yellow-200">{row.date}</TableCell>
+                      <TableCell className="text-yellow-200 text-center">{row.pairs}</TableCell>
+                      <TableCell className="text-yellow-200 text-center">{money(row.gross)}</TableCell>
+                      <TableCell className="text-yellow-200 text-center">{money(row.discount)}</TableCell>
+                      <TableCell className="text-yellow-300 text-center">{money(row.net)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {!dailySalesBreakdown.length && (
+                    <TableRow className="border-red-800">
+                      <TableCell colSpan={5} className="text-center text-yellow-200 py-6">
+                        No completed sales found for this date range.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Revenue Tab */}
@@ -805,6 +1003,54 @@ export function ReportsAnalytics() {
                   <Line key="avgdays-line" yAxisId="right" type="monotone" dataKey="avgDays" stroke="#facc15" strokeWidth={2} name="Avg Days to Sell" />
                 </LineChart>
               </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-red-700 border-red-800">
+            <CardHeader>
+              <CardTitle className="text-yellow-300">Inventory & Stock Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-red-800 hover:bg-red-900/30">
+                    <TableHead className="text-yellow-300">Item ID</TableHead>
+                    <TableHead className="text-yellow-300">Brand & Model</TableHead>
+                    <TableHead className="text-yellow-300 text-center">Size</TableHead>
+                    <TableHead className="text-yellow-300 text-center">Color</TableHead>
+                    <TableHead className="text-yellow-300 text-center">In Stock</TableHead>
+                    <TableHead className="text-yellow-300 text-center">Reorder Level</TableHead>
+                    <TableHead className="text-yellow-300 text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {inventoryStatusRows.map((row) => (
+                    <TableRow key={row.id} className="border-red-800 hover:bg-red-900/30">
+                      <TableCell className="text-yellow-200">{row.itemId}</TableCell>
+                      <TableCell className="text-yellow-200">{row.name}</TableCell>
+                      <TableCell className="text-yellow-200 text-center">{row.size}</TableCell>
+                      <TableCell className="text-yellow-200 text-center">{row.color}</TableCell>
+                      <TableCell className="text-yellow-200 text-center">{row.stock}</TableCell>
+                      <TableCell className="text-yellow-200 text-center">{row.reorder}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          className={
+                            row.status === 'Critical'
+                              ? 'bg-red-900 text-red-200'
+                              : row.status === 'Reorder Required'
+                                ? 'bg-yellow-400 text-red-900'
+                                : row.status === 'Overstock'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-green-700 text-white'
+                          }
+                        >
+                          {row.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
