@@ -55,6 +55,7 @@ export function ReportsAnalytics() {
   const [reportType, setReportType] = useState('overview');
   const [groupBy, setGroupBy] = useState('daily');
   const [compareMode, setCompareMode] = useState(false);
+  const [comparePeriod, setComparePeriod] = useState('previousPeriod');
   const salesQuery = useSales();
   const productsQuery = useProducts();
   const promotionsQuery = usePromotions();
@@ -73,13 +74,30 @@ export function ReportsAnalytics() {
 
   const currentMetrics = useMemo(() => {
     const { now, start, previousStart } = rangeWindow(timeRange);
+    let compareStart = previousStart;
+    let compareEnd = new Date(start.getTime() - 1);
+
+    if (comparePeriod === 'previousMonth') {
+      compareStart = new Date(start);
+      compareEnd = new Date(now);
+      compareStart.setMonth(compareStart.getMonth() - 1);
+      compareEnd.setMonth(compareEnd.getMonth() - 1);
+    }
+
+    if (comparePeriod === 'previousYear') {
+      compareStart = new Date(start);
+      compareEnd = new Date(now);
+      compareStart.setFullYear(compareStart.getFullYear() - 1);
+      compareEnd.setFullYear(compareEnd.getFullYear() - 1);
+    }
+
     const current = salesRows.filter((sale) => {
       const date = saleDate(sale);
       return date && date >= start && date <= now;
     });
     const previous = salesRows.filter((sale) => {
       const date = saleDate(sale);
-      return date && date >= previousStart && date < start;
+      return date && date >= compareStart && date <= compareEnd;
     });
     const summarize = (rows: any[]) => {
       const customers = new Set<string>();
@@ -96,7 +114,7 @@ export function ReportsAnalytics() {
       return { revenue, units, customers: customers.size, transactions: rows.length };
     };
     return { current: summarize(current), previous: summarize(previous) };
-  }, [salesRows, timeRange]);
+  }, [comparePeriod, salesRows, timeRange]);
 
   const filteredSalesTrends = useMemo(() => {
     const { now, start } = rangeWindow(timeRange);
@@ -129,14 +147,58 @@ export function ReportsAnalytics() {
   }, [groupBy, salesRows, timeRange]);
 
   const comparisonSalesTrends = useMemo(() => {
-    if (!compareMode) return [];
+    const { now, start, previousStart } = rangeWindow(timeRange);
+    let compareStart = previousStart;
+    let compareEnd = new Date(start.getTime() - 1);
+
+    if (comparePeriod === 'previousMonth') {
+      compareStart = new Date(start);
+      compareEnd = new Date(now);
+      compareStart.setMonth(compareStart.getMonth() - 1);
+      compareEnd.setMonth(compareEnd.getMonth() - 1);
+    }
+
+    if (comparePeriod === 'previousYear') {
+      compareStart = new Date(start);
+      compareEnd = new Date(now);
+      compareStart.setFullYear(compareStart.getFullYear() - 1);
+      compareEnd.setFullYear(compareEnd.getFullYear() - 1);
+    }
+
+    const makeLabel = (date: Date) => {
+      if (groupBy === 'monthly') return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      if (groupBy === 'weekly') return `W${Math.ceil(date.getDate() / 7)} ${date.toLocaleDateString('en-US', { month: 'short' })}`;
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+    const grouped = new Map<string, { sales: number; revenue: number; firstDate: Date }>();
+
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date || date < compareStart || date > compareEnd) return;
+      const key = makeLabel(date);
+      const prev = grouped.get(key) ?? { sales: 0, revenue: 0, firstDate: date };
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      details.forEach((detail: any) => {
+        prev.sales += Number(detail.quantity ?? 0);
+      });
+      prev.revenue += Number(sale.total_amount ?? 0);
+      if (date < prev.firstDate) prev.firstDate = date;
+      grouped.set(key, prev);
+    });
+
+    const comparisonRows = Array.from(grouped.values())
+      .sort((a, b) => a.firstDate.getTime() - b.firstDate.getTime())
+      .map((row) => ({
+        previousRevenue: Math.round(row.revenue),
+        previousSales: Math.round(row.sales),
+      }));
+
     return filteredSalesTrends.map((row, idx) => ({
-      id: `cmp-${idx}`,
       ...row,
-      revenue: Math.round(row.revenue * ((currentMetrics.previous.revenue || 0) / Math.max(currentMetrics.current.revenue || 1, 1))),
-      sales: Math.round(row.sales * ((currentMetrics.previous.units || 0) / Math.max(currentMetrics.current.units || 1, 1))),
+      previousRevenue: compareMode ? comparisonRows[idx]?.previousRevenue ?? 0 : null,
+      previousSales: compareMode ? comparisonRows[idx]?.previousSales ?? 0 : null,
     }));
-  }, [compareMode, currentMetrics, filteredSalesTrends]);
+  }, [compareMode, comparePeriod, filteredSalesTrends, groupBy, salesRows, timeRange]);
 
   const topProducts = useMemo(() => {
     const { now, start } = rangeWindow(timeRange);
@@ -361,6 +423,11 @@ export function ReportsAnalytics() {
   const formatComparisonValue = (item: (typeof monthlyComparison)[number], key: 'current' | 'previous') => (
     item.currency ? money(Number(item[key])) : Math.round(Number(item[key])).toLocaleString()
   );
+  const comparePeriodLabel = {
+    previousPeriod: 'Previous Period',
+    previousMonth: 'Previous Month',
+    previousYear: 'Previous Year',
+  }[comparePeriod];
 
   return (
     <div className="space-y-6">
@@ -421,6 +488,21 @@ export function ReportsAnalytics() {
           >
             {compareMode ? 'Hide Compare' : 'Compare'}
           </Button>
+          {compareMode && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs uppercase tracking-wide text-yellow-200/70">Compare With</span>
+              <Select value={comparePeriod} onValueChange={setComparePeriod}>
+                <SelectTrigger className="w-44 bg-red-700 border-red-800 text-yellow-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                  <SelectItem value="previousPeriod">Previous Period</SelectItem>
+                  <SelectItem value="previousMonth">Previous Month</SelectItem>
+                  <SelectItem value="previousYear">Previous Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <Button onClick={handleExportReport} className="h-9 bg-yellow-400 text-red-900 hover:bg-yellow-500">
           <Download className="w-4 h-4 mr-2" />
@@ -518,7 +600,7 @@ export function ReportsAnalytics() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={filteredSalesTrends}>
+                <AreaChart data={comparisonSalesTrends}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#fef08a" stopOpacity={0.8}/>
@@ -542,12 +624,12 @@ export function ReportsAnalytics() {
                     <Line
                       key="compare-revenue-line"
                       type="monotone"
-                      data={comparisonSalesTrends}
-                      dataKey="revenue"
-                      stroke="#ffffff"
+                      dataKey="previousRevenue"
+                      stroke="#38bdf8"
                       strokeDasharray="5 5"
-                      dot={false}
-                      name="Previous Period"
+                      strokeWidth={3}
+                      dot={{ r: 3, fill: '#38bdf8', strokeWidth: 0 }}
+                      name={comparePeriodLabel}
                     />
                   )}
                 </AreaChart>
@@ -559,7 +641,7 @@ export function ReportsAnalytics() {
             <Card className="bg-red-700 border-red-800">
               <CardHeader>
                 <CardTitle className="text-yellow-300">
-                  {compareMode ? 'Current vs Previous Period' : 'Current Period Summary'}
+                  {compareMode ? `Current vs ${comparePeriodLabel}` : 'Current Period Summary'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
