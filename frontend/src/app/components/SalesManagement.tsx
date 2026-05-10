@@ -43,10 +43,8 @@ function formatDate(v?: string | null) {
   return Number.isNaN(d.getTime()) ? "N/A" : d.toISOString().slice(0, 10);
 }
 
-function shortId(value: string | null | undefined, head = 8, tail = 6) {
-  const text = String(value ?? "").trim();
-  if (text.length <= head + tail + 1) return text;
-  return `${text.slice(0, head)}...${text.slice(-tail)}`;
+function formatSalesDisplayId(sequence: number) {
+  return `SALES-${String(sequence).padStart(3, "0")}`;
 }
 
 function toPaymentStatus(status: SaleStatus): string {
@@ -73,13 +71,28 @@ export function SalesManagement() {
   const isAdmin = String(user?.role_name ?? "").trim().toLowerCase() === "admin";
 
   const uiSales = useMemo(
-    () =>
-      sales.map((sale) => {
+    () => {
+      const salesIdSequence = new Map<string, string>();
+      [...sales]
+        .sort((a, b) => {
+          const aTime = new Date(a.transaction_date ?? "").getTime();
+          const bTime = new Date(b.transaction_date ?? "").getTime();
+          const safeATime = Number.isNaN(aTime) ? 0 : aTime;
+          const safeBTime = Number.isNaN(bTime) ? 0 : bTime;
+          return safeATime - safeBTime;
+        })
+        .forEach((sale, index) => {
+          salesIdSequence.set(String(sale.sales_id ?? ""), formatSalesDisplayId(index + 1));
+        });
+
+      return sales.map((sale) => {
         const customer = Array.isArray(sale.customer) ? sale.customer[0] : sale.customer;
         const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
         const details = Array.isArray((sale as any).sales_details) ? (sale as any).sales_details : [];
+        const salesId = String(sale.sales_id ?? "");
         return {
-          sales_id: sale.sales_id,
+          sales_id: salesId,
+          display_sales_id: salesIdSequence.get(salesId) ?? "SALES-000",
           payment_id: payment?.payment_id ?? null,
           transaction_date: formatDate(sale.transaction_date),
           total_amount: Number(sale.total_amount ?? 0),
@@ -97,7 +110,8 @@ export function SalesManagement() {
             subtotal: Number(d.subtotal ?? 0),
           })),
         };
-      }),
+      });
+    },
     [sales],
   );
 
@@ -106,6 +120,7 @@ export function SalesManagement() {
       uiSales.filter(
         (s) =>
           s.sales_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.display_sales_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.saleDetails.some((d: any) => d.productName.toLowerCase().includes(searchTerm.toLowerCase())),
       ),
@@ -306,7 +321,7 @@ export function SalesManagement() {
               <TableBody>
                 {filteredSales.map((sale: any) => (
                   <TableRow key={sale.sales_id} className="border-red-800">
-                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{shortId(sale.sales_id)}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.display_sales_id}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.customerName}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap max-w-[240px] truncate text-center">
                       {sale.saleDetails.length > 0
@@ -363,7 +378,7 @@ export function SalesManagement() {
                         </DialogTrigger>
                         <DialogContent className="bg-red-700 border-red-800 text-yellow-200">
                           <DialogHeader>
-                            <DialogTitle className="text-yellow-300">Sale Details - {sale.sales_id}</DialogTitle>
+                            <DialogTitle className="text-yellow-300">Sale Details - {sale.display_sales_id}</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
                             <div className="grid grid-cols-2 gap-4">
@@ -399,4 +414,3 @@ export function SalesManagement() {
     </div>
   );
 }
-
