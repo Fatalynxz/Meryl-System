@@ -358,6 +358,9 @@ export function ReportsAnalytics() {
     (best, item) => (item.forecast > best.forecast ? item : best),
     forecastedDemand[0] ?? { month: 'N/A', forecast: 0, confidence: 0 },
   );
+  const formatComparisonValue = (item: (typeof monthlyComparison)[number], key: 'current' | 'previous') => (
+    item.currency ? money(Number(item[key])) : Math.round(Number(item[key])).toLocaleString()
+  );
 
   return (
     <div className="space-y-6">
@@ -416,7 +419,7 @@ export function ReportsAnalytics() {
                 : 'border-red-800 bg-red-700 text-yellow-200 hover:bg-red-600'
             }`}
           >
-            Compare
+            {compareMode ? 'Hide Compare' : 'Compare'}
           </Button>
         </div>
         <Button onClick={handleExportReport} className="h-9 bg-yellow-400 text-red-900 hover:bg-yellow-500">
@@ -555,7 +558,9 @@ export function ReportsAnalytics() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="bg-red-700 border-red-800">
               <CardHeader>
-                <CardTitle className="text-yellow-300">Monthly Comparison</CardTitle>
+                <CardTitle className="text-yellow-300">
+                  {compareMode ? 'Current vs Previous Period' : 'Current Period Summary'}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -563,15 +568,24 @@ export function ReportsAnalytics() {
                     <div key={item.id} className="flex justify-between items-center border-b border-red-600 pb-3">
                       <div>
                         <p className="text-yellow-200">{item.metric}</p>
-                        <p className="text-yellow-300 text-lg">
-                          {item.currency ? money(item.current) : Math.round(item.current).toLocaleString()}
-                        </p>
+                        <p className="text-yellow-300 text-lg">{formatComparisonValue(item, 'current')}</p>
+                        {compareMode && (
+                          <p className="text-yellow-200/70 text-xs">
+                            Previous: {formatComparisonValue(item, 'previous')}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
-                        <Badge className={item.change > 0 ? "bg-green-600 text-white" : "bg-red-900 text-yellow-200"}>
-                          {item.change > 0 ? '+' : ''}{item.change.toFixed(1)}%
-                        </Badge>
-                        <p className="text-yellow-200 text-xs mt-1">vs previous</p>
+                        {compareMode ? (
+                          <>
+                            <Badge className={item.change >= 0 ? "bg-green-600 text-white" : "bg-red-900 text-yellow-200"}>
+                              {item.change > 0 ? '+' : ''}{item.change.toFixed(1)}%
+                            </Badge>
+                            <p className="text-yellow-200 text-xs mt-1">vs previous</p>
+                          </>
+                        ) : (
+                          <Badge className="bg-yellow-400 text-red-900">Live</Badge>
+                        )}
                       </div>
                     </div>
                   ))}
