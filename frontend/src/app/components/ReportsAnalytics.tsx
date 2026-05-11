@@ -473,6 +473,7 @@ export function ReportsAnalytics() {
     const atv = currentMetrics.current.transactions
       ? currentMetrics.current.revenue / currentMetrics.current.transactions
       : 0;
+    const discountRate = grossRevenue > 0 ? (discounts / grossRevenue) * 100 : 0;
 
     return {
       period: formatDateRange(start, now),
@@ -483,6 +484,8 @@ export function ReportsAnalytics() {
       bestSize: bestSize ? `${bestSize[0]} (${bestSize[1]} pairs)` : 'N/A',
       grossRevenue,
       discounts,
+      discountRate,
+      netSales: Math.max(0, grossRevenue - discounts),
     };
   }, [currentMetrics, productLookup, salesRows, timeRange]);
 
@@ -774,46 +777,69 @@ export function ReportsAnalytics() {
       {/* Selected Report Section */}
       {reportType === 'overview' && (
         <div className="space-y-4">
-          <Card className="bg-red-700 border-red-800">
+          <Card className="bg-red-700 border-red-800 overflow-hidden">
             <CardHeader>
-              <CardTitle className="text-yellow-300 flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Executive Summary
-              </CardTitle>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-yellow-300 flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Executive Snapshot
+                  </CardTitle>
+                  <p className="mt-2 text-sm text-yellow-200/70">
+                    {businessSummary.period} · {businessSummary.store}
+                  </p>
+                </div>
+                <Badge className="bg-yellow-400 text-red-900">
+                  Prepared by {businessSummary.preparedBy}
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
-                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-                  <p className="text-yellow-200/70">Report Period</p>
-                  <p className="text-yellow-300">{businessSummary.period}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="rounded-xl border border-red-800 bg-gradient-to-br from-red-950/60 to-red-900/30 p-5">
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Net Sales</p>
+                  <p className="mt-2 text-3xl text-yellow-300">{money(businessSummary.netSales)}</p>
+                  <p className={`mt-2 text-xs ${revenueChange >= 0 ? 'text-green-400' : 'text-red-300'}`}>
+                    {revenueChange >= 0 ? '+' : ''}{revenueChange.toFixed(1)}% vs comparison period
+                  </p>
                 </div>
-                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-                  <p className="text-yellow-200/70">Store Location</p>
-                  <p className="text-yellow-300">{businessSummary.store}</p>
+                <div className="rounded-xl border border-red-800 bg-gradient-to-br from-red-950/60 to-red-900/30 p-5">
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Pairs Sold</p>
+                  <p className="mt-2 text-3xl text-yellow-300">{currentMetrics.current.units.toLocaleString()}</p>
+                  <p className={`mt-2 text-xs ${unitsChange >= 0 ? 'text-green-400' : 'text-red-300'}`}>
+                    {unitsChange >= 0 ? '+' : ''}{unitsChange.toFixed(1)}% movement
+                  </p>
                 </div>
-                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-                  <p className="text-yellow-200/70">Average Transaction Value</p>
-                  <p className="text-yellow-300">{money(businessSummary.atv)}</p>
+                <div className="rounded-xl border border-red-800 bg-gradient-to-br from-red-950/60 to-red-900/30 p-5">
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Average Transaction Value</p>
+                  <p className="mt-2 text-3xl text-yellow-300">{money(businessSummary.atv)}</p>
+                  <p className="mt-2 text-xs text-yellow-200/70">
+                    {currentMetrics.current.transactions.toLocaleString()} completed transactions
+                  </p>
                 </div>
-                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-                  <p className="text-yellow-200/70">Prepared By</p>
-                  <p className="text-yellow-300">{businessSummary.preparedBy}</p>
+                <div className="rounded-xl border border-red-800 bg-gradient-to-br from-red-950/60 to-red-900/30 p-5">
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Discount Impact</p>
+                  <p className="mt-2 text-3xl text-yellow-300">{money(businessSummary.discounts)}</p>
+                  <p className="mt-2 text-xs text-yellow-200/70">
+                    {businessSummary.discountRate.toFixed(1)}% of gross revenue
+                  </p>
                 </div>
-                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-                  <p className="text-yellow-200/70">Best-Selling Brand</p>
-                  <p className="text-yellow-300">{businessSummary.bestBrand}</p>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 rounded-xl border border-red-800 bg-red-950/30 p-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/60">Best Brand</p>
+                  <p className="mt-1 text-yellow-300">{businessSummary.bestBrand}</p>
                 </div>
-                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-                  <p className="text-yellow-200/70">Best-Selling Size</p>
-                  <p className="text-yellow-300">{businessSummary.bestSize}</p>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/60">Best Size</p>
+                  <p className="mt-1 text-yellow-300">{businessSummary.bestSize}</p>
                 </div>
-                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-                  <p className="text-yellow-200/70">Gross Revenue</p>
-                  <p className="text-yellow-300">{money(businessSummary.grossRevenue)}</p>
-                </div>
-                <div className="rounded-lg border border-red-800 bg-red-950/30 p-4">
-                  <p className="text-yellow-200/70">Discounts Given</p>
-                  <p className="text-yellow-300">{money(businessSummary.discounts)}</p>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/60">Top Product</p>
+                  <p className="mt-1 text-yellow-300">
+                    {topProducts[0] ? `${topProducts[0].name} (${topProducts[0].sales} units)` : 'N/A'}
+                  </p>
                 </div>
               </div>
             </CardContent>
