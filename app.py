@@ -825,7 +825,13 @@ def has_react_shell():
 def render_react_shell():
     if not has_react_shell():
         abort(404)
-    return send_from_directory(str(REACT_DIST_DIR), "index.html")
+    response = send_from_directory(str(REACT_DIST_DIR), "index.html")
+    # The React index references hashed chunks. Prevent stale cached HTML from
+    # pointing browsers to chunks that were replaced by a newer deployment.
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 def get_post_login_redirect(role):
@@ -1054,7 +1060,9 @@ def admin_shell():
 def react_assets(filename):
     if not REACT_ASSETS_DIR.exists():
         abort(404)
-    return send_from_directory(str(REACT_ASSETS_DIR), filename)
+    response = send_from_directory(str(REACT_ASSETS_DIR), filename)
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
 
 
 @app.route("/customers")

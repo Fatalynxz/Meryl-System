@@ -1,19 +1,65 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router';
+import { createBrowserRouter, Navigate, useRouteError } from 'react-router';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from '../lib/auth-context';
 
-const Login = lazy(() => import('./components/Login').then((module) => ({ default: module.Login })));
-const AdminLayout = lazy(() => import('./components/AdminLayout').then((module) => ({ default: module.AdminLayout })));
-const SalesStaffLayout = lazy(() =>
+const chunkReloadKey = 'meryl_chunk_reload_attempted';
+
+function lazyWithChunkReload<T extends { default: React.ComponentType<any> }>(loader: () => Promise<T>) {
+  return lazy(async () => {
+    try {
+      const module = await loader();
+      sessionStorage.removeItem(chunkReloadKey);
+      return module;
+    } catch (error) {
+      const message = String((error as Error)?.message ?? error);
+      const isChunkError = /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk|dynamically imported module/i.test(message);
+
+      if (isChunkError && !sessionStorage.getItem(chunkReloadKey)) {
+        sessionStorage.setItem(chunkReloadKey, '1');
+        window.location.reload();
+      }
+
+      throw error;
+    }
+  });
+}
+
+const Login = lazyWithChunkReload(() => import('./components/Login').then((module) => ({ default: module.Login })));
+const AdminLayout = lazyWithChunkReload(() => import('./components/AdminLayout').then((module) => ({ default: module.AdminLayout })));
+const SalesStaffLayout = lazyWithChunkReload(() =>
   import('./components/SalesStaffLayout').then((module) => ({ default: module.SalesStaffLayout })),
 );
-const InventoryStaffLayout = lazy(() =>
+const InventoryStaffLayout = lazyWithChunkReload(() =>
   import('./components/InventoryStaffLayout').then((module) => ({ default: module.InventoryStaffLayout })),
 );
 
 function RouteLoader({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading...</div>}>{children}</Suspense>;
+}
+
+function RouteErrorFallback() {
+  const error = useRouteError() as Error;
+  const message = String(error?.message ?? 'The app could not load this page.');
+
+  return (
+    <div className="min-h-screen bg-[#0E0E12] text-white flex items-center justify-center p-6">
+      <div className="max-w-md rounded-2xl border border-white/10 bg-[#16161C] p-6 shadow-2xl">
+        <h1 className="text-xl font-semibold text-white">Page needs a refresh</h1>
+        <p className="mt-2 text-sm text-white/60">
+          A newer version of Meryl System was deployed. Refreshing loads the latest portal files.
+        </p>
+        <p className="mt-4 rounded-lg bg-black/30 p-3 text-xs text-white/50 break-words">{message}</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-5 w-full rounded-xl bg-[#FFD60A] px-4 py-2 text-sm font-semibold text-[#1A1A22] hover:bg-[#ffcf24]"
+        >
+          Refresh page
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function RootRedirect() {
@@ -40,6 +86,7 @@ function RootRedirect() {
 export const router = createBrowserRouter([
   {
     path: '/',
+    errorElement: <RouteErrorFallback />,
     element: (
       <RouteLoader>
         <RootRedirect />
@@ -48,6 +95,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/admin',
+    errorElement: <RouteErrorFallback />,
     element: (
       <RouteLoader>
         <ProtectedRoute allowedRoles={['admin']}>
@@ -58,6 +106,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/sales',
+    errorElement: <RouteErrorFallback />,
     element: (
       <RouteLoader>
         <ProtectedRoute allowedRoles={['sales', 'sales staff']}>
@@ -68,6 +117,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/inventory',
+    errorElement: <RouteErrorFallback />,
     element: (
       <RouteLoader>
         <ProtectedRoute allowedRoles={['inventory', 'inventory staff']}>
