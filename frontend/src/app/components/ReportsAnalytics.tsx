@@ -847,27 +847,99 @@ export function ReportsAnalytics() {
 
           <Card className="bg-red-700 border-red-800">
             <CardHeader>
-              <CardTitle className="text-yellow-300 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Sales Performance Over Time
-              </CardTitle>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-yellow-300 flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5" />
+                    Sales Performance Over Time
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-yellow-200/60">
+                    Revenue trend with units sold on the right axis
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-yellow-200/70">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-6 rounded-full bg-yellow-400" />
+                    Revenue
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-6 rounded-full bg-amber-100" />
+                    Units
+                  </span>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="rounded-b-lg bg-red-950/20 pt-2">
               <ResponsiveContainer width="100%" height={320}>
-                <LineChart data={comparisonSalesTrends} margin={{ top: 12, right: 32, left: 8, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
-                  <XAxis dataKey="date" stroke="#fef08a" />
-                  <YAxis yAxisId="revenue" stroke="#facc15" tickFormatter={(value) => money(Number(value)).replace('PHP ', '')} />
-                  <YAxis yAxisId="units" orientation="right" stroke="#fef08a" allowDecimals={false} />
+                <LineChart data={comparisonSalesTrends} margin={{ top: 20, right: 18, left: 0, bottom: 12 }}>
+                  <CartesianGrid strokeDasharray="4 8" stroke="#7f1d1d" vertical={false} opacity={0.45} />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#fde68a', fontSize: 12 }}
+                    dy={10}
+                  />
+                  <YAxis
+                    yAxisId="revenue"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#facc15', fontSize: 12 }}
+                    tickFormatter={(value) => money(Number(value)).replace('PHP ', '')}
+                    width={64}
+                  />
+                  <YAxis
+                    yAxisId="units"
+                    orientation="right"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#fef3c7', fontSize: 12 }}
+                    allowDecimals={false}
+                    width={34}
+                  />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
+                    cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.35 }}
+                    contentStyle={{
+                      backgroundColor: '#1f1b24',
+                      border: '1px solid #3f2b2f',
+                      borderRadius: '12px',
+                      boxShadow: '0 18px 45px rgba(0,0,0,0.35)',
+                      color: '#fef08a',
+                    }}
+                    labelStyle={{ color: '#fef3c7', marginBottom: 8 }}
                     formatter={(value, name) => (String(name).includes('Revenue') || String(name).includes('Period') ? [money(Number(value)), name] : [Number(value).toLocaleString(), name])}
                   />
-                  <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Line yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#facc15" strokeWidth={3} dot={{ r: 4 }} name="Revenue (PHP)" />
-                  <Line yAxisId="units" type="monotone" dataKey="sales" stroke="#fef08a" strokeWidth={2} dot={{ r: 3 }} name="Units Sold" />
+                  <Line
+                    yAxisId="revenue"
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#facc15"
+                    strokeWidth={4}
+                    dot={{ r: 4, fill: '#1f1b24', stroke: '#facc15', strokeWidth: 2 }}
+                    activeDot={{ r: 7, fill: '#facc15', stroke: '#1f1b24', strokeWidth: 3 }}
+                    name="Revenue (PHP)"
+                  />
+                  <Line
+                    yAxisId="units"
+                    type="monotone"
+                    dataKey="sales"
+                    stroke="#fef3c7"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: '#1f1b24', stroke: '#fef3c7', strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: '#fef3c7', stroke: '#1f1b24', strokeWidth: 3 }}
+                    name="Units Sold"
+                  />
                   {compareMode && (
-                    <Line yAxisId="revenue" type="monotone" dataKey="previousRevenue" stroke="#e5e7eb" strokeDasharray="6 6" strokeWidth={3} dot={{ r: 3 }} name={comparePeriodLabel} />
+                    <Line
+                      yAxisId="revenue"
+                      type="monotone"
+                      dataKey="previousRevenue"
+                      stroke="#e5e7eb"
+                      strokeDasharray="6 6"
+                      strokeWidth={2.5}
+                      dot={false}
+                      name={comparePeriodLabel}
+                    />
                   )}
                 </LineChart>
               </ResponsiveContainer>
