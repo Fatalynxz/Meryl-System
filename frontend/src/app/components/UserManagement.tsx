@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,134 +9,220 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import { Plus, Search, Edit, Trash2, Users, Shield, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../../lib/auth-context';
+import { useRoles, useUsers, useUsersMutations } from '../../lib/hooks';
 
-type User = {
+type AppRole = 'admin' | 'sales' | 'inventory';
+type UserStatus = 'Active' | 'Inactive';
+
+type UserRow = {
   user_id: string;
+  display_id: string;
   name: string;
   username: string;
-  role: 'admin' | 'sales' | 'inventory';
-  status: 'Active' | 'Inactive';
+  email?: string | null;
+  role: AppRole;
+  role_id: string;
+  role_name: string;
+  status: UserStatus;
   date_created: string;
-  last_login: string;
+  last_updated: string;
 };
 
+type UserFormData = {
+  name: string;
+  username: string;
+  email: string;
+  password: string;
+  role: AppRole;
+  status: UserStatus;
+};
+
+const emptyForm: UserFormData = {
+  name: '',
+  username: '',
+  email: '',
+  password: '',
+  role: 'sales',
+  status: 'Active',
+};
+
+function normalizeRole(value: unknown): AppRole {
+  const role = String(value ?? '').trim().toLowerCase();
+  if (role.includes('admin')) return 'admin';
+  if (role.includes('inventory')) return 'inventory';
+  return 'sales';
+}
+
+function normalizeStatus(value: unknown): UserStatus {
+  return String(value ?? 'Active').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active';
+}
+
+function formatDate(value: unknown) {
+  const date = new Date(String(value ?? ''));
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return date.toISOString().slice(0, 10);
+}
+
+function roleLabel(role: AppRole) {
+  if (role === 'admin') return 'Admin';
+  if (role === 'inventory') return 'Inventory';
+  return 'Sales';
+}
+
 export function UserManagement() {
-  const [users, setUsers] = useState<User[]>([
-    {
-      user_id: 'USR-001',
-      name: 'Administrator',
-      username: 'admin',
-      role: 'admin',
-      status: 'Active',
-      date_created: '2025-01-01',
-      last_login: '2026-04-23'
-    },
-    {
-      user_id: 'USR-002',
-      name: 'Sarah Johnson',
-      username: 'sarah.j',
-      role: 'sales',
-      status: 'Active',
-      date_created: '2025-02-15',
-      last_login: '2026-04-23'
-    },
-    {
-      user_id: 'USR-003',
-      name: 'Mike Rodriguez',
-      username: 'mike.r',
-      role: 'sales',
-      status: 'Active',
-      date_created: '2025-03-01',
-      last_login: '2026-04-22'
-    },
-    {
-      user_id: 'USR-004',
-      name: 'Emily Chen',
-      username: 'emily.c',
-      role: 'inventory',
-      status: 'Active',
-      date_created: '2025-03-10',
-      last_login: '2026-04-23'
-    },
-    {
-      user_id: 'USR-005',
-      name: 'John Smith',
-      username: 'john.s',
-      role: 'sales',
-      status: 'Inactive',
-      date_created: '2025-01-20',
-      last_login: '2026-03-15'
-    },
-  ]);
+  const { user: currentUser } = useAuth();
+  const usersQuery = useUsers();
+  const rolesQuery = useRoles();
+  const { createMutation, updateMutation } = useUsersMutations();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [formData, setFormData] = useState<Partial<User>>({
-    name: '',
-    username: '',
-    role: 'sales',
-    status: 'Active'
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [formData, setFormData] = useState<UserFormData>(emptyForm);
+
+  const roleOptions = useMemo(() => {
+    const rows = ((rolesQuery.data as any[]) ?? []).map((role: any) => ({
+      role_id: String(role.role_id ?? ''),
+      role_name: String(role.role_name ?? ''),
+      appRole: normalizeRole(role.role_name),
+    }));
+
+    return (['admin', 'sales', 'inventory'] as AppRole[]).map((appRole) => ({
+      appRole,
+      role_id: rows.find((row) => row.appRole === appRole)?.role_id ?? '',
+      label: appRole === 'admin' ? 'Administrator' : appRole === 'inventory' ? 'Inventory Staff' : 'Sales Staff',
+    }));
+  }, [rolesQuery.data]);
+
+  const users = useMemo<UserRow[]>(() => {
+    const rows = ((usersQuery.data as any[]) ?? []).slice().sort((a, b) => {
+      const aDate = new Date(a.created_at ?? '').getTime() || 0;
+      const bDate = new Date(b.created_at ?? '').getTime() || 0;
+      return aDate - bDate;
+    });
+
+    return rows.map((raw: any, index) => {
+      const roleName = raw.role?.role_name ?? raw.role_name ?? '';
+      const role = normalizeRole(roleName || raw.role_id);
+      return {
+        user_id: String(raw.user_id ?? ''),
+        display_id: `USR-${String(index + 1).padStart(3, '0')}`,
+        name: String(raw.name ?? 'Unnamed User'),
+        username: String(raw.username ?? ''),
+        email: raw.email ?? '',
+        role,
+        role_id: String(raw.role_id ?? raw.role?.role_id ?? ''),
+        role_name: String(roleName || roleLabel(role)),
+        status: normalizeStatus(raw.status),
+        date_created: formatDate(raw.created_at),
+        last_updated: formatDate(raw.updated_at ?? raw.created_at),
+      };
+    });
+  }, [usersQuery.data]);
+
+  const filteredUsers = users.filter((item) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      item.name.toLowerCase().includes(term) ||
+      item.username.toLowerCase().includes(term) ||
+      String(item.email ?? '').toLowerCase().includes(term)
+    );
   });
 
-  const handleAddUser = () => {
-    if (!formData.name || !formData.username) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+  const activeUsers = users.filter((item) => item.status === 'Active').length;
+  const adminCount = users.filter((item) => item.role === 'admin').length;
+  const salesCount = users.filter((item) => item.role === 'sales').length;
+  const inventoryCount = users.filter((item) => item.role === 'inventory').length;
 
-    const newUser: User = {
-      user_id: `USR-${String(users.length + 1).padStart(3, '0')}`,
-      name: formData.name!,
-      username: formData.username!,
-      role: formData.role as User['role'] || 'sales',
-      status: formData.status as User['status'] || 'Active',
-      date_created: new Date().toISOString().split('T')[0],
-      last_login: 'Never'
+  const getRoleId = (role: AppRole) => roleOptions.find((option) => option.appRole === role)?.role_id ?? '';
+
+  const resetForm = () => setFormData(emptyForm);
+
+  const buildPayload = (source: UserFormData, existing?: UserRow) => {
+    const roleId = getRoleId(source.role);
+    if (!roleId) throw new Error('Role data is still loading. Please try again.');
+    if (!currentUser?.user_id) throw new Error('You must be logged in as an administrator.');
+
+    return {
+      actor_user_id: currentUser.user_id,
+      name: source.name.trim() || existing?.name,
+      username: source.username.trim() || existing?.username,
+      password: source.password.trim(),
+      role_id: roleId,
+      status: source.status,
+      email: source.email.trim() || null,
     };
-
-    setUsers([...users, newUser]);
-    setIsAddDialogOpen(false);
-    setFormData({ name: '', username: '', role: 'sales', status: 'Active' });
-    toast.success('User added successfully!');
   };
 
-  const handleEditUser = () => {
-    if (!editingUser) return;
-
-    setUsers(users.map(u =>
-      u.user_id === editingUser.user_id
-        ? { ...editingUser, ...formData }
-        : u
-    ));
-    setEditingUser(null);
-    setFormData({ name: '', username: '', role: 'sales', status: 'Active' });
-    toast.success('User updated successfully!');
-  };
-
-  const handleDeleteUser = (user_id: string) => {
-    if (user_id === 'USR-001') {
-      toast.error('Cannot delete system administrator');
+  const handleAddUser = async () => {
+    if (!formData.name.trim() || !formData.username.trim() || !formData.password.trim()) {
+      toast.error('Please fill in name, username, and password');
       return;
     }
-    setUsers(users.filter(u => u.user_id !== user_id));
-    toast.success('User deleted successfully!');
+
+    try {
+      await createMutation.mutateAsync(buildPayload(formData));
+      setIsAddDialogOpen(false);
+      resetForm();
+      toast.success('User added successfully!');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Could not add user');
+    }
   };
 
-  const filteredUsers = users.filter(u =>
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleEditUser = async () => {
+    if (!editingUser) return;
+    if (!formData.name.trim() || !formData.username.trim()) {
+      toast.error('Please fill in name and username');
+      return;
+    }
 
-  const openEditDialog = (user: User) => {
-    setEditingUser(user);
-    setFormData(user);
+    try {
+      await updateMutation.mutateAsync({ id: editingUser.user_id, payload: buildPayload(formData, editingUser) });
+      setEditingUser(null);
+      resetForm();
+      toast.success('User updated successfully!');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Could not update user');
+    }
   };
 
-  const activeUsers = users.filter(u => u.status === 'Active').length;
-  const adminCount = users.filter(u => u.role === 'admin').length;
-  const salesCount = users.filter(u => u.role === 'sales').length;
-  const inventoryCount = users.filter(u => u.role === 'inventory').length;
+  const handleDeactivateUser = async (target: UserRow) => {
+    if (target.role === 'admin' || target.user_id === currentUser?.user_id) {
+      toast.error('Administrator accounts cannot be deactivated here');
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        id: target.user_id,
+        payload: buildPayload({
+          name: target.name,
+          username: target.username,
+          email: target.email ?? '',
+          password: '',
+          role: target.role,
+          status: 'Inactive',
+        }, target),
+      });
+      toast.success('User deactivated successfully!');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Could not deactivate user');
+    }
+  };
+
+  const openEditDialog = (item: UserRow) => {
+    setEditingUser(item);
+    setFormData({
+      name: item.name,
+      username: item.username,
+      email: item.email ?? '',
+      password: '',
+      role: item.role,
+      status: item.status,
+    });
+  };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -156,65 +242,25 @@ export function UserManagement() {
     }
   };
 
+  const isBusy = createMutation.isPending || updateMutation.isPending;
+
   return (
     <div className="space-y-4">
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-red-700 border-red-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-yellow-200">Active Users</p>
-                <p className="text-2xl text-yellow-300">{activeUsers}</p>
-              </div>
-              <Users className="h-8 w-8 text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-700 border-red-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-yellow-200">Administrators</p>
-                <p className="text-2xl text-yellow-300">{adminCount}</p>
-              </div>
-              <Shield className="h-8 w-8 text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-700 border-red-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-yellow-200">Sales Staff</p>
-                <p className="text-2xl text-yellow-300">{salesCount}</p>
-              </div>
-              <Users className="h-8 w-8 text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-red-700 border-red-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-yellow-200">Inventory Staff</p>
-                <p className="text-2xl text-yellow-300">{inventoryCount}</p>
-              </div>
-              <UserCog className="h-8 w-8 text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryCard title="Active Users" value={activeUsers} icon={<Users className="h-8 w-8 text-yellow-400" />} />
+        <SummaryCard title="Administrators" value={adminCount} icon={<Shield className="h-8 w-8 text-yellow-400" />} />
+        <SummaryCard title="Sales Staff" value={salesCount} icon={<Users className="h-8 w-8 text-yellow-400" />} />
+        <SummaryCard title="Inventory Staff" value={inventoryCount} icon={<UserCog className="h-8 w-8 text-yellow-400" />} />
       </div>
 
-      {/* Users Table */}
       <Card className="bg-red-700 border-red-800">
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-3">
             <CardTitle className="text-yellow-300 flex items-center gap-2">
               <Users className="w-5 h-5" />
               User Management
             </CardTitle>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => { setIsAddDialogOpen(open); if (!open) resetForm(); }}>
               <DialogTrigger asChild>
                 <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
                   <Plus className="w-4 h-4 mr-2" />
@@ -225,10 +271,10 @@ export function UserManagement() {
                 <DialogHeader>
                   <DialogTitle className="text-yellow-300">Add New User</DialogTitle>
                 </DialogHeader>
-                <UserForm formData={formData} setFormData={setFormData} />
+                <UserForm formData={formData} setFormData={setFormData} requirePassword />
                 <DialogFooter>
-                  <Button onClick={handleAddUser} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                    Add User
+                  <Button disabled={isBusy} onClick={handleAddUser} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                    {isBusy ? 'Saving...' : 'Add User'}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -236,18 +282,16 @@ export function UserManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Search */}
           <div className="mb-4 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-yellow-400" />
             <Input
-              placeholder="Search by name or username..."
+              placeholder="Search by name, username, or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
             />
           </div>
 
-          {/* Table */}
           <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
             <Table className="w-full">
               <TableHeader>
@@ -255,74 +299,88 @@ export function UserManagement() {
                   <TableHead className="text-yellow-300 whitespace-nowrap">User ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap">Name</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap">Username</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Email</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap">Role</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap">Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap">Date Created</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Last Login</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap">Actions</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Last Updated</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.user_id} className="border-red-800">
-                    <TableCell className="text-yellow-200 whitespace-nowrap">{user.user_id}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap">{user.name}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap">{user.username}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <Badge className={getRoleBadgeColor(user.role)}>
-                        <span className="flex items-center gap-1">
-                          {getRoleIcon(user.role)}
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                        </span>
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <Badge
-                        className={user.status === 'Active' ? 'bg-green-600 text-white' : 'bg-gray-600 text-white'}
-                      >
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{user.date_created}</TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{user.last_login}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Dialog open={editingUser?.user_id === user.user_id} onOpenChange={(open) => !open && setEditingUser(null)}>
-                          <DialogTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600"
-                              onClick={() => openEditDialog(user)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="bg-red-700 border-red-800 text-yellow-200">
-                            <DialogHeader>
-                              <DialogTitle className="text-yellow-300">Edit User</DialogTitle>
-                            </DialogHeader>
-                            <UserForm formData={formData} setFormData={setFormData} />
-                            <DialogFooter>
-                              <Button onClick={handleEditUser} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                                Update User
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600"
-                          onClick={() => handleDeleteUser(user.user_id)}
-                          disabled={user.user_id === 'USR-001'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                {usersQuery.isLoading && (
+                  <TableRow className="border-red-800">
+                    <TableCell colSpan={9} className="text-center text-yellow-200 py-6">Loading users...</TableCell>
                   </TableRow>
-                ))}
+                )}
+                {!usersQuery.isLoading && filteredUsers.map((item) => {
+                  const isProtected = item.role === 'admin' || item.user_id === currentUser?.user_id;
+                  return (
+                    <TableRow key={item.user_id} className="border-red-800">
+                      <TableCell className="text-yellow-200 whitespace-nowrap">{item.display_id}</TableCell>
+                      <TableCell className="text-yellow-200 whitespace-nowrap">{item.name}</TableCell>
+                      <TableCell className="text-yellow-200 whitespace-nowrap">{item.username}</TableCell>
+                      <TableCell className="text-yellow-200 whitespace-nowrap">{item.email || 'N/A'}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Badge className={getRoleBadgeColor(item.role)}>
+                          <span className="flex items-center gap-1">
+                            {getRoleIcon(item.role)}
+                            {roleLabel(item.role)}
+                          </span>
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Badge className={item.status === 'Active' ? 'bg-green-600 text-white' : 'bg-gray-600 text-white'}>
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{item.date_created}</TableCell>
+                      <TableCell className="text-yellow-200 text-sm whitespace-nowrap">{item.last_updated}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-center gap-2">
+                          <Dialog open={editingUser?.user_id === item.user_id} onOpenChange={(open) => !open && setEditingUser(null)}>
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600"
+                                onClick={() => openEditDialog(item)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-red-700 border-red-800 text-yellow-200">
+                              <DialogHeader>
+                                <DialogTitle className="text-yellow-300">Edit User</DialogTitle>
+                              </DialogHeader>
+                              <UserForm formData={formData} setFormData={setFormData} />
+                              <DialogFooter>
+                                <Button disabled={isBusy} onClick={handleEditUser} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                                  {isBusy ? 'Saving...' : 'Update User'}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title={isProtected ? 'Protected account' : 'Deactivate user'}
+                            className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600 disabled:opacity-40"
+                            onClick={() => handleDeactivateUser(item)}
+                            disabled={isProtected || item.status === 'Inactive' || isBusy}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {!usersQuery.isLoading && !filteredUsers.length && (
+                  <TableRow className="border-red-800">
+                    <TableCell colSpan={9} className="text-center text-yellow-200 py-6">No users found.</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -332,9 +390,26 @@ export function UserManagement() {
   );
 }
 
-function UserForm({ formData, setFormData }: {
-  formData: Partial<User>;
-  setFormData: (data: Partial<User>) => void;
+function SummaryCard({ title, value, icon }: { title: string; value: number; icon: ReactNode }) {
+  return (
+    <Card className="bg-red-700 border-red-800">
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-yellow-200">{title}</p>
+            <p className="text-2xl text-yellow-300">{value}</p>
+          </div>
+          {icon}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function UserForm({ formData, setFormData, requirePassword = false }: {
+  formData: UserFormData;
+  setFormData: (data: UserFormData) => void;
+  requirePassword?: boolean;
 }) {
   return (
     <div className="grid gap-4 py-4">
@@ -342,24 +417,48 @@ function UserForm({ formData, setFormData }: {
         <Label htmlFor="name" className="text-yellow-300">Full Name *</Label>
         <Input
           id="name"
-          value={formData.name || ''}
+          value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           className="bg-red-600 border-red-800 text-yellow-200"
         />
       </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="username" className="text-yellow-300">Username *</Label>
+          <Input
+            id="username"
+            value={formData.username}
+            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+            className="bg-red-600 border-red-800 text-yellow-200"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-yellow-300">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className="bg-red-600 border-red-800 text-yellow-200"
+          />
+        </div>
+      </div>
       <div className="space-y-2">
-        <Label htmlFor="username" className="text-yellow-300">Username *</Label>
+        <Label htmlFor="password" className="text-yellow-300">
+          Password {requirePassword ? '*' : '(leave blank to keep current)'}
+        </Label>
         <Input
-          id="username"
-          value={formData.username || ''}
-          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+          id="password"
+          type="password"
+          value={formData.password}
+          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
           className="bg-red-600 border-red-800 text-yellow-200"
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="role" className="text-yellow-300">Role</Label>
-          <Select value={formData.role || 'sales'} onValueChange={(value) => setFormData({ ...formData, role: value as User['role'] })}>
+          <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as AppRole })}>
             <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
@@ -372,7 +471,7 @@ function UserForm({ formData, setFormData }: {
         </div>
         <div className="space-y-2">
           <Label htmlFor="status" className="text-yellow-300">Status</Label>
-          <Select value={formData.status || 'Active'} onValueChange={(value) => setFormData({ ...formData, status: value as User['status'] })}>
+          <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as UserStatus })}>
             <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
               <SelectValue placeholder="Select status" />
             </SelectTrigger>
