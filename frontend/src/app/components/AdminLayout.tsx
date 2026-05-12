@@ -33,19 +33,63 @@ const InventoryTurnoverAnalytics = lazy(() => loadInventoryTurnoverAnalytics().t
 function clearOrphanedModalState() {
   if (typeof document === 'undefined') return;
 
-  const hasOpenDialog = document.querySelector(
-    '[data-slot="dialog-content"], [data-slot="alert-dialog-content"], [role="dialog"], [role="alertdialog"]',
-  );
+  const dialogSelector =
+    '[data-slot="dialog-content"], [data-slot="alert-dialog-content"], [data-slot="sheet-content"], [role="dialog"], [role="alertdialog"]';
 
-  if (hasOpenDialog) return;
+  const isVisible = (element: Element) => {
+    const node = element as HTMLElement;
+    const style = window.getComputedStyle(node);
+    const rect = node.getBoundingClientRect();
+
+    return (
+      style.display !== 'none' &&
+      style.visibility !== 'hidden' &&
+      style.opacity !== '0' &&
+      rect.width > 0 &&
+      rect.height > 0
+    );
+  };
+
+  const visibleDialog = Array.from(document.querySelectorAll(dialogSelector)).find(isVisible);
+
+  if (visibleDialog) return;
 
   document
-    .querySelectorAll('[data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"]')
+    .querySelectorAll(
+      [
+        '[data-slot="dialog-overlay"]',
+        '[data-slot="alert-dialog-overlay"]',
+        '[data-slot="sheet-overlay"]',
+        '[data-slot="drawer-overlay"]',
+        '[data-radix-dialog-overlay]',
+        '.fixed.inset-0.z-40',
+        '.fixed.inset-0.z-50',
+      ].join(', '),
+    )
     .forEach((node) => node.remove());
+
+  document
+    .querySelectorAll(dialogSelector)
+    .forEach((node) => {
+      if (!isVisible(node)) {
+        node.remove();
+      }
+    });
+
+  document
+    .querySelectorAll('[data-aria-hidden="true"], [inert]')
+    .forEach((node) => {
+      node.removeAttribute('aria-hidden');
+      node.removeAttribute('data-aria-hidden');
+      node.removeAttribute('inert');
+    });
 
   document.body.style.pointerEvents = '';
   document.body.style.overflow = '';
   document.body.removeAttribute('data-scroll-locked');
+  document.body.removeAttribute('aria-hidden');
+  document.documentElement.style.pointerEvents = '';
+  document.documentElement.style.overflow = '';
 }
 
 export function AdminLayout() {
@@ -55,6 +99,7 @@ export function AdminLayout() {
 
   useEffect(() => {
     clearOrphanedModalState();
+    const cleanupTimers = [window.setTimeout(clearOrphanedModalState, 100), window.setTimeout(clearOrphanedModalState, 500)];
 
     const clearOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -65,6 +110,7 @@ export function AdminLayout() {
     window.addEventListener('keydown', clearOnEscape);
     window.addEventListener('focus', clearOrphanedModalState);
     return () => {
+      cleanupTimers.forEach((timer) => window.clearTimeout(timer));
       window.removeEventListener('keydown', clearOnEscape);
       window.removeEventListener('focus', clearOrphanedModalState);
     };
