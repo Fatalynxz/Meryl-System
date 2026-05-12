@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bell, X, AlertTriangle, TrendingDown, Calendar, Package, TrendingUp, Info } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -166,6 +166,19 @@ export function NotificationCenter() {
 
   const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isOpen]);
+
   const getIcon = (iconType: string) => {
     switch (iconType) {
       case "stock":
@@ -219,7 +232,13 @@ export function NotificationCenter() {
 
   return (
     <div className="relative">
-      <Button onClick={() => setIsOpen(!isOpen)} variant="ghost" className="relative hover:bg-red-800 text-yellow-300">
+      <Button
+        onClick={() => setIsOpen((open) => !open)}
+        variant="ghost"
+        className="relative hover:bg-red-800 text-yellow-300"
+        aria-expanded={isOpen}
+        aria-label="Open notifications"
+      >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
           <div className="absolute -top-1 -right-1 bg-yellow-400 text-red-900 text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
@@ -232,7 +251,7 @@ export function NotificationCenter() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
 
-          <div className="absolute right-0 top-12 w-96 bg-red-700 border-2 border-red-800 rounded-lg shadow-2xl z-50">
+          <div className="fixed right-4 top-20 z-50 w-[calc(100vw-2rem)] max-w-96 bg-red-700 border-2 border-red-800 rounded-lg shadow-2xl">
             <div className="flex items-center justify-between p-4 border-b border-red-800">
               <div className="flex items-center gap-2">
                 <Bell className="w-5 h-5 text-yellow-400" />
@@ -315,4 +334,3 @@ export function NotificationCenter() {
     </div>
   );
 }
-
