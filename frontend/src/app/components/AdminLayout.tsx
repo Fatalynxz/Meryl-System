@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Dashboard } from './Dashboard';
 import { LayoutDashboard, Package, ShoppingCart, Users, CreditCard, TrendingUp, Tag, BarChart3, LogOut, UserCog, RotateCcw, Search, Sparkles } from 'lucide-react';
@@ -30,10 +30,49 @@ const ReturnManagement = lazy(() => loadReturnManagement().then((module) => ({ d
 const NotificationCenter = lazy(() => loadNotificationCenter().then((module) => ({ default: module.NotificationCenter })));
 const InventoryTurnoverAnalytics = lazy(() => loadInventoryTurnoverAnalytics().then((module) => ({ default: module.InventoryTurnoverAnalytics })));
 
+function clearOrphanedModalState() {
+  if (typeof document === 'undefined') return;
+
+  const hasOpenDialog = document.querySelector(
+    '[data-slot="dialog-content"], [data-slot="alert-dialog-content"], [role="dialog"], [role="alertdialog"]',
+  );
+
+  if (hasOpenDialog) return;
+
+  document
+    .querySelectorAll('[data-slot="dialog-overlay"], [data-slot="alert-dialog-overlay"]')
+    .forEach((node) => node.remove());
+
+  document.body.style.pointerEvents = '';
+  document.body.style.overflow = '';
+  document.body.removeAttribute('data-scroll-locked');
+}
+
 export function AdminLayout() {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState('dashboard');
   const { user, logout } = useAuth();
+
+  useEffect(() => {
+    clearOrphanedModalState();
+
+    const clearOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        clearOrphanedModalState();
+      }
+    };
+
+    window.addEventListener('keydown', clearOnEscape);
+    window.addEventListener('focus', clearOrphanedModalState);
+    return () => {
+      window.removeEventListener('keydown', clearOnEscape);
+      window.removeEventListener('focus', clearOrphanedModalState);
+    };
+  }, []);
+
+  useEffect(() => {
+    clearOrphanedModalState();
+  }, [activeView]);
 
   const handleLogout = () => {
     logout();
