@@ -95,19 +95,7 @@ export function Login() {
               Real-time POS, inventory and sales analytics — designed for speed, built for scale.
             </p>
           </div>
-
-          <div className="relative grid grid-cols-3 gap-3">
-            {[
-              { k: 'Revenue', v: '₱248K' },
-              { k: 'Customers', v: '892' },
-              { k: 'Orders', v: '1.2K' },
-            ].map((s) => (
-              <div key={s.k} className="rounded-2xl bg-black/20 backdrop-blur p-3 border border-white/10">
-                <div className="text-[10px] uppercase tracking-wider text-[#FFD60A]/90">{s.k}</div>
-                <div className="mt-1 text-white">{s.v}</div>
-              </div>
-            ))}
-          </div>
+          <div className="relative h-16" />
         </div>
 
         {/* Right: Form */}
