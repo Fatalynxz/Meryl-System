@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
-import { LogIn, User, Lock, Shield, ShoppingBag, Package, Sparkles, ArrowUpRight } from 'lucide-react';
+import { LogIn, User, Lock, Shield, ShoppingBag, Package, Sparkles } from 'lucide-react';
 import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
 import { useAuth } from '../../lib/auth-context';
 
@@ -160,12 +160,12 @@ export function Login() {
           <div className="my-6 flex items-center gap-3">
             <div className="flex-1 h-px bg-white/5" />
             <span className="text-[10px] uppercase tracking-wider text-white/30 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-[#FFD60A]" /> Demo quick access
+              <Sparkles className="w-3 h-3 text-[#FFD60A]" /> Choose portal access
             </span>
             <div className="flex-1 h-px bg-white/5" />
           </div>
 
-          <div className="space-y-2">
+          <div className="rounded-2xl border border-white/5 bg-[#101016]/60 p-3 space-y-2">
             {roleOptions.map((r) => {
               const Icon = r.icon;
               const active = selectedRole === r.id;
@@ -174,31 +174,29 @@ export function Login() {
                   key={r.id}
                   type="button"
                   onClick={() => quickLogin(r.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
                     active
-                      ? 'bg-gradient-to-r from-[#FFD60A] to-[#FFB800] border-[#FFD60A] text-[#1A1A22]'
-                      : 'bg-[#1D1D25] border-white/5 text-white/80 hover:border-[#FFD60A]/30 hover:bg-[#24242E]'
+                      ? 'bg-[#FFD60A] border-[#FFD60A] text-[#1A1A22] shadow-lg shadow-yellow-500/10'
+                      : 'bg-[#1D1D25] border-white/5 text-white/80 hover:border-[#FFD60A]/30 hover:bg-[#24242E] hover:text-white'
                   }`}
                 >
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                    active ? 'bg-[#1A1A22]/10' : 'bg-[#E5202A]/15'
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    active ? 'bg-[#1A1A22]/10' : 'bg-[#E5202A]/10'
                   }`}>
                     <Icon className={`w-4 h-4 ${active ? 'text-[#1A1A22]' : 'text-[#FF6B72]'}`} />
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm">{r.label}</div>
+                    <div className="text-sm leading-tight">{r.label}</div>
                     <div className={`text-[11px] ${active ? 'text-[#1A1A22]/70' : 'text-white/40'}`}>{r.desc}</div>
                   </div>
-                  <ArrowUpRight className="w-4 h-4 opacity-60" />
+                  <div className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full ${
+                    active ? 'bg-[#1A1A22]/10 text-[#1A1A22]' : 'bg-white/5 text-white/40'
+                  }`}>
+                    {active ? 'Selected' : 'Select'}
+                  </div>
                 </button>
               );
             })}
-          </div>
-
-          <div className="mt-6 pt-5 border-t border-white/5 grid grid-cols-3 gap-2 text-[11px]">
-            <div className="text-white/40">admin / <span className="text-[#FFD60A]">admin123</span></div>
-            <div className="text-white/40">sales / <span className="text-[#FFD60A]">sales123</span></div>
-            <div className="text-white/40">inventory / <span className="text-[#FFD60A]">inv123</span></div>
           </div>
         </div>
       </div>
