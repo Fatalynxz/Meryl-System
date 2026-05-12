@@ -16,7 +16,6 @@ const loadReportsAnalytics = () => import('./ReportsAnalytics');
 const loadUserManagement = () => import('./UserManagement');
 const loadReturnManagement = () => import('./ReturnManagement');
 const loadNotificationCenter = () => import('./NotificationCenter');
-const loadInventoryTurnoverAnalytics = () => import('./InventoryTurnoverAnalytics');
 
 const PointOfSale = lazy(() => loadPointOfSale().then((module) => ({ default: module.PointOfSale })));
 const ProductManagement = lazy(() => loadProductManagement().then((module) => ({ default: module.ProductManagement })));
@@ -28,7 +27,6 @@ const ReportsAnalytics = lazy(() => loadReportsAnalytics().then((module) => ({ d
 const UserManagement = lazy(() => loadUserManagement().then((module) => ({ default: module.UserManagement })));
 const ReturnManagement = lazy(() => loadReturnManagement().then((module) => ({ default: module.ReturnManagement })));
 const NotificationCenter = lazy(() => loadNotificationCenter().then((module) => ({ default: module.NotificationCenter })));
-const InventoryTurnoverAnalytics = lazy(() => loadInventoryTurnoverAnalytics().then((module) => ({ default: module.InventoryTurnoverAnalytics })));
 
 function clearOrphanedModalState() {
   if (typeof document === 'undefined') return;
@@ -132,7 +130,6 @@ export function AdminLayout() {
     { id: 'sales', label: 'Sales', icon: ShoppingCart },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'inventory-turnover', label: 'Inventory Turnover', icon: TrendingUp },
     { id: 'promotions', label: 'Promotions', icon: Tag },
     { id: 'returns', label: 'Returns', icon: RotateCcw },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
@@ -145,7 +142,6 @@ export function AdminLayout() {
     sales: loadSalesManagement,
     customers: loadCustomerManagement,
     analytics: loadPredictiveAnalytics,
-    'inventory-turnover': loadInventoryTurnoverAnalytics,
     promotions: loadPromotionManagement,
     returns: loadReturnManagement,
     reports: loadReportsAnalytics,
@@ -160,7 +156,6 @@ export function AdminLayout() {
       case 'sales': return <SalesManagement />;
       case 'customers': return <CustomerManagement />;
       case 'analytics': return <PredictiveAnalytics />;
-      case 'inventory-turnover': return <InventoryTurnoverAnalytics />;
       case 'promotions': return <PromotionManagement />;
       case 'returns': return <ReturnManagement />;
       case 'reports': return <ReportsAnalytics />;
