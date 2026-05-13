@@ -68,7 +68,7 @@ def sync_promotion_notifications(
             {
                 "customer_id": customer_id,
                 "promo_id": promo_id,
-                "email_status": "Pending",
+                "email_status": "pending",
                 "date_sent": datetime.now().isoformat(),
             }
         )
@@ -237,7 +237,7 @@ def send_promotion_notifications_via_gmail(
             "</div></div>"
         )
 
-        status = "Sent"
+        status = "sent"
         try:
             _gmail_send_message(
                 access_token=access_token,
@@ -250,20 +250,20 @@ def send_promotion_notifications_via_gmail(
             print(f"GMAIL: Email sent to {email}")
             sent += 1
         except urllib.error.HTTPError as e:
-            status = "Failed"
+            status = "failed"
             error_body = e.read().decode("utf-8") if e.fp else ""
             print(f"GMAIL HTTP ERROR {e.code} for {email}: {error_body}")
             failed += 1
         except urllib.error.URLError as e:
-            status = "Failed"
+            status = "failed"
             print(f"GMAIL URL ERROR for {email}: {e.reason}")
             failed += 1
         except TimeoutError:
-            status = "Failed"
+            status = "failed"
             print(f"GMAIL TIMEOUT for {email}")
             failed += 1
         except Exception as e:
-            status = "Failed"
+            status = "failed"
             print(f"GMAIL UNEXPECTED ERROR for {email}: {type(e).__name__}: {e}")
             failed += 1
 

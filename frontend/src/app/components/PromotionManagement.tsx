@@ -32,7 +32,7 @@ type Notification = {
   customer_id: string;
   promo_id: string;
   email: string;
-  email_status: 'Sent' | 'Pending' | 'Failed';
+  email_status: 'sent' | 'pending' | 'failed' | 'Sent' | 'Pending' | 'Failed';
   date_sent: string;
 };
 
@@ -915,7 +915,9 @@ export function PromotionManagement() {
                         </div>
                       </div>
                       <Badge className="bg-green-600 text-white text-xs">
-                        {notif.email_status}
+                        {String(notif.email_status || 'sent')
+                          .slice(0, 1)
+                          .toUpperCase() + String(notif.email_status || 'sent').slice(1)}
                       </Badge>
                     </div>
                   );
