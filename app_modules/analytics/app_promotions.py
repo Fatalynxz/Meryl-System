@@ -1,6 +1,9 @@
 from collections import defaultdict
 from datetime import datetime
+import base64
+from email.message import EmailMessage
 import json
+import urllib.parse
 import urllib.request
 import urllib.error
 
@@ -24,37 +27,47 @@ def sync_promotion_notifications(
     promo_product_rows = (
         supabase.table("promo_product").select("product_id").eq("promo_id", promo_id).execute().data or []
     )
-    product_ids = {str(row.get("product_id") or "").strip() for row in promo_product_rows if row.get("product_id")}
-    if not product_ids:
-        return
-
-    completed_sales, _ = build_sale_status_maps()
-    completed_sales_ids = {str(sale_id).strip() for sale_id in completed_sales}
-    sales_transactions = {
-        str(row.get("sales_id") or "").strip(): row
-        for row in fetch_rows("sales_transaction")
-        if row.get("sales_id") is not None
-    }
     customer_lookup = build_customer_lookup()
     customer_ids = set()
-    for detail in fetch_rows("sales_details"):
-        if str(detail.get("product_id") or "").strip() not in product_ids:
-            continue
-        sales_id = str(detail.get("sales_id") or "").strip()
-        if sales_id not in completed_sales_ids:
-            continue
-        customer_id = str(sales_transactions.get(sales_id, {}).get("customer_id") or "").strip()
-        if customer_id:
-            customer_ids.add(customer_id)
+    product_ids = {str(row.get("product_id") or "").strip() for row in promo_product_rows if row.get("product_id")}
+
+    if product_ids:
+        completed_sales, _ = build_sale_status_maps()
+        completed_sales_ids = {str(sale_id).strip() for sale_id in completed_sales}
+        sales_transactions = {
+            str(row.get("sales_id") or "").strip(): row
+            for row in fetch_rows("sales_transaction")
+            if row.get("sales_id") is not None
+        }
+        for detail in fetch_rows("sales_details"):
+            if str(detail.get("product_id") or "").strip() not in product_ids:
+                continue
+            sales_id = str(detail.get("sales_id") or "").strip()
+            if sales_id not in completed_sales_ids:
+                continue
+            customer_id = str(sales_transactions.get(sales_id, {}).get("customer_id") or "").strip()
+            if customer_id:
+                customer_ids.add(customer_id)
+
+    if not customer_ids:
+        # React-created promotions may not have promo_product link rows yet.
+        # For marketing campaigns, fall back to active customers with email.
+        customer_ids = {
+            str(customer_id).strip()
+            for customer_id, customer in customer_lookup.items()
+            if str(customer.get("email") or "").strip()
+            and str(customer.get("status") or "active").strip().lower() == "active"
+        }
 
     notification_payloads = []
     for customer_id in customer_ids:
         customer = customer_lookup.get(customer_id, {})
+        if not str(customer.get("email") or "").strip():
+            continue
         notification_payloads.append(
             {
                 "customer_id": customer_id,
                 "promo_id": promo_id,
-                "email": customer.get("email") or None,
                 "email_status": "Pending",
                 "date_sent": datetime.now().isoformat(),
             }
@@ -64,7 +77,55 @@ def sync_promotion_notifications(
         supabase.table("notification").insert(notification_payloads).execute()
 
 
-def send_promotion_notifications_via_brevo(
+def _gmail_access_token(*, client_id, client_secret, refresh_token):
+    payload = urllib.parse.urlencode(
+        {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        "https://oauth2.googleapis.com/token",
+        data=payload,
+        method="POST",
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    token = str(data.get("access_token") or "").strip()
+    if not token:
+        raise RuntimeError("gmail_access_token_missing")
+    return token
+
+
+def _gmail_send_message(*, access_token, sender_email, sender_name, recipient_email, subject, html_content):
+    message = EmailMessage()
+    message["To"] = recipient_email
+    message["From"] = f"{sender_name} <{sender_email}>" if sender_name else sender_email
+    message["Subject"] = subject
+    message.set_content(
+        "This email contains a Meryl Shoes promotion. Please view it in an HTML-capable email app."
+    )
+    message.add_alternative(html_content, subtype="html")
+
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+    payload = json.dumps({"raw": raw}).encode("utf-8")
+    request = urllib.request.Request(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        data=payload,
+        method="POST",
+        headers={
+            "authorization": f"Bearer {access_token}",
+            "content-type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def send_promotion_notifications_via_gmail(
     promo_id,
     *,
     supabase,
@@ -73,28 +134,40 @@ def send_promotion_notifications_via_brevo(
     safe_int,
     sender_email,
     sender_name,
-    api_key,
+    client_id,
+    client_secret,
+    refresh_token,
 ):
     """
-    Send promotion emails through Brevo based on notification rows produced by
+    Send promotion emails through Gmail API based on notification rows produced by
     `sync_promotion_notifications`.
     """
     if not table_exists("notification"):
-        print(f"❌ BREVO DEBUG: notification table missing")
+        print("GMAIL DEBUG: notification table missing")
         return {"enabled": False, "sent": 0, "failed": 0, "reason": "notification_table_missing"}
 
     promo_id = str(promo_id or "").strip()
     if not promo_id:
-        print(f"❌ BREVO DEBUG: Invalid promo_id: {promo_id}")
+        print(f"GMAIL DEBUG: Invalid promo_id: {promo_id}")
         return {"enabled": False, "sent": 0, "failed": 0, "reason": "invalid_promo_id"}
 
-    if not api_key:
-        print(f"❌ BREVO DEBUG: Missing BREVO_API_KEY environment variable!")
-        return {"enabled": False, "sent": 0, "failed": 0, "reason": "brevo_api_key_missing"}
-
+    missing_config = []
     if not sender_email:
-        print(f"❌ BREVO DEBUG: Missing BREVO_SENDER_EMAIL environment variable!")
-        return {"enabled": False, "sent": 0, "failed": 0, "reason": "brevo_sender_email_missing"}
+        missing_config.append("GMAIL_SENDER_EMAIL")
+    if not client_id:
+        missing_config.append("GMAIL_CLIENT_ID")
+    if not client_secret:
+        missing_config.append("GMAIL_CLIENT_SECRET")
+    if not refresh_token:
+        missing_config.append("GMAIL_REFRESH_TOKEN")
+    if missing_config:
+        print(f"GMAIL DEBUG: Missing config: {', '.join(missing_config)}")
+        return {
+            "enabled": False,
+            "sent": 0,
+            "failed": 0,
+            "reason": f"missing_{'_'.join(missing_config).lower()}",
+        }
 
     promo_lookup = {str(row.get("promo_id") or "").strip(): row for row in fetch_rows("promotion")}
     promo = promo_lookup.get(promo_id, {})
@@ -116,14 +189,26 @@ def send_promotion_notifications_via_brevo(
     customer_lookup = {}
     for row in fetch_rows("customer"):
         key = str(row.get("customer_id") or "").strip()
-        if not key:
-            continue
-        customer_lookup[key] = row
+        if key:
+            customer_lookup[key] = row
 
-    print(f"📧 BREVO DEBUG: Found {len(notification_rows)} customers to notify for promo_id={promo_id}")
+    print(f"GMAIL DEBUG: Found {len(notification_rows)} customers to notify for promo_id={promo_id}")
     if not notification_rows:
-        print(f"⚠️  BREVO DEBUG: No customers found - maybe no one bought products in this promotion?")
         return {"enabled": True, "sent": 0, "failed": 0, "reason": "no_customers_found"}
+
+    try:
+        access_token = _gmail_access_token(
+            client_id=client_id,
+            client_secret=client_secret,
+            refresh_token=refresh_token,
+        )
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8") if e.fp else ""
+        print(f"GMAIL TOKEN HTTP ERROR {e.code}: {error_body}")
+        return {"enabled": False, "sent": 0, "failed": len(notification_rows), "reason": f"gmail_token_http_{e.code}"}
+    except Exception as e:
+        print(f"GMAIL TOKEN ERROR: {type(e).__name__}: {e}")
+        return {"enabled": False, "sent": 0, "failed": len(notification_rows), "reason": "gmail_token_error"}
 
     sent = 0
     failed = 0
@@ -131,58 +216,55 @@ def send_promotion_notifications_via_brevo(
         customer = customer_lookup.get(str(row.get("customer_id") or "").strip(), {})
         email = str(customer.get("email") or "").strip()
         if not email:
-            print(f"⚠️  BREVO DEBUG: Customer {row.get('customer_id')} has no email - skipping")
+            print(f"GMAIL DEBUG: Customer {row.get('customer_id')} has no email - skipping")
             failed += 1
             continue
 
-        payload = {
-            "sender": {"name": sender_name or "Meryl Shoes", "email": sender_email},
-            "to": [{"email": email}],
-            "subject": f"New Promotion: {promo_name}",
-            "htmlContent": (
-                f"<h3>{promo_name}</h3>"
-                f"<p>Hi there,</p>"
-                f"<p>We launched a new promotion just for you.</p>"
-                f"<ul>"
-                f"<li><strong>Type:</strong> {discount_type or 'Promotion'}</li>"
-                f"<li><strong>Value:</strong> {discount_value}</li>"
-                f"<li><strong>Valid:</strong> {start_date} to {end_date}</li>"
-                f"</ul>"
-                f"<p>Visit Meryl Shoes to enjoy this offer.</p>"
-            ),
-        }
+        customer_name = str(customer.get("customer_name") or customer.get("name") or "there").strip()
+        html_content = (
+            "<div style='font-family:Arial,sans-serif;background:#111217;color:#fff;padding:24px'>"
+            "<div style='max-width:560px;margin:auto;background:#191a22;border:1px solid #2b2d38;border-radius:18px;padding:24px'>"
+            "<h2 style='color:#ffcc00;margin:0 0 12px'>Meryl Shoes Promotion</h2>"
+            f"<p>Hi {customer_name},</p>"
+            f"<p><strong>{promo_name}</strong> is now available for you.</p>"
+            "<ul>"
+            f"<li><strong>Type:</strong> {discount_type or 'Promotion'}</li>"
+            f"<li><strong>Value:</strong> {discount_value}</li>"
+            f"<li><strong>Valid:</strong> {start_date} to {end_date}</li>"
+            "</ul>"
+            "<p>Visit Meryl Shoes to enjoy this offer while supplies last.</p>"
+            "<p style='color:#ffcc00;font-weight:bold'>Meryl Shoes Enterprise System</p>"
+            "</div></div>"
+        )
 
         status = "Sent"
         try:
-            request = urllib.request.Request(
-                "https://api.brevo.com/v3/smtp/email",
-                data=json.dumps(payload).encode("utf-8"),
-                method="POST",
-                headers={
-                    "accept": "application/json",
-                    "content-type": "application/json",
-                    "api-key": api_key,
-                },
+            _gmail_send_message(
+                access_token=access_token,
+                sender_email=sender_email,
+                sender_name=sender_name or "Meryl Shoes",
+                recipient_email=email,
+                subject=f"New Promotion: {promo_name}",
+                html_content=html_content,
             )
-            with urllib.request.urlopen(request, timeout=20):
-                print(f"✅ BREVO: Email sent to {email}")
-                sent += 1
+            print(f"GMAIL: Email sent to {email}")
+            sent += 1
         except urllib.error.HTTPError as e:
             status = "Failed"
-            error_body = e.read().decode('utf-8') if e.fp else ""
-            print(f"❌ BREVO HTTP ERROR {e.code} for {email}: {error_body}")
+            error_body = e.read().decode("utf-8") if e.fp else ""
+            print(f"GMAIL HTTP ERROR {e.code} for {email}: {error_body}")
             failed += 1
         except urllib.error.URLError as e:
             status = "Failed"
-            print(f"❌ BREVO URL ERROR for {email}: {e.reason}")
+            print(f"GMAIL URL ERROR for {email}: {e.reason}")
             failed += 1
-        except TimeoutError as e:
+        except TimeoutError:
             status = "Failed"
-            print(f"❌ BREVO TIMEOUT for {email}")
+            print(f"GMAIL TIMEOUT for {email}")
             failed += 1
         except Exception as e:
             status = "Failed"
-            print(f"❌ BREVO UNEXPECTED ERROR for {email}: {type(e).__name__}: {str(e)}")
+            print(f"GMAIL UNEXPECTED ERROR for {email}: {type(e).__name__}: {e}")
             failed += 1
 
         try:
@@ -195,6 +277,11 @@ def send_promotion_notifications_via_brevo(
 
     return {"enabled": True, "sent": sent, "failed": failed, "reason": ""}
 
+
+# Backward-compatible name for older imports/call sites while Brevo is removed.
+def send_promotion_notifications_via_brevo(*args, **kwargs):
+    kwargs.pop("api_key", None)
+    return send_promotion_notifications_via_gmail(*args, **kwargs)
 
 def sync_promotion_products(
     promo_id,

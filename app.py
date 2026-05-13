@@ -94,7 +94,7 @@ from app_modules.analytics.app_promotions import (
     build_active_promotion_lookup as promotion_build_active_lookup,
     build_promotions_context as promotion_build_context,
     compute_promo_discount as promotion_compute_discount,
-    send_promotion_notifications_via_brevo as promotion_send_notifications_via_brevo,
+    send_promotion_notifications_via_gmail as promotion_send_notifications_via_gmail,
     sync_promotion_notifications as promotion_sync_notifications,
     sync_promotion_products as promotion_sync_products,
 )
@@ -690,17 +690,27 @@ def sync_promotion_notifications(promo_id):
     )
 
 
-def send_promotion_notifications_via_brevo(promo_id):
-    return promotion_send_notifications_via_brevo(
+def send_promotion_notifications_via_gmail(promo_id):
+    return promotion_send_notifications_via_gmail(
         promo_id,
         supabase=supabase(),
         table_exists=table_exists,
         fetch_rows=fetch_rows,
         safe_int=safe_int,
-        sender_email=os.getenv("BREVO_SENDER_EMAIL", "").strip(),
-        sender_name=os.getenv("BREVO_SENDER_NAME", "Meryl Shoes").strip() or "Meryl Shoes",
-        api_key=os.getenv("BREVO_API_KEY", "").strip(),
+        sender_email=(
+            os.getenv("GMAIL_SENDER_EMAIL", "").strip()
+            or os.getenv("GMAIL_APP_EMAIL", "").strip()
+        ),
+        sender_name=os.getenv("GMAIL_SENDER_NAME", "Meryl Shoes").strip() or "Meryl Shoes",
+        client_id=os.getenv("GMAIL_CLIENT_ID", "").strip(),
+        client_secret=os.getenv("GMAIL_CLIENT_SECRET", "").strip(),
+        refresh_token=os.getenv("GMAIL_REFRESH_TOKEN", "").strip(),
     )
+
+
+# Backward-compatible helper name for legacy Flask routes.
+def send_promotion_notifications_via_brevo(promo_id):
+    return send_promotion_notifications_via_gmail(promo_id)
 
 
 def ensure_default_categories():
@@ -1749,84 +1759,90 @@ def api_promotion_delete(promo_id):
         return {"ok": False, "error": str(exc)}, 500
 
 
-@app.route("/api/integrations/brevo/health", methods=["GET"])
-@login_required
-def api_brevo_health():
+def build_gmail_health_payload():
+    sender_email = (
+        os.getenv("GMAIL_SENDER_EMAIL", "").strip()
+        or os.getenv("GMAIL_APP_EMAIL", "").strip()
+    )
+    sender_name = os.getenv("GMAIL_SENDER_NAME", "Meryl Shoes").strip() or "Meryl Shoes"
+    client_id = os.getenv("GMAIL_CLIENT_ID", "").strip()
+    client_secret = os.getenv("GMAIL_CLIENT_SECRET", "").strip()
+    refresh_token = os.getenv("GMAIL_REFRESH_TOKEN", "").strip()
+
+    notification_table_ready = table_exists("notification")
+    promotion_table_ready = table_exists("promotion")
+
+    issues = []
+    if not sender_email:
+        issues.append("GMAIL_SENDER_EMAIL is missing")
+    if not client_id:
+        issues.append("GMAIL_CLIENT_ID is missing")
+    if not client_secret:
+        issues.append("GMAIL_CLIENT_SECRET is missing")
+    if not refresh_token:
+        issues.append("GMAIL_REFRESH_TOKEN is missing")
+    if not notification_table_ready:
+        issues.append("notification table is missing")
+    if not promotion_table_ready:
+        issues.append("promotion table is missing")
+
+    return {
+        "ok": len(issues) == 0,
+        "gmail": {
+            "sender_email_configured": bool(sender_email),
+            "sender_email": sender_email if sender_email else None,
+            "sender_name": sender_name,
+            "client_id_configured": bool(client_id),
+            "client_secret_configured": bool(client_secret),
+            "refresh_token_configured": bool(refresh_token),
+        },
+        "database": {
+            "notification_table_ready": notification_table_ready,
+            "promotion_table_ready": promotion_table_ready,
+        },
+        "issues": issues,
+    }
+
+
+@app.route("/api/integrations/gmail/health", methods=["GET"])
+def api_gmail_health():
     try:
-        api_key = os.getenv("BREVO_API_KEY", "").strip()
-        sender_email = os.getenv("BREVO_SENDER_EMAIL", "").strip()
-        sender_name = os.getenv("BREVO_SENDER_NAME", "Meryl Shoes").strip() or "Meryl Shoes"
+        return build_gmail_health_payload()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 500
 
-        notification_table_ready = table_exists("notification")
-        promotion_table_ready = table_exists("promotion")
 
-        issues = []
-        if not api_key:
-            issues.append("BREVO_API_KEY is missing")
-        if not sender_email:
-            issues.append("BREVO_SENDER_EMAIL is missing")
-        if not notification_table_ready:
-            issues.append("notification table is missing")
-        if not promotion_table_ready:
-            issues.append("promotion table is missing")
-
+@app.route("/api/integrations/gmail/health/public", methods=["GET"])
+def api_gmail_health_public():
+    try:
+        payload = build_gmail_health_payload()
+        gmail = payload.get("gmail", {})
         return {
-            "ok": len(issues) == 0,
-            "brevo": {
-                "api_key_configured": bool(api_key),
-                "sender_email_configured": bool(sender_email),
-                "sender_email": sender_email if sender_email else None,
-                "sender_name": sender_name,
+            "ok": payload.get("ok", False),
+            "gmail": {
+                "sender_email_configured": gmail.get("sender_email_configured", False),
+                "sender_name": gmail.get("sender_name"),
+                "client_id_configured": gmail.get("client_id_configured", False),
+                "client_secret_configured": gmail.get("client_secret_configured", False),
+                "refresh_token_configured": gmail.get("refresh_token_configured", False),
             },
-            "database": {
-                "notification_table_ready": notification_table_ready,
-                "promotion_table_ready": promotion_table_ready,
-            },
-            "issues": issues,
+            "database": payload.get("database", {}),
+            "issues": payload.get("issues", []),
         }
     except Exception as exc:
         return {"ok": False, "error": str(exc)}, 500
+
+
+# Backward-compatible health URLs. They now report Gmail configuration because
+# Brevo has been removed as the promotion email provider.
+@app.route("/api/integrations/brevo/health", methods=["GET"])
+def api_brevo_health():
+    return api_gmail_health()
 
 
 @app.route("/api/integrations/brevo/health/public", methods=["GET"])
 def api_brevo_health_public():
-    """
-    Public/read-only health check for Brevo setup during deployment.
-    Returns only non-sensitive flags.
-    """
-    try:
-        api_key = os.getenv("BREVO_API_KEY", "").strip()
-        sender_email = os.getenv("BREVO_SENDER_EMAIL", "").strip()
-        sender_name = os.getenv("BREVO_SENDER_NAME", "Meryl Shoes").strip() or "Meryl Shoes"
-
-        notification_table_ready = table_exists("notification")
-        promotion_table_ready = table_exists("promotion")
-
-        issues = []
-        if not api_key:
-            issues.append("BREVO_API_KEY is missing")
-        if not sender_email:
-            issues.append("BREVO_SENDER_EMAIL is missing")
-        if not notification_table_ready:
-            issues.append("notification table is missing")
-        if not promotion_table_ready:
-            issues.append("promotion table is missing")
-
-        return {
-            "ok": len(issues) == 0,
-            "brevo": {
-                "api_key_configured": bool(api_key),
-                "sender_email_configured": bool(sender_email),
-                "sender_name": sender_name,
-            },
-            "database": {
-                "notification_table_ready": notification_table_ready,
-                "promotion_table_ready": promotion_table_ready,
-            },
-            "issues": issues,
-        }
-    except Exception as exc:
-        return {"ok": False, "error": str(exc)}, 500
+    return api_gmail_health_public()
 
 
 @app.route("/reports")
