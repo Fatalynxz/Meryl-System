@@ -752,17 +752,19 @@ export function PromotionManagement() {
                   Create Promotion
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl">
+              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl max-h-[88vh] overflow-hidden p-0">
                 <DialogHeader>
-                  <DialogTitle className="text-yellow-300">Create New Promotion</DialogTitle>
+                  <DialogTitle className="text-yellow-300 px-6 pt-6">Create New Promotion</DialogTitle>
                 </DialogHeader>
-                <PromotionForm
-                  formData={formData}
-                  setFormData={setFormData}
-                  categoryOptions={categoryOptions}
-                  productOptions={productOptions}
-                />
-                <DialogFooter>
+                <div className="max-h-[calc(88vh-9.5rem)] overflow-y-auto px-6 pb-4 pr-4">
+                  <PromotionForm
+                    formData={formData}
+                    setFormData={setFormData}
+                    categoryOptions={categoryOptions}
+                    productOptions={productOptions}
+                  />
+                </div>
+                <DialogFooter className="border-t border-red-800 bg-red-700/95 px-6 py-4">
                   <Button
                     onClick={handleAddPromotion}
                     disabled={isSavingPromotion}
@@ -843,17 +845,19 @@ export function PromotionManagement() {
                               <Edit className="w-4 h-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl max-h-[85vh] overflow-y-auto pr-1">
+                          <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl max-h-[88vh] overflow-hidden p-0">
                             <DialogHeader>
-                              <DialogTitle className="text-yellow-300">Edit Promotion</DialogTitle>
+                              <DialogTitle className="text-yellow-300 px-6 pt-6">Edit Promotion</DialogTitle>
                             </DialogHeader>
-                            <PromotionForm
-                              formData={formData}
-                              setFormData={setFormData}
-                              categoryOptions={categoryOptions}
-                              productOptions={productOptions}
-                            />
-                            <DialogFooter>
+                            <div className="max-h-[calc(88vh-9.5rem)] overflow-y-auto px-6 pb-4 pr-4">
+                              <PromotionForm
+                                formData={formData}
+                                setFormData={setFormData}
+                                categoryOptions={categoryOptions}
+                                productOptions={productOptions}
+                              />
+                            </div>
+                            <DialogFooter className="border-t border-red-800 bg-red-700/95 px-6 py-4">
                               <Button
                                 onClick={handleEditPromotion}
                                 disabled={isUpdatingPromotion}
