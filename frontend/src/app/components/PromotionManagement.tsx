@@ -105,6 +105,23 @@ function isMissingTargetProductsColumnError(error: any) {
   return message.includes("target_products") && message.includes("column");
 }
 
+function todayDateInput() {
+  const today = new Date();
+  const offset = today.getTimezoneOffset() * 60 * 1000;
+  return new Date(today.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function validatePromotionDates(startDate?: string, endDate?: string) {
+  const today = todayDateInput();
+  const start = String(startDate || '').slice(0, 10);
+  const end = String(endDate || '').slice(0, 10);
+  if (!start || !end) return 'Please choose both start and end dates.';
+  if (start < today) return 'Start date cannot be in the past.';
+  if (end < today) return 'End date cannot be in the past.';
+  if (end < start) return 'End date cannot be earlier than the start date.';
+  return '';
+}
+
 function formatTargetProducts(categories: string[], products: string[]) {
   const cats = categories.filter(Boolean);
   const prods = products.filter(Boolean);
@@ -453,6 +470,11 @@ export function PromotionManagement() {
       toast.error('Please fill in all required fields');
       return;
     }
+    const dateError = validatePromotionDates(formData.start_date, formData.end_date);
+    if (dateError) {
+      toast.error(dateError);
+      return;
+    }
 
     try {
       setIsSavingPromotion(true);
@@ -521,6 +543,11 @@ export function PromotionManagement() {
 
   const handleEditPromotion = async () => {
     if (!editingPromotion) return;
+    const dateError = validatePromotionDates(formData.start_date, formData.end_date);
+    if (dateError) {
+      toast.error(dateError);
+      return;
+    }
     try {
       setIsUpdatingPromotion(true);
       const payload = {
@@ -989,6 +1016,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
   categoryOptions: string[];
   productOptions: Array<{ name: string; category: string }>;
 }) {
+  const minPromotionDate = todayDateInput();
   const isBogoType = String(formData.discount_type ?? '').toLowerCase().includes('bogo');
   const parsed = useMemo(() => parseTargetProducts(formData.targetProducts), [formData.targetProducts]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(parsed.categories);
@@ -1203,8 +1231,19 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
           <Input
             id="start_date"
             type="date"
+            min={minPromotionDate}
             value={formData.start_date || ''}
-            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+            onChange={(e) => {
+              const nextStartDate = e.target.value;
+              setFormData({
+                ...formData,
+                start_date: nextStartDate,
+                end_date:
+                  formData.end_date && formData.end_date < nextStartDate
+                    ? nextStartDate
+                    : formData.end_date,
+              });
+            }}
             className="bg-red-600 border-red-800 text-yellow-200"
           />
         </div>
@@ -1213,6 +1252,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
           <Input
             id="end_date"
             type="date"
+            min={formData.start_date || minPromotionDate}
             value={formData.end_date || ''}
             onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
             className="bg-red-600 border-red-800 text-yellow-200"
