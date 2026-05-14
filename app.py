@@ -1641,6 +1641,112 @@ def promotions_delete(promo_id):
     return redirect("/promotions")
 
 
+def validate_promotion_date_range(start_date, end_date):
+    today = datetime.now().date()
+    start_raw = str(start_date or "").strip()[:10]
+    end_raw = str(end_date or "").strip()[:10]
+    if not start_raw or not end_raw:
+        return False, "Start date and end date are required."
+    try:
+        start = datetime.fromisoformat(start_raw).date()
+        end = datetime.fromisoformat(end_raw).date()
+    except ValueError:
+        return False, "Start date and end date must be valid dates."
+    if start < today:
+        return False, "Start date cannot be in the past."
+    if end < today:
+        return False, "End date cannot be in the past."
+    if end < start:
+        return False, "End date cannot be earlier than the start date."
+    return True, ""
+
+
+def normalize_promotion_api_payload(payload):
+    payload = payload or {}
+    promo_name = str(payload.get("promo_name") or "").strip()
+    start_date = str(payload.get("start_date") or "").strip()[:10]
+    end_date = str(payload.get("end_date") or "").strip()[:10]
+    is_valid, error = validate_promotion_date_range(start_date, end_date)
+    if not promo_name:
+        return None, "Promotion name is required."
+    if not is_valid:
+        return None, error
+
+    normalized = {
+        "promo_name": promo_name,
+        "discount_type": db_promotion_type(payload.get("discount_type") or "percentage"),
+        "discount_value": safe_float(payload.get("discount_value"), 0),
+        "start_date": start_date,
+        "end_date": end_date,
+        "status": db_promotion_status(payload.get("status") or "inactive"),
+    }
+    if "target_products" in payload:
+        normalized["target_products"] = str(payload.get("target_products") or "All Products").strip() or "All Products"
+    return normalized, ""
+
+
+def promotion_write_without_optional_columns(write_fn, payload):
+    try:
+        return write_fn(payload)
+    except Exception as exc:
+        message = str(exc).lower()
+        if "target_products" in message and "column" in message and "target_products" in payload:
+            fallback_payload = {key: value for key, value in payload.items() if key != "target_products"}
+            return write_fn(fallback_payload)
+        raise
+
+
+@app.route("/api/promotions/public", methods=["POST"])
+def api_promotion_create_public():
+    payload, error = normalize_promotion_api_payload(request.get_json(silent=True) or {})
+    if error:
+        return {"ok": False, "error": error}, 400
+    requested_id = str((request.get_json(silent=True) or {}).get("promo_id") or "").strip()
+    if requested_id:
+        payload["promo_id"] = requested_id
+
+    try:
+        def insert(row):
+            return supabase().table("promotion").insert(row).execute().data or []
+
+        created = promotion_write_without_optional_columns(insert, payload)
+        if not created:
+            raise ValueError("Promotion was not created.")
+        return {"ok": True, "promotion": created[0], **created[0]}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 500
+
+
+@app.route("/api/promotions/<promo_id>/public", methods=["PATCH"])
+def api_promotion_update_public(promo_id):
+    promo_id = str(promo_id or "").strip()
+    if not promo_id:
+        return {"ok": False, "error": "missing_promo_id"}, 400
+
+    payload, error = normalize_promotion_api_payload(request.get_json(silent=True) or {})
+    if error:
+        return {"ok": False, "error": error}, 400
+
+    try:
+        def update(row):
+            return (
+                supabase()
+                .table("promotion")
+                .update(row)
+                .eq("promo_id", promo_id)
+                .execute()
+                .data
+                or []
+            )
+
+        updated = promotion_write_without_optional_columns(update, payload)
+        if not updated:
+            raise ValueError("Promotion was not updated.")
+        return {"ok": True, "promotion": updated[0], **updated[0]}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 500
+
+
 @app.route("/api/promotions/<promo_id>/notify", methods=["POST"])
 @login_required
 def api_promotion_notify(promo_id):
