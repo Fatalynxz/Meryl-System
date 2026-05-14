@@ -34,6 +34,7 @@ type Notification = {
   email: string;
   email_status: 'sent' | 'pending' | 'failed' | 'Sent' | 'Pending' | 'Failed';
   date_sent: string;
+  send_error?: string;
 };
 
 type Customer = {
@@ -590,6 +591,18 @@ export function PromotionManagement() {
   const totalRevenue = promotions.reduce((sum, p) => sum + p.salesGenerated, 0);
   const activePromotions = promotions.filter(p => p.status === 'Active').length;
   const avgEffectiveness = promotions.filter(p => p.effectiveness > 0).reduce((sum, p) => sum + p.effectiveness, 0) / promotions.filter(p => p.effectiveness > 0).length || 0;
+  const sentNotificationCount = lastNotificationBatch.filter(
+    (notif) => String(notif.email_status || '').toLowerCase() === 'sent',
+  ).length;
+  const failedNotificationCount = lastNotificationBatch.filter(
+    (notif) => String(notif.email_status || '').toLowerCase() === 'failed',
+  ).length;
+  const notificationSummaryTone =
+    failedNotificationCount > 0 && sentNotificationCount === 0
+      ? 'failed'
+      : failedNotificationCount > 0
+        ? 'partial'
+        : 'sent';
 
   return (
     <div className="space-y-6">
@@ -888,40 +901,61 @@ export function PromotionManagement() {
 
       {/* Notification Confirmation Dialog */}
       <Dialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
-        <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl">
+        <DialogContent className="bg-[#15161d] border-[#2a2c36] text-white max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-yellow-300 flex items-center gap-2">
+            <DialogTitle className="text-white flex items-center gap-2">
               <Mail className="w-5 h-5" />
-              Email Notifications Sent
+              Email Notification Summary
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-green-900/30 border border-green-600 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-green-400" />
+            <div
+              className={`flex items-center gap-3 p-4 rounded-lg border ${
+                notificationSummaryTone === 'sent'
+                  ? 'bg-emerald-950/40 border-emerald-700'
+                  : notificationSummaryTone === 'partial'
+                    ? 'bg-amber-950/40 border-amber-700'
+                    : 'bg-red-950/40 border-red-800'
+              }`}
+            >
+              {notificationSummaryTone === 'sent' ? (
+                <CheckCircle className="w-6 h-6 text-emerald-400" />
+              ) : (
+                <X className="w-6 h-6 text-red-300" />
+              )}
               <div>
-                <p className="text-yellow-300">Successfully sent to {lastNotificationBatch.length} customers</p>
-                <p className="text-sm text-yellow-200">All active customers have been notified about this promotion</p>
+                <p className="text-white font-semibold">
+                  {sentNotificationCount} sent, {failedNotificationCount} failed
+                </p>
+                <p className="text-sm text-gray-300">
+                  {failedNotificationCount > 0
+                    ? 'Some emails were not accepted by Gmail. Check the failed recipients below for the exact reason.'
+                    : 'All selected customers were notified about this promotion.'}
+                </p>
               </div>
             </div>
 
             <div className="max-h-64 overflow-y-auto">
-              <p className="text-yellow-300 mb-2">Notification Recipients:</p>
+              <p className="text-gray-200 mb-2">Notification Recipients:</p>
               <div className="space-y-2">
                 {lastNotificationBatch.map((notif) => {
                   const customerName = customerNameMap.get(notif.customer_id) || 'Customer';
+                  const status = String(notif.email_status || 'pending').toLowerCase();
+                  const isFailed = status === 'failed';
                   return (
-                    <div key={notif.notification_id} className="flex items-center justify-between p-3 bg-red-600 rounded border border-red-800">
-                      <div className="flex items-center gap-3">
-                        <Mail className="w-4 h-4 text-yellow-400" />
-                        <div>
-                          <p className="text-yellow-200 text-sm">{customerName}</p>
-                          <p className="text-yellow-300 text-xs">{notif.email}</p>
+                    <div key={notif.notification_id} className="flex items-start justify-between gap-3 p-3 bg-[#1f2029] rounded border border-[#30323d]">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <Mail className="w-4 h-4 text-yellow-400 mt-1" />
+                        <div className="min-w-0">
+                          <p className="text-white text-sm">{customerName}</p>
+                          <p className="text-gray-300 text-xs break-all">{notif.email || 'No email address'}</p>
+                          {isFailed && notif.send_error ? (
+                            <p className="text-red-300 text-xs mt-1 break-words">{notif.send_error}</p>
+                          ) : null}
                         </div>
                       </div>
-                      <Badge className="bg-green-600 text-white text-xs">
-                        {String(notif.email_status || 'sent')
-                          .slice(0, 1)
-                          .toUpperCase() + String(notif.email_status || 'sent').slice(1)}
+                      <Badge className={`${isFailed ? 'bg-red-900 text-red-100 border border-red-700' : 'bg-emerald-900 text-emerald-100 border border-emerald-700'} text-xs shrink-0`}>
+                        {status.slice(0, 1).toUpperCase() + status.slice(1)}
                       </Badge>
                     </div>
                   );
@@ -929,17 +963,17 @@ export function PromotionManagement() {
               </div>
             </div>
 
-            <div className="p-4 bg-red-800 border border-red-900 rounded-lg">
-              <p className="text-yellow-300 text-sm">Promotion Details:</p>
-              <div className="mt-2 space-y-1 text-sm text-yellow-200">
+            <div className="p-4 bg-[#1f2029] border border-[#30323d] rounded-lg">
+              <p className="text-white text-sm">Promotion Details:</p>
+              <div className="mt-2 space-y-1 text-sm text-gray-300">
                 <p><span className="text-yellow-300">Start Date:</span> {formData.start_date || lastNotificationBatch[0]?.date_sent}</p>
                 <p><span className="text-yellow-300">End Date:</span> {formData.end_date}</p>
-                <p className="text-xs text-yellow-300 mt-2">Customers will receive details about this promotion via email.</p>
+                <p className="text-xs text-gray-400 mt-2">Successful recipients received this promotion via Gmail.</p>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => setShowNotificationDialog(false)} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+            <Button onClick={() => setShowNotificationDialog(false)} className="bg-yellow-400 text-black hover:bg-yellow-300">
               Close
             </Button>
           </DialogFooter>

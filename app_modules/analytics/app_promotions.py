@@ -125,6 +125,28 @@ def _gmail_send_message(*, access_token, sender_email, sender_name, recipient_em
         return json.loads(response.read().decode("utf-8"))
 
 
+def _gmail_error_reason(error_body, fallback):
+    """Return a short, UI-safe Gmail error message."""
+    body = str(error_body or "").strip()
+    if body:
+        try:
+            parsed = json.loads(body)
+            error = parsed.get("error") if isinstance(parsed, dict) else None
+            if isinstance(error, dict):
+                message = str(error.get("message") or "").strip()
+                status = str(error.get("status") or "").strip()
+                if status and message:
+                    return f"{status}: {message}"
+                if message:
+                    return message
+            if isinstance(parsed, dict) and parsed.get("error_description"):
+                return str(parsed.get("error_description")).strip()
+        except Exception:
+            pass
+        return body[:500]
+    return fallback
+
+
 def send_promotion_notifications_via_gmail(
     promo_id,
     *,
@@ -192,9 +214,23 @@ def send_promotion_notifications_via_gmail(
         if key:
             customer_lookup[key] = row
 
+    pending_recipients = []
+    for row in notification_rows:
+        customer_id = str(row.get("customer_id") or "").strip()
+        customer = customer_lookup.get(customer_id, {})
+        pending_recipients.append(
+            {
+                "notification_id": row.get("notification_id"),
+                "customer_id": customer_id,
+                "email": str(customer.get("email") or "").strip(),
+                "status": "pending",
+                "reason": "",
+            }
+        )
+
     print(f"GMAIL DEBUG: Found {len(notification_rows)} customers to notify for promo_id={promo_id}")
     if not notification_rows:
-        return {"enabled": True, "sent": 0, "failed": 0, "reason": "no_customers_found"}
+        return {"enabled": True, "sent": 0, "failed": 0, "reason": "no_customers_found", "results": []}
 
     try:
         access_token = _gmail_access_token(
@@ -204,20 +240,53 @@ def send_promotion_notifications_via_gmail(
         )
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8") if e.fp else ""
+        reason = _gmail_error_reason(error_body, f"gmail_token_http_{e.code}")
         print(f"GMAIL TOKEN HTTP ERROR {e.code}: {error_body}")
-        return {"enabled": False, "sent": 0, "failed": len(notification_rows), "reason": f"gmail_token_http_{e.code}"}
+        return {
+            "enabled": False,
+            "sent": 0,
+            "failed": len(notification_rows),
+            "reason": reason,
+            "results": [{**recipient, "status": "failed", "reason": reason} for recipient in pending_recipients],
+        }
     except Exception as e:
+        reason = f"{type(e).__name__}: {e}"
         print(f"GMAIL TOKEN ERROR: {type(e).__name__}: {e}")
-        return {"enabled": False, "sent": 0, "failed": len(notification_rows), "reason": "gmail_token_error"}
+        return {
+            "enabled": False,
+            "sent": 0,
+            "failed": len(notification_rows),
+            "reason": reason,
+            "results": [{**recipient, "status": "failed", "reason": reason} for recipient in pending_recipients],
+        }
 
     sent = 0
     failed = 0
+    results = []
     for row in notification_rows:
-        customer = customer_lookup.get(str(row.get("customer_id") or "").strip(), {})
+        customer_id = str(row.get("customer_id") or "").strip()
+        customer = customer_lookup.get(customer_id, {})
         email = str(customer.get("email") or "").strip()
+        reason = ""
         if not email:
+            reason = "Customer has no email address."
             print(f"GMAIL DEBUG: Customer {row.get('customer_id')} has no email - skipping")
             failed += 1
+            try:
+                supabase.table("notification").update(
+                    {"email_status": "failed", "date_sent": datetime.now().isoformat()}
+                ).eq("notification_id", row.get("notification_id")).execute()
+            except Exception:
+                pass
+            results.append(
+                {
+                    "notification_id": row.get("notification_id"),
+                    "customer_id": customer_id,
+                    "email": "",
+                    "status": "failed",
+                    "reason": reason,
+                }
+            )
             continue
 
         customer_name = str(customer.get("customer_name") or customer.get("name") or "there").strip()
@@ -252,18 +321,22 @@ def send_promotion_notifications_via_gmail(
         except urllib.error.HTTPError as e:
             status = "failed"
             error_body = e.read().decode("utf-8") if e.fp else ""
+            reason = _gmail_error_reason(error_body, f"gmail_http_{e.code}")
             print(f"GMAIL HTTP ERROR {e.code} for {email}: {error_body}")
             failed += 1
         except urllib.error.URLError as e:
             status = "failed"
+            reason = f"Gmail connection error: {e.reason}"
             print(f"GMAIL URL ERROR for {email}: {e.reason}")
             failed += 1
         except TimeoutError:
             status = "failed"
+            reason = "Gmail request timed out."
             print(f"GMAIL TIMEOUT for {email}")
             failed += 1
         except Exception as e:
             status = "failed"
+            reason = f"{type(e).__name__}: {e}"
             print(f"GMAIL UNEXPECTED ERROR for {email}: {type(e).__name__}: {e}")
             failed += 1
 
@@ -275,7 +348,24 @@ def send_promotion_notifications_via_gmail(
             # Best effort status update only.
             pass
 
-    return {"enabled": True, "sent": sent, "failed": failed, "reason": ""}
+        results.append(
+            {
+                "notification_id": row.get("notification_id"),
+                "customer_id": customer_id,
+                "email": email,
+                "status": status,
+                "reason": reason,
+            }
+        )
+
+    return {
+        "enabled": True,
+        "sent": sent,
+        "failed": failed,
+        "reason": "",
+        "results": results,
+        "errors": [result for result in results if result.get("status") == "failed"],
+    }
 
 
 # Backward-compatible name for older imports/call sites while Brevo is removed.

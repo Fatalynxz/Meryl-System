@@ -1651,6 +1651,14 @@ def api_promotion_notify(promo_id):
 
         sync_promotion_notifications(promo_id)
         delivery = send_promotion_notifications_via_brevo(promo_id)
+        delivery_results = {}
+        for result in (delivery.get("results", []) if isinstance(delivery, dict) else []):
+            customer_key = str(result.get("customer_id") or "").strip()
+            email_key = str(result.get("email") or "").strip().lower()
+            if customer_key:
+                delivery_results[f"customer:{customer_key}"] = result
+            if email_key:
+                delivery_results[f"email:{email_key}"] = result
 
         recipients = []
         if table_exists("notification"):
@@ -1672,10 +1680,16 @@ def api_promotion_notify(promo_id):
             recipients = []
             for row in rows:
                 customer_id = str(row.get("customer_id") or "").strip()
+                email = customer_lookup.get(customer_id, "")
+                delivery_result = delivery_results.get(f"customer:{customer_id}") or delivery_results.get(
+                    f"email:{email.lower()}"
+                ) or {}
                 recipients.append(
                     {
                         **row,
-                        "email": customer_lookup.get(customer_id, ""),
+                        "email": email,
+                        "email_status": delivery_result.get("status") or row.get("email_status"),
+                        "send_error": delivery_result.get("reason") or "",
                     }
                 )
 
@@ -1702,6 +1716,14 @@ def api_promotion_notify_public(promo_id):
 
         sync_promotion_notifications(promo_id)
         delivery = send_promotion_notifications_via_brevo(promo_id)
+        delivery_results = {}
+        for result in (delivery.get("results", []) if isinstance(delivery, dict) else []):
+            customer_key = str(result.get("customer_id") or "").strip()
+            email_key = str(result.get("email") or "").strip().lower()
+            if customer_key:
+                delivery_results[f"customer:{customer_key}"] = result
+            if email_key:
+                delivery_results[f"email:{email_key}"] = result
 
         recipients = []
         if table_exists("notification"):
@@ -1723,10 +1745,16 @@ def api_promotion_notify_public(promo_id):
             recipients = []
             for row in rows:
                 customer_id = str(row.get("customer_id") or "").strip()
+                email = customer_lookup.get(customer_id, "")
+                delivery_result = delivery_results.get(f"customer:{customer_id}") or delivery_results.get(
+                    f"email:{email.lower()}"
+                ) or {}
                 recipients.append(
                     {
                         **row,
-                        "email": customer_lookup.get(customer_id, ""),
+                        "email": email,
+                        "email_status": delivery_result.get("status") or row.get("email_status"),
+                        "send_error": delivery_result.get("reason") or "",
                     }
                 )
 
