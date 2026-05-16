@@ -609,48 +609,42 @@ export function PointOfSale() {
                 </div>
                 <div className="p-5">
                   <div className="overflow-hidden rounded-2xl border border-red-800 bg-red-900/15">
+                    <div className="grid grid-cols-[1.45fr_0.9fr_1.25fr_1fr_0.8fr_0.85fr_0.8fr] bg-red-800/80 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
+                      <div>Product</div>
+                      <div>Brand</div>
+                      <div>Category</div>
+                      <div>Variant</div>
+                      <div>Price</div>
+                      <div>Stock</div>
+                      <div>Action</div>
+                    </div>
                     <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
-                    <Table className="w-full table-fixed text-sm">
-                      <TableHeader className="sticky top-0 z-10">
-                        <TableRow className="border-red-800 bg-red-800/80 hover:bg-red-800/80">
-                          <TableHead className="w-[24%] px-4 text-center text-xs uppercase tracking-wide text-yellow-300">Product</TableHead>
-                          <TableHead className="w-[14%] px-4 text-center text-xs uppercase tracking-wide text-yellow-300">Brand</TableHead>
-                          <TableHead className="w-[20%] px-4 text-center text-xs uppercase tracking-wide text-yellow-300">Category</TableHead>
-                          <TableHead className="w-[16%] px-4 text-center text-xs uppercase tracking-wide text-yellow-300">Variant</TableHead>
-                          <TableHead className="w-[11%] px-4 text-center text-xs uppercase tracking-wide text-yellow-300">Price</TableHead>
-                          <TableHead className="w-[9%] px-4 text-center text-xs uppercase tracking-wide text-yellow-300">Stock</TableHead>
-                          <TableHead className="w-[6%] px-4 text-center text-xs uppercase tracking-wide text-yellow-300">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredProductInventory.map((product) => (
-                          <TableRow key={product.product_id} className="border-red-800/70 transition-colors hover:bg-red-800/35">
-                            <TableCell className="truncate px-4 py-4 text-center font-medium text-yellow-100" title={product.product_name}>{product.product_name}</TableCell>
-                            <TableCell className="truncate px-4 py-4 text-center text-yellow-200" title={product.brand}>{product.brand}</TableCell>
-                            <TableCell className="truncate px-4 py-4 text-center text-yellow-200" title={product.category}>{product.category}</TableCell>
-                            <TableCell
-                              className="truncate px-4 py-4 text-center text-yellow-200"
-                              title={`${product.color} / Size ${product.size}`}
+                      {filteredProductInventory.map((product) => (
+                        <div
+                          key={product.product_id}
+                          className="grid grid-cols-[1.45fr_0.9fr_1.25fr_1fr_0.8fr_0.85fr_0.8fr] items-center border-t border-red-800/70 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/35"
+                        >
+                          <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
+                          <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
+                          <div className="truncate text-yellow-200" title={product.category}>{product.category}</div>
+                          <div className="truncate text-yellow-200" title={`${product.color} / Size ${product.size}`}>
+                            {product.color} / {product.size}
+                          </div>
+                          <div className="truncate font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</div>
+                          <div className="min-w-0">
+                            <Badge className="max-w-full truncate rounded-full bg-yellow-400 px-3 py-1 text-red-900">{product.stock_quantity} units</Badge>
+                          </div>
+                          <div className="flex justify-center">
+                            <Button
+                              size="sm"
+                              onClick={() => selectProductVariant(product)}
+                              className="h-8 rounded-full bg-yellow-400 px-4 font-semibold text-red-900 hover:bg-yellow-500"
                             >
-                              {product.color} / {product.size}
-                            </TableCell>
-                            <TableCell className="truncate px-4 py-4 text-center font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</TableCell>
-                            <TableCell className="px-4 py-4 text-center">
-                              <Badge className="max-w-full truncate rounded-full bg-yellow-400 px-3 py-1 text-red-900">{product.stock_quantity} units</Badge>
-                            </TableCell>
-                            <TableCell className="px-4 py-4 text-center">
-                              <Button
-                                size="sm"
-                                onClick={() => selectProductVariant(product)}
-                                className="h-8 rounded-full bg-yellow-400 px-4 font-semibold text-red-900 hover:bg-yellow-500"
-                              >
-                                Add
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <p className="mt-3 text-center text-xs text-yellow-200/70">
