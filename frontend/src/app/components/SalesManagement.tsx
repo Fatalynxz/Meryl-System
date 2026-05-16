@@ -68,7 +68,8 @@ export function SalesManagement() {
 
   const customers = (customersQuery.data as any[]) ?? [];
   const sales = (salesQuery.data as any[]) ?? [];
-  const isAdmin = String(user?.role_name ?? "").trim().toLowerCase() === "admin";
+  const normalizedRole = String(user?.role_name ?? "").trim().toLowerCase();
+  const isAdmin = normalizedRole.includes("admin");
 
   const uiSales = useMemo(
     () => {
@@ -87,6 +88,7 @@ export function SalesManagement() {
 
       return sales.map((sale) => {
         const customer = Array.isArray(sale.customer) ? sale.customer[0] : sale.customer;
+        const cashier = Array.isArray(sale.user) ? sale.user[0] : sale.user;
         const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
         const details = Array.isArray((sale as any).sales_details) ? (sale as any).sales_details : [];
         const salesId = String(sale.sales_id ?? "");
@@ -97,7 +99,9 @@ export function SalesManagement() {
           transaction_date: formatDate(sale.transaction_date),
           total_amount: Number(sale.total_amount ?? 0),
           payment_method: payment?.payment_method ?? "N/A",
-          user_id: sale.user_id,
+          user_id: String(sale.user_id ?? cashier?.user_id ?? ""),
+          cashierName: cashier?.name ?? cashier?.username ?? "Unknown Cashier",
+          cashierUsername: cashier?.username ?? "",
           customerName: customer?.name ?? "Walk-in Customer",
           status: getStatus(payment?.payment_status),
           saleDetails: details.map((d: any) => ({
@@ -115,23 +119,30 @@ export function SalesManagement() {
     [sales],
   );
 
+  const visibleSales = useMemo(
+    () => (isAdmin ? uiSales : uiSales.filter((sale) => sale.user_id === String(user?.user_id ?? ""))),
+    [isAdmin, uiSales, user?.user_id],
+  );
+
   const filteredSales = useMemo(
     () =>
-      uiSales.filter(
+      visibleSales.filter(
         (s) =>
           s.sales_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.display_sales_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.cashierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          s.cashierUsername.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           s.saleDetails.some((d: any) => d.productName.toLowerCase().includes(searchTerm.toLowerCase())),
       ),
-    [uiSales, searchTerm],
+    [visibleSales, searchTerm],
   );
 
-  const completedSales = uiSales.filter((s) => s.status === "Completed");
+  const completedSales = visibleSales.filter((s) => s.status === "Completed");
   const totalRevenue = completedSales.reduce((sum, sale) => sum + sale.total_amount, 0);
   const today = new Date().toISOString().slice(0, 10);
   const todaySales = completedSales.filter((s) => s.transaction_date === today);
-  const pendingSales = uiSales.filter((s) => s.status === "Pending");
+  const pendingSales = visibleSales.filter((s) => s.status === "Pending");
 
   const handleStatusUpdate = async (sale: any, nextStatus: SaleStatus) => {
     if (!isAdmin) return;
@@ -308,6 +319,7 @@ export function SalesManagement() {
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales ID</TableHead>
+                  {isAdmin && <TableHead className="text-yellow-300 whitespace-nowrap text-center">Cashier</TableHead>}
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Product</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
@@ -322,6 +334,14 @@ export function SalesManagement() {
                 {filteredSales.map((sale: any) => (
                   <TableRow key={sale.sales_id} className="border-red-800">
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.display_sales_id}</TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-yellow-200 whitespace-nowrap text-center">
+                        <div className="flex flex-col">
+                          <span>{sale.cashierName}</span>
+                          {sale.cashierUsername && <span className="text-xs text-yellow-200/60">@{sale.cashierUsername}</span>}
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.customerName}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap max-w-[240px] truncate text-center">
                       {sale.saleDetails.length > 0
@@ -383,6 +403,7 @@ export function SalesManagement() {
                           <div className="space-y-4 py-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div><p className="text-sm text-yellow-200">Customer</p><p className="text-yellow-300">{sale.customerName}</p></div>
+                              {isAdmin && <div><p className="text-sm text-yellow-200">Cashier</p><p className="text-yellow-300">{sale.cashierName}</p></div>}
                               <div><p className="text-sm text-yellow-200">Transaction Date</p><p className="text-yellow-300">{sale.transaction_date}</p></div>
                             </div>
                             <div>
