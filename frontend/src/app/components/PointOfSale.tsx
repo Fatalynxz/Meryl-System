@@ -169,14 +169,16 @@ export function PointOfSale() {
     for (const row of rows) {
       const inventory = inventoryByProductId[String(row.product_id)] ?? null;
       const stock = Number(inventory?.stock_quantity ?? 0);
+      const status = String(inventory?.inventory_status ?? row.status ?? "inactive").trim().toLowerCase();
       if (stock <= 0) continue;
+      if (status !== "active" && status !== "available") continue;
       variants.push({
         product_id: row.product_id,
         product_name: row.product_name,
         brand: row.brand ?? "Meryl",
         color: row.color ?? "N/A",
         size: row.size ?? "N/A",
-        price: Number(row.cost_price ?? 0),
+        price: Number(inventory?.srp ?? row.cost_price ?? 0),
         stock_quantity: stock,
       });
     }
