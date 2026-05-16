@@ -684,36 +684,35 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-3">
           <NumberField label="Stock-in Quantity" value={stockForm.stock_in} onChange={(value) => setStockForm({ ...stockForm, stock_in: value })} />
           <NumberField label="SRP / Selling Price" value={stockForm.srp} onChange={(value) => setStockForm({ ...stockForm, srp: value })} />
           <NumberField label="Reorder Level" value={stockForm.reorder_level} onChange={(value) => setStockForm({ ...stockForm, reorder_level: value })} />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <Label className="text-yellow-300">Manufacturer Date</Label>
-            <Input type="date" value={stockForm.manufacturer_date} onChange={(event) => setStockForm({ ...stockForm, manufacturer_date: event.target.value })} className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-yellow-300">Manufacturer Date</Label>
+            <Input type="date" value={stockForm.manufacturer_date} onChange={(event) => setStockForm({ ...stockForm, manufacturer_date: event.target.value })} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
           </div>
-          <div className="space-y-2">
-            <Label className="text-yellow-300">Expiration Date</Label>
-            <Input type="date" value={stockForm.expiration_date} onChange={(event) => setStockForm({ ...stockForm, expiration_date: event.target.value })} className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-yellow-300">Expiration Date</Label>
+            <Input type="date" value={stockForm.expiration_date} onChange={(event) => setStockForm({ ...stockForm, expiration_date: event.target.value })} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
           </div>
-          <div className="space-y-2">
-            <Label className="text-yellow-300">Inventory Status</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-yellow-300">Inventory Status</Label>
             <Select value={stockForm.status} onValueChange={(value) => setStockForm({ ...stockForm, status: value as InventoryStatus })}>
-              <SelectTrigger className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100"><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
             </Select>
           </div>
         </div>
 
-        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-sm text-yellow-200">
-          Note: this screen creates/updates INVENTORY and logs stock-in to INVENTORY_LOG. In the current live schema, SRP/status are temporarily mapped to PRODUCT cost/status until the INVENTORY columns are added.
-        </div>
-
-        <div className="flex justify-end">
-          <Button onClick={onSave} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">Save Product Settings</Button>
+        <div className="flex flex-col gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100/80 md:flex-row md:items-center md:justify-between">
+          <p>
+            Saves inventory settings and logs stock-in to INVENTORY_LOG. SRP/status are currently mapped to PRODUCT until the INVENTORY columns are added.
+          </p>
+          <Button onClick={onSave} className="h-9 shrink-0 bg-yellow-400 px-5 text-red-900 hover:bg-yellow-500">Save Settings</Button>
         </div>
       </CardContent>
     </Card>
@@ -774,9 +773,9 @@ function TextField({ label, value, onChange }: { label: string; value: string; o
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
   return (
-    <div className="space-y-2">
-      <Label className="text-yellow-300">{label}</Label>
-      <Input type="number" value={value === 0 ? "" : value} onChange={(event) => onChange(event.target.value === "" ? 0 : Math.max(0, Number(event.target.value) || 0))} className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold text-yellow-300">{label}</Label>
+      <Input type="number" value={value === 0 ? "" : value} onChange={(event) => onChange(event.target.value === "" ? 0 : Math.max(0, Number(event.target.value) || 0))} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
     </div>
   );
 }
