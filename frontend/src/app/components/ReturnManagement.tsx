@@ -28,6 +28,7 @@ type ReturnRow = {
   display_return_id: string;
   sales_id: string;
   display_sales_id: string;
+  user_id: string;
   customerName: string;
   return_date: string;
   total_refund: number;
@@ -91,6 +92,7 @@ export function ReturnManagement() {
   const productRows = (productsQuery.data as any[]) ?? [];
   const inventoryRows = (inventoryQuery.data as any[]) ?? [];
   const returnRows = (returnsQuery.data as any[]) ?? [];
+  const isAdmin = String(user?.role_name ?? "").trim().toLowerCase().includes("admin");
 
   const salesDisplayMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -139,28 +141,30 @@ export function ReturnManagement() {
 
   const salesOptions = useMemo(
     () =>
-      sales.map((sale: any) => {
-        const customer = Array.isArray(sale.customer) ? sale.customer[0] : sale.customer;
-        const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
-        return {
-          sales_id: String(sale.sales_id ?? ""),
-          display_sales_id: salesDisplayMap.get(String(sale.sales_id ?? "")) ?? "SALES-000",
-          customerName: customer?.name ?? "Walk-in Customer",
-          user_id: String(sale.user_id ?? ""),
-          details: details.map((detail: any) => {
-            const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
-            const qty = Number(detail.quantity ?? 0);
-            return {
-              product_id: String(detail.product_id ?? ""),
-              productName: product?.product_name ?? productMap.get(String(detail.product_id ?? ""))?.name ?? "N/A",
-              quantity: qty,
-              price: Number(detail.price ?? (qty ? Number(detail.subtotal ?? 0) / qty : 0)),
-              subtotal: Number(detail.subtotal ?? 0),
-            };
-          }),
-        };
-      }),
-    [productMap, sales, salesDisplayMap],
+      sales
+        .filter((sale: any) => isAdmin || String(sale.user_id ?? "") === String(user?.user_id ?? ""))
+        .map((sale: any) => {
+          const customer = Array.isArray(sale.customer) ? sale.customer[0] : sale.customer;
+          const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+          return {
+            sales_id: String(sale.sales_id ?? ""),
+            display_sales_id: salesDisplayMap.get(String(sale.sales_id ?? "")) ?? "SALES-000",
+            customerName: customer?.name ?? "Walk-in Customer",
+            user_id: String(sale.user_id ?? ""),
+            details: details.map((detail: any) => {
+              const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
+              const qty = Number(detail.quantity ?? 0);
+              return {
+                product_id: String(detail.product_id ?? ""),
+                productName: product?.product_name ?? productMap.get(String(detail.product_id ?? ""))?.name ?? "N/A",
+                quantity: qty,
+                price: Number(detail.price ?? (qty ? Number(detail.subtotal ?? 0) / qty : 0)),
+                subtotal: Number(detail.subtotal ?? 0),
+              };
+            }),
+          };
+        }),
+    [isAdmin, productMap, sales, salesDisplayMap, user?.user_id],
   );
 
   const selectedSale = salesOptions.find((sale) => sale.sales_id === formData.sales_id);
@@ -208,6 +212,7 @@ export function ReturnManagement() {
         display_return_id: returnDisplayMap.get(String(row.return_id ?? "")) ?? "RET-000",
         sales_id: String(row.sales_id ?? ""),
         display_sales_id: salesDisplayMap.get(String(row.sales_id ?? "")) ?? "SALES-000",
+        user_id: String(row.user_id ?? sale?.user_id ?? ""),
         customerName: customer?.name ?? "Walk-in Customer",
         return_date: formatDate(row.return_date ?? row.created_at),
         total_refund: Number(row.total_refund ?? 0),
@@ -226,6 +231,11 @@ export function ReturnManagement() {
       };
     });
   }, [productMap, returnRows, salesDisplayMap]);
+
+  const visibleReturns = useMemo(
+    () => (isAdmin ? displayReturns : displayReturns.filter((row) => row.user_id === String(user?.user_id ?? ""))),
+    [displayReturns, isAdmin, user?.user_id],
+  );
 
   const updateInventoryStock = async (productId: string, quantityDelta: number) => {
     const product = productMap.get(productId);
@@ -322,18 +332,18 @@ export function ReturnManagement() {
     }
   };
 
-  const filteredReturns = displayReturns.filter(
+  const filteredReturns = visibleReturns.filter(
     (returnItem) =>
       returnItem.display_return_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       returnItem.display_sales_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       returnItem.customerName.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const completedReturns = displayReturns.length;
-  const higherReplacementCount = displayReturns.filter((item) =>
+  const completedReturns = visibleReturns.length;
+  const higherReplacementCount = visibleReturns.filter((item) =>
     item.returnDetails.some((detail) => detail.reason.toLowerCase().includes("customer adds")),
   ).length;
-  const evenExchangeCount = displayReturns.filter((item) =>
+  const evenExchangeCount = visibleReturns.filter((item) =>
     item.returnDetails.some((detail) => detail.reason.toLowerCase().includes("even exchange")),
   ).length;
 

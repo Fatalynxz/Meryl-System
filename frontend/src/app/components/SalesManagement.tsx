@@ -3,32 +3,17 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Calendar, Eye, Plus, Search, ShoppingCart } from "lucide-react";
+import { Calendar, Eye, Search, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
-import { useCustomers, useSales, useSalesMutations } from "../../lib/hooks";
+import { useSales } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 
 type SaleStatus = "Completed" | "Pending" | "Cancelled";
-
-type SaleForm = {
-  customerId: string;
-  total: number;
-  paymentMethod: string;
-  status: SaleStatus;
-};
-
-const defaultForm: SaleForm = {
-  customerId: "walk-in",
-  total: 0,
-  paymentMethod: "Cash",
-  status: "Completed",
-};
 
 function getStatus(paymentStatus?: string | null): SaleStatus {
   const status = (paymentStatus ?? "Paid").toLowerCase();
@@ -57,16 +42,11 @@ export function SalesManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const salesQuery = useSales();
-  const customersQuery = useCustomers();
-  const salesMutations = useSalesMutations();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [viewingSale, setViewingSale] = useState<any | null>(null);
-  const [formData, setFormData] = useState<SaleForm>(defaultForm);
   const [updatingSaleId, setUpdatingSaleId] = useState<string | null>(null);
 
-  const customers = (customersQuery.data as any[]) ?? [];
   const sales = (salesQuery.data as any[]) ?? [];
   const normalizedRole = String(user?.role_name ?? "").trim().toLowerCase();
   const isAdmin = normalizedRole.includes("admin");
@@ -142,7 +122,6 @@ export function SalesManagement() {
   const totalRevenue = completedSales.reduce((sum, sale) => sum + sale.total_amount, 0);
   const today = new Date().toISOString().slice(0, 10);
   const todaySales = completedSales.filter((s) => s.transaction_date === today);
-  const pendingSales = visibleSales.filter((s) => s.status === "Pending");
 
   const handleStatusUpdate = async (sale: any, nextStatus: SaleStatus) => {
     if (!isAdmin) return;
@@ -170,30 +149,9 @@ export function SalesManagement() {
     }
   };
 
-  const handleAddSale = async () => {
-    if (!formData.total || formData.total <= 0) {
-      toast.error("Please provide a valid total amount");
-      return;
-    }
-
-    try {
-      await salesMutations.createMutation.mutateAsync({
-        transaction_date: new Date().toISOString(),
-        total_amount: formData.total,
-        user_id: user?.user_id ?? null,
-        customer_id: formData.customerId === "walk-in" ? null : formData.customerId,
-      } as any);
-      setIsAddDialogOpen(false);
-      setFormData(defaultForm);
-      toast.success("Sale recorded successfully!");
-    } catch (error: any) {
-      toast.error(error?.message ?? "Failed to record sale");
-    }
-  };
-
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="bg-red-700 border-red-800">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -216,17 +174,6 @@ export function SalesManagement() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-red-700 border-red-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-yellow-200">Pending Orders</p>
-                <p className="text-2xl text-yellow-300">{pendingSales.length}</p>
-              </div>
-              <Badge className="bg-yellow-600 text-red-900">{pendingSales.length}</Badge>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <Card className="bg-red-700 border-red-800">
@@ -236,71 +183,6 @@ export function SalesManagement() {
               <ShoppingCart className="w-5 h-5" />
               Sales Records
             </CardTitle>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Record Sale
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200">
-                <DialogHeader>
-                  <DialogTitle className="text-yellow-300">Record New Sale</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                    <Label className="text-yellow-300">Customer</Label>
-                    <Select
-                      value={formData.customerId}
-                      onValueChange={(value) => setFormData({ ...formData, customerId: value })}
-                    >
-                      <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-                        <SelectItem value="walk-in">Walk-in Customer</SelectItem>
-                        {customers.map((c: any) => (
-                          <SelectItem key={c.customer_id} value={c.customer_id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-yellow-300">Total Amount (₱)</Label>
-                    <Input
-                      type="number"
-                      value={formData.total}
-                      onChange={(e) => setFormData({ ...formData, total: Number(e.target.value || 0) })}
-                      className="bg-red-600 border-red-800 text-yellow-200"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-yellow-300">Payment Method</Label>
-                    <Select
-                      value={formData.paymentMethod}
-                      onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                    >
-                      <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-                        <SelectItem value="Cash">Cash</SelectItem>
-                        <SelectItem value="Credit Card">Credit Card</SelectItem>
-                        <SelectItem value="Debit Card">Debit Card</SelectItem>
-                        <SelectItem value="Mobile Payment">Mobile Payment</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={handleAddSale} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                    Record Sale
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
@@ -435,3 +317,4 @@ export function SalesManagement() {
     </div>
   );
 }
+

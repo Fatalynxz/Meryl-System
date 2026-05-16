@@ -6,7 +6,7 @@ import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Edit, Mail, MapPin, Phone, Plus, Search, Star, Trash2, Users } from "lucide-react";
+import { Edit, Mail, MapPin, Phone, Search, Star, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomers, useCustomersMutations, useSales } from "../../lib/hooks";
 
@@ -37,7 +37,6 @@ function formatDate(value: string | null | undefined) {
 
 export function CustomerManagement() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [formData, setFormData] = useState<CustomerFormData>(defaultForm);
 
@@ -104,29 +103,6 @@ export function CustomerManagement() {
       address: customer.address ?? "",
       status: (customer.status ?? "Active") as CustomerStatus,
     });
-  };
-
-  const handleAddCustomer = async () => {
-    if (!formData.name || !formData.email || !formData.contact_number) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    try {
-      await customerMutations.createMutation.mutateAsync({
-        name: formData.name,
-        email: formData.email,
-        contact_number: formData.contact_number,
-        address: formData.address || null,
-        status: formData.status,
-        date_registered: new Date().toISOString().slice(0, 10),
-      } as any);
-      setIsAddDialogOpen(false);
-      setFormData(defaultForm);
-      toast.success("Customer added successfully!");
-    } catch (error: any) {
-      toast.error(error?.message ?? "Failed to add customer");
-    }
   };
 
   const handleEditCustomer = async () => {
@@ -202,25 +178,6 @@ export function CustomerManagement() {
               <Users className="w-5 h-5" />
               Customer Directory
             </CardTitle>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Customer
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200">
-                <DialogHeader>
-                  <DialogTitle className="text-yellow-300">Add New Customer</DialogTitle>
-                </DialogHeader>
-                <CustomerForm formData={formData} setFormData={setFormData} />
-                <DialogFooter>
-                  <Button onClick={handleAddCustomer} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                    Add Customer
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
