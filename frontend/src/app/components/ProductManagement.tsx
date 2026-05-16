@@ -582,7 +582,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
   };
 
   return (
-    <Card className="bg-red-700 border-red-800">
+    <Card className="border-[#24242f] bg-[#101017]">
       <CardHeader>
         <CardTitle className="text-yellow-300 flex items-center gap-2"><Settings className="w-5 h-5" />Product Settings / Item Parameter</CardTitle>
       </CardHeader>
@@ -591,68 +591,96 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
           <div className="space-y-2">
             <Label className="text-yellow-300">Select Existing Product</Label>
             <Select value={stockForm.product_id} onValueChange={selectProductForSettings}>
-              <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200"><SelectValue placeholder="Choose product from Product List" /></SelectTrigger>
-              <SelectContent className="bg-red-700 border-red-800 text-yellow-200 max-h-72">
+              <SelectTrigger className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100"><SelectValue placeholder="Choose product from Product List" /></SelectTrigger>
+              <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100 max-h-72">
                 {products.map((product) => <SelectItem key={product.product_id} value={product.product_id}>{product.name} - {product.brand} - Size {product.size}</SelectItem>)}
               </SelectContent>
             </Select>
-            <div className="rounded-lg border border-red-800 bg-red-800/30 p-3 space-y-3">
+            <div className="rounded-2xl border border-red-900/70 bg-[#15151d] p-4 shadow-inner shadow-black/20 space-y-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                 <Input
                   value={settingsProductSearch}
                   onChange={(event) => setSettingsProductSearch(event.target.value)}
-                  placeholder="Search master product by SKU, name, brand, category, color, size, or unit price..."
-                  className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                  placeholder="Search by SKU, product, brand, category, color, size, or unit price..."
+                  className="h-11 pl-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400/50"
                 />
               </div>
-              <div className="border border-red-800 rounded-lg overflow-auto max-h-64">
-                <Table className="min-w-[980px]">
-                  <TableHeader>
-                    <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                      <TableHead className="text-yellow-300 text-center">SKU</TableHead>
-                      <TableHead className="text-yellow-300 text-center">Product</TableHead>
-                      <TableHead className="text-yellow-300 text-center">Brand</TableHead>
-                      <TableHead className="text-yellow-300 text-center">Category</TableHead>
-                      <TableHead className="text-yellow-300 text-center">Color</TableHead>
-                      <TableHead className="text-yellow-300 text-center">Gender</TableHead>
-                      <TableHead className="text-yellow-300 text-center">Size</TableHead>
-                      <TableHead className="text-yellow-300 text-center">Unit Price</TableHead>
-                      <TableHead className="text-yellow-300 text-center">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredProducts.map((product) => (
-                      <TableRow key={product.product_id} className="border-red-800">
-                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
-                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.name}</TableCell>
-                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
-                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.category}</TableCell>
-                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.color}</TableCell>
-                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.gender}</TableCell>
-                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.size}</TableCell>
-                        <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatMoney(product.unit_price)}</TableCell>
-                        <TableCell className="text-center whitespace-nowrap">
-                          <Button size="sm" onClick={() => selectProductForSettings(product.product_id)} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">Select</Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="rounded-xl border border-[#2d2d3a] overflow-hidden">
+                <div className="grid grid-cols-[1.5fr_0.9fr_1.1fr_1fr_0.9fr] gap-3 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
+                  <span>Product</span>
+                  <span className="text-center">Brand</span>
+                  <span className="text-center">Category</span>
+                  <span className="text-center">Variant</span>
+                  <span className="text-right">Unit Price</span>
+                </div>
+                <div className="max-h-60 overflow-y-auto overflow-x-hidden">
+                  {filteredProducts.length > 0 ? (
+                    filteredProducts.map((product) => {
+                      const isSelected = stockForm.product_id === product.product_id;
+
+                      return (
+                        <button
+                          type="button"
+                          key={product.product_id}
+                          onClick={() => selectProductForSettings(product.product_id)}
+                          className={`grid w-full grid-cols-[1.5fr_0.9fr_1.1fr_1fr_0.9fr] items-center gap-3 border-t border-[#2d2d3a] px-4 py-3 text-left transition ${
+                            isSelected ? "bg-yellow-400 text-red-950" : "text-yellow-100 hover:bg-yellow-400/10"
+                          }`}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold">{product.name}</span>
+                            <span className={`block truncate text-xs ${isSelected ? "text-red-950/70" : "text-yellow-200/50"}`}>{shortId(product.sku)}</span>
+                          </span>
+                          <span className="truncate text-center">{product.brand}</span>
+                          <span className="truncate text-center">{product.category}</span>
+                          <span className="truncate text-center">{product.color} / {product.size}</span>
+                          <span className="text-right font-semibold">{formatMoney(product.unit_price)}</span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="border-t border-[#2d2d3a] px-4 py-8 text-center text-sm text-yellow-200/60">
+                      No master products match your search.
+                    </div>
+                  )}
+                </div>
               </div>
+              <p className="text-xs text-yellow-200/60">Click a product row to load its default details and configure stock.</p>
             </div>
           </div>
-          <div className="rounded-lg bg-red-800/50 border border-red-800 p-4 text-yellow-200">
-            <p className="text-yellow-300 font-medium mb-2">Product Details</p>
+          <div className="rounded-2xl border border-[#2d2d3a] bg-[#15151d] p-5 text-yellow-100 shadow-inner shadow-black/20">
+            <div className="mb-4 flex items-center gap-2">
+              <Package className="h-5 w-5 text-yellow-300" />
+              <p className="font-semibold text-yellow-100">Product Details</p>
+            </div>
             {selectedProduct ? (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <span>SKU: {shortId(selectedProduct.sku)}</span><span>Brand: {selectedProduct.brand}</span>
-                <span>Product: {selectedProduct.name}</span><span>Category: {selectedProduct.category}</span>
-                <span>Color: {selectedProduct.color}</span><span>Gender: {selectedProduct.gender}</span>
-                <span>Size: {selectedProduct.size}</span><span>Unit Price: {formatMoney(selectedProduct.unit_price)}</span>
-                <span>Current Stock: {selectedProduct.stock}</span><span>Current Status: {selectedProduct.status}</span>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-2xl font-bold text-white">{selectedProduct.name}</p>
+                  <p className="text-sm text-yellow-200/60">{shortId(selectedProduct.sku)} - {selectedProduct.brand}</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <DetailPill label="Category" value={selectedProduct.category} />
+                  <DetailPill label="Variant" value={`${selectedProduct.color} / ${selectedProduct.size}`} />
+                  <DetailPill label="Gender" value={selectedProduct.gender} />
+                  <DetailPill label="Unit Price" value={formatMoney(selectedProduct.unit_price)} />
+                  <DetailPill label="Current Stock" value={`${selectedProduct.stock} units`} />
+                  <DetailPill label="Current Status" value={selectedProduct.status} />
+                </div>
+                <div className="rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs text-yellow-100/80">
+                  Configure stock-in quantity, SRP, reorder level, and inventory status below before saving.
+                </div>
               </div>
-            ) : <p className="text-sm text-yellow-200/70">Select a product to configure inventory.</p>}
+            ) : (
+              <div className="flex min-h-[240px] flex-col items-center justify-center rounded-xl border border-dashed border-[#343443] bg-[#111118] p-6 text-center">
+                <Package className="mb-3 h-10 w-10 text-yellow-300/70" />
+                <p className="font-semibold text-white">No product selected yet</p>
+                <p className="mt-2 max-w-sm text-sm text-yellow-200/60">
+                  Choose a product from the master list to stock it in, set its SRP, and make it available in POS.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -665,17 +693,17 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label className="text-yellow-300">Manufacturer Date</Label>
-            <Input type="date" value={stockForm.manufacturer_date} onChange={(event) => setStockForm({ ...stockForm, manufacturer_date: event.target.value })} className="bg-red-600 border-red-800 text-yellow-200" />
+            <Input type="date" value={stockForm.manufacturer_date} onChange={(event) => setStockForm({ ...stockForm, manufacturer_date: event.target.value })} className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
           </div>
           <div className="space-y-2">
             <Label className="text-yellow-300">Expiration Date</Label>
-            <Input type="date" value={stockForm.expiration_date} onChange={(event) => setStockForm({ ...stockForm, expiration_date: event.target.value })} className="bg-red-600 border-red-800 text-yellow-200" />
+            <Input type="date" value={stockForm.expiration_date} onChange={(event) => setStockForm({ ...stockForm, expiration_date: event.target.value })} className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
           </div>
           <div className="space-y-2">
             <Label className="text-yellow-300">Inventory Status</Label>
             <Select value={stockForm.status} onValueChange={(value) => setStockForm({ ...stockForm, status: value as InventoryStatus })}>
-              <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-red-700 border-red-800 text-yellow-200"><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
+              <SelectTrigger className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100"><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
             </Select>
           </div>
         </div>
@@ -726,11 +754,20 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
   );
 }
 
+function DetailPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#2d2d3a] bg-[#1d1d27] p-3">
+      <p className="text-xs uppercase tracking-wide text-yellow-300/60">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-yellow-50">{value || "N/A"}</p>
+    </div>
+  );
+}
+
 function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <div className="space-y-2">
       <Label className="text-yellow-300">{label}</Label>
-      <Input value={value} onChange={(event) => onChange(event.target.value)} className="bg-red-600 border-red-800 text-yellow-200" />
+      <Input value={value} onChange={(event) => onChange(event.target.value)} className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
     </div>
   );
 }
@@ -739,7 +776,7 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
   return (
     <div className="space-y-2">
       <Label className="text-yellow-300">{label}</Label>
-      <Input type="number" value={value === 0 ? "" : value} onChange={(event) => onChange(event.target.value === "" ? 0 : Math.max(0, Number(event.target.value) || 0))} className="bg-red-600 border-red-800 text-yellow-200" />
+      <Input type="number" value={value === 0 ? "" : value} onChange={(event) => onChange(event.target.value === "" ? 0 : Math.max(0, Number(event.target.value) || 0))} className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
     </div>
   );
 }
