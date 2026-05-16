@@ -656,11 +656,16 @@ export function ReturnManagement() {
                   Record Replacement
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-3xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="text-yellow-300">Record Return / Replacement</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
+              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[94vw] !max-w-[1050px] max-h-[88vh] overflow-hidden p-0 shadow-2xl">
+                <div className="border-b border-red-800 p-5">
+                  <DialogHeader>
+                    <DialogTitle className="text-yellow-300 flex items-center gap-2">
+                      <RotateCcw className="w-5 h-5" />
+                      Record Return / Replacement
+                    </DialogTitle>
+                  </DialogHeader>
+                </div>
+                <div className="grid max-h-[70vh] gap-5 overflow-y-auto overflow-x-hidden p-5 scrollbar-hide">
                   <div className="space-y-2">
                     <Label className="text-yellow-300">Original Sale *</Label>
                     <Select
@@ -680,43 +685,43 @@ export function ReturnManagement() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <div className="rounded-lg border border-red-800 bg-red-800/30 p-3 space-y-3">
+                    <div className="space-y-3 rounded-xl border border-red-800 p-4">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                         <Input
                           value={salePickerSearch}
                           onChange={(event) => setSalePickerSearch(event.target.value)}
                           placeholder="Search sale by sales ID, customer, or status..."
-                          className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                          className="h-11 rounded-xl pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
                         />
                       </div>
-                      <div className="border border-red-800 rounded-lg overflow-auto max-h-48">
-                        <Table className="min-w-[760px]">
+                      <div className="border border-red-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-48">
+                        <Table className="w-full table-fixed text-sm">
                           <TableHeader>
                             <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                              <TableHead className="text-yellow-300 text-center">Sales ID</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Customer</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Items</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Amount</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Status</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                              <TableHead className="w-[18%] text-yellow-300 text-center">Sales ID</TableHead>
+                              <TableHead className="w-[24%] text-yellow-300 text-center">Customer</TableHead>
+                              <TableHead className="w-[12%] text-yellow-300 text-center">Items</TableHead>
+                              <TableHead className="w-[18%] text-yellow-300 text-center">Amount</TableHead>
+                              <TableHead className="w-[16%] text-yellow-300 text-center">Status</TableHead>
+                              <TableHead className="w-[12%] text-yellow-300 text-center">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {filteredSaleOptions.map((sale) => (
-                              <TableRow key={sale.sales_id} className="border-red-800">
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{sale.display_sales_id}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{sale.customerName}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{sale.details.length}</TableCell>
-                                <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatCurrency(sale.total_amount)}</TableCell>
-                                <TableCell className="text-center whitespace-nowrap">
+                              <TableRow key={sale.sales_id} className="border-red-800 transition-colors hover:bg-red-800/60">
+                                <TableCell className="truncate text-yellow-200 text-center" title={sale.display_sales_id}>{sale.display_sales_id}</TableCell>
+                                <TableCell className="truncate text-yellow-200 text-center" title={sale.customerName}>{sale.customerName}</TableCell>
+                                <TableCell className="text-yellow-200 text-center">{sale.details.length}</TableCell>
+                                <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(sale.total_amount)}</TableCell>
+                                <TableCell className="text-center">
                                   <Badge className="bg-green-600 text-white">{sale.sales_status}</Badge>
                                 </TableCell>
-                                <TableCell className="text-center whitespace-nowrap">
+                                <TableCell className="text-center">
                                   <Button
                                     size="sm"
                                     onClick={() => selectSaleForReturn(sale.sales_id)}
-                                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                    className="h-8 rounded-full bg-yellow-400 px-4 text-red-900 hover:bg-yellow-500"
                                   >
                                     Select
                                   </Button>
@@ -819,7 +824,7 @@ export function ReturnManagement() {
                   </div>
 
                   {selectedSale && (
-                    <div className="rounded-lg border border-red-800 bg-red-800/30 p-3 space-y-3">
+                    <div className="space-y-3 rounded-xl border border-red-800 p-4">
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <Label className="text-yellow-300">Purchased Products Grid</Label>
                         <div className="relative md:w-80">
@@ -828,36 +833,36 @@ export function ReturnManagement() {
                             value={returnedItemSearch}
                             onChange={(event) => setReturnedItemSearch(event.target.value)}
                             placeholder="Search purchased product..."
-                            className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                            className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
                           />
                         </div>
                       </div>
-                      <div className="border border-red-800 rounded-lg overflow-auto max-h-48">
-                        <Table className="min-w-[760px]">
+                      <div className="border border-red-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-48">
+                        <Table className="w-full table-fixed text-sm">
                           <TableHeader>
                             <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                              <TableHead className="text-yellow-300 text-center">SKU</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Product</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Qty Sold</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Returnable</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Price</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                              <TableHead className="w-[14%] text-yellow-300 text-center">SKU</TableHead>
+                              <TableHead className="w-[30%] text-yellow-300 text-center">Product</TableHead>
+                              <TableHead className="w-[12%] text-yellow-300 text-center">Sold</TableHead>
+                              <TableHead className="w-[14%] text-yellow-300 text-center">Returnable</TableHead>
+                              <TableHead className="w-[18%] text-yellow-300 text-center">Price</TableHead>
+                              <TableHead className="w-[12%] text-yellow-300 text-center">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {filteredReturnedItems.map((detail: any) => (
-                              <TableRow key={`${detail.sales_detail_id}-${detail.product_id}`} className="border-red-800">
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{detail.product_id.slice(0, 8)}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{detail.productName}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{detail.quantity}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{detail.returnable_quantity}</TableCell>
-                                <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatCurrency(detail.price)}</TableCell>
-                                <TableCell className="text-center whitespace-nowrap">
+                              <TableRow key={`${detail.sales_detail_id}-${detail.product_id}`} className="border-red-800 transition-colors hover:bg-red-800/60">
+                                <TableCell className="truncate text-yellow-200 text-center" title={detail.product_id}>{detail.product_id.slice(0, 8)}</TableCell>
+                                <TableCell className="truncate text-yellow-200 text-center" title={detail.productName}>{detail.productName}</TableCell>
+                                <TableCell className="text-yellow-200 text-center">{detail.quantity}</TableCell>
+                                <TableCell className="text-yellow-200 text-center">{detail.returnable_quantity}</TableCell>
+                                <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(detail.price)}</TableCell>
+                                <TableCell className="text-center">
                                   <Button
                                     size="sm"
                                     disabled={Number(detail.returnable_quantity ?? 0) <= 0}
                                     onClick={() => selectReturnedProduct(detail.product_id)}
-                                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-50"
+                                    className="h-8 rounded-full bg-yellow-400 px-4 text-red-900 hover:bg-yellow-500 disabled:opacity-50"
                                   >
                                     Select
                                   </Button>
@@ -871,7 +876,7 @@ export function ReturnManagement() {
                   )}
 
                   {requiresReplacement && (
-                    <div className="rounded-lg border border-red-800 bg-red-800/30 p-3 space-y-3">
+                    <div className="space-y-3 rounded-xl border border-red-800 p-4">
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <Label className="text-yellow-300">Replacement Product Grid</Label>
                         <div className="relative md:w-80">
@@ -880,45 +885,37 @@ export function ReturnManagement() {
                             value={replacementSearch}
                             onChange={(event) => setReplacementSearch(event.target.value)}
                             placeholder="Search replacement by SKU, name, brand..."
-                            className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                            className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
                           />
                         </div>
                       </div>
-                      <div className="border border-red-800 rounded-lg overflow-auto max-h-56">
-                        <Table className="min-w-[980px]">
+                      <div className="border border-red-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-56">
+                        <Table className="w-full table-fixed text-sm">
                           <TableHeader>
                             <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                              <TableHead className="text-yellow-300 text-center">SKU</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Product</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Brand</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Color</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Size</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Price</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Stock</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Status</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                              <TableHead className="w-[24%] text-yellow-300 text-center">Product</TableHead>
+                              <TableHead className="w-[14%] text-yellow-300 text-center">Brand</TableHead>
+                              <TableHead className="w-[16%] text-yellow-300 text-center">Variant</TableHead>
+                              <TableHead className="w-[16%] text-yellow-300 text-center">Price</TableHead>
+                              <TableHead className="w-[14%] text-yellow-300 text-center">Stock</TableHead>
+                              <TableHead className="w-[16%] text-yellow-300 text-center">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {filteredReplacementProducts.map((product) => (
-                              <TableRow key={product.product_id} className="border-red-800">
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.product_id.slice(0, 8)}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.name}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.color}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.size}</TableCell>
-                                <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatCurrency(product.price)}</TableCell>
-                                <TableCell className="text-center whitespace-nowrap">
-                                  <Badge className="bg-yellow-400 text-red-900">{product.stock} units</Badge>
+                              <TableRow key={product.product_id} className="border-red-800 transition-colors hover:bg-red-800/60">
+                                <TableCell className="truncate text-yellow-200 text-center" title={product.name}>{product.name}</TableCell>
+                                <TableCell className="truncate text-yellow-200 text-center" title={product.brand}>{product.brand}</TableCell>
+                                <TableCell className="truncate text-yellow-200 text-center" title={`${product.color} / ${product.size}`}>{product.color} / {product.size}</TableCell>
+                                <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(product.price)}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge className="rounded-full bg-yellow-400 text-red-900">{product.stock} units</Badge>
                                 </TableCell>
-                                <TableCell className="text-center whitespace-nowrap">
-                                  <Badge className="bg-green-600 text-white">Active</Badge>
-                                </TableCell>
-                                <TableCell className="text-center whitespace-nowrap">
+                                <TableCell className="text-center">
                                   <Button
                                     size="sm"
                                     onClick={() => setFormData({ ...formData, replacement_product_id: product.product_id })}
-                                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                    className="h-8 rounded-full bg-yellow-400 px-4 text-red-900 hover:bg-yellow-500"
                                   >
                                     Select
                                   </Button>
@@ -970,7 +967,7 @@ export function ReturnManagement() {
                     />
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="border-t border-red-800 p-5">
                   <Button
                     onClick={handleAddReturn}
                     disabled={isSaving}
