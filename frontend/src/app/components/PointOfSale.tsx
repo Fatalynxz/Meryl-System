@@ -9,7 +9,7 @@ import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Coins, CreditCard, Package, Plus, Receipt, Trash2 } from "lucide-react";
+import { Coins, CreditCard, Package, Plus, Receipt, Search, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomers, useInventory, useProducts, usePromotions } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
@@ -32,10 +32,13 @@ type ProductVariant = {
   product_id: string;
   product_name: string;
   brand: string;
+  category: string;
   color: string;
+  gender: string;
   size: string;
   price: number;
   stock_quantity: number;
+  status: string;
 };
 
 type ProductGroup = {
@@ -149,10 +152,24 @@ export function PointOfSale() {
   const [cashReceived, setCashReceived] = useState<string>("");
   const [receiptData, setReceiptData] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [isProductGridOpen, setIsProductGridOpen] = useState(false);
+  const [isCustomerGridOpen, setIsCustomerGridOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
 
   const customers = (customersQuery.data as any[]) ?? [];
   const customerOptions = useMemo(
-    () => [{ label: "Walk-in Customer", value: "walk-in", customer_id: null }, ...customers.map((c) => ({ label: c.name, value: c.name, customer_id: c.customer_id }))],
+    () => [
+      { label: "Walk-in Customer", value: "walk-in", customer_id: null, email: "", contact_number: "", date_registered: "" },
+      ...customers.map((c) => ({
+        label: c.name,
+        value: c.name,
+        customer_id: c.customer_id,
+        email: c.email,
+        contact_number: c.contact_number,
+        date_registered: c.date_registered,
+      })),
+    ],
     [customers],
   );
 
@@ -176,14 +193,73 @@ export function PointOfSale() {
         product_id: row.product_id,
         product_name: row.product_name,
         brand: row.brand ?? "Meryl",
+        category: row.category?.[0]?.category_name ?? row.category?.category_name ?? "N/A",
         color: row.color ?? "N/A",
+        gender: row.gender ?? "N/A",
         size: row.size ?? "N/A",
         price: Number(inventory?.srp ?? row.cost_price ?? 0),
         stock_quantity: stock,
+        status: status === "available" ? "Active" : status.charAt(0).toUpperCase() + status.slice(1),
       });
     }
     return variants;
   }, [productsQuery.data, inventoryQuery.data]);
+
+  const filteredProductInventory = useMemo(() => {
+    const term = productSearch.trim().toLowerCase();
+    if (!term) return productInventory;
+    return productInventory.filter((product) =>
+      [
+        product.product_id,
+        product.product_name,
+        product.brand,
+        product.category,
+        product.color,
+        product.gender,
+        product.size,
+        String(product.price),
+        String(product.stock_quantity),
+        product.status,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [productInventory, productSearch]);
+
+  const filteredCustomerOptions = useMemo(() => {
+    const term = customerSearch.trim().toLowerCase();
+    if (!term) return customerOptions;
+    return customerOptions.filter((customer: any) =>
+      [
+        customer.customer_id ?? "walk-in",
+        customer.label,
+        customer.email ?? "",
+        customer.contact_number ?? "",
+        customer.date_registered ?? "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [customerOptions, customerSearch]);
+
+  const selectProductVariant = (variant: ProductVariant) => {
+    setSelectedProductKey(variant.product_name);
+    setSelectedColor(variant.color);
+    setSelectedSize(variant.size);
+    setIsProductGridOpen(false);
+    toast.success(`${variant.product_name} selected`);
+  };
+
+  const selectCustomer = (customer: any) => {
+    setCustomerName(customer.value);
+    if (customer.value !== "walk-in") {
+      setSaveWalkInDetails(false);
+    }
+    setIsCustomerGridOpen(false);
+    toast.success(`${customer.label} selected`);
+  };
 
   const productMetaById = useMemo(() => {
     const rows = (productsQuery.data as any[]) ?? [];
@@ -483,12 +559,89 @@ export function PointOfSale() {
       <div className="lg:col-span-2 space-y-4">
         <Card className="bg-red-700 border-red-800">
           <CardHeader>
-            <CardTitle className="text-yellow-300 flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              Product Selection
-            </CardTitle>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="text-yellow-300 flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Product Selection
+              </CardTitle>
+              <Button
+                type="button"
+                onClick={() => setIsProductGridOpen(true)}
+                className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+              >
+                <Search className="w-4 h-4 mr-2" />
+                Browse Products
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Dialog open={isProductGridOpen} onOpenChange={setIsProductGridOpen}>
+              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-6xl max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="text-yellow-300">Select Available Product</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                    <Input
+                      value={productSearch}
+                      onChange={(event) => setProductSearch(event.target.value)}
+                      placeholder="Search by SKU, product, brand, category, color, size, or price..."
+                      className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                    />
+                  </div>
+                  <div className="border border-red-800 rounded-lg overflow-x-auto">
+                    <Table className="min-w-[980px]">
+                      <TableHeader>
+                        <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                          <TableHead className="text-yellow-300 text-center">SKU</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Product</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Brand</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Category</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Color</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Gender</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Size</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Price</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Stock</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Status</TableHead>
+                          <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredProductInventory.map((product) => (
+                          <TableRow key={product.product_id} className="border-red-800">
+                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.product_id.slice(0, 8)}</TableCell>
+                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.product_name}</TableCell>
+                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
+                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.category}</TableCell>
+                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.color}</TableCell>
+                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.gender}</TableCell>
+                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.size}</TableCell>
+                            <TableCell className="text-yellow-300 text-center whitespace-nowrap">PHP {product.price}</TableCell>
+                            <TableCell className="text-center whitespace-nowrap">
+                              <Badge className="bg-yellow-400 text-red-900">{product.stock_quantity} units</Badge>
+                            </TableCell>
+                            <TableCell className="text-center whitespace-nowrap">
+                              <Badge className="bg-green-600 text-white">{product.status}</Badge>
+                            </TableCell>
+                            <TableCell className="text-center whitespace-nowrap">
+                              <Button
+                                size="sm"
+                                onClick={() => selectProductVariant(product)}
+                                className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                              >
+                                Select
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-yellow-300">Select Product</Label>
@@ -683,7 +836,72 @@ export function PointOfSale() {
 
             <div className="space-y-4 pt-4 border-t border-red-600">
               <div className="space-y-2">
-                <Label className="text-yellow-300">Select Existing Customer</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-yellow-300">Select Existing Customer</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsCustomerGridOpen(true)}
+                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Browse
+                  </Button>
+                </div>
+                <Dialog open={isCustomerGridOpen} onOpenChange={setIsCustomerGridOpen}>
+                  <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-5xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle className="text-yellow-300">Select Customer</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                        <Input
+                          value={customerSearch}
+                          onChange={(event) => setCustomerSearch(event.target.value)}
+                          placeholder="Search by customer ID, name, email, or contact number..."
+                          className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                        />
+                      </div>
+                      <div className="border border-red-800 rounded-lg overflow-x-auto">
+                        <Table className="min-w-[760px]">
+                          <TableHeader>
+                            <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                              <TableHead className="text-yellow-300 text-center">Customer ID</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Name</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Email</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Contact Number</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Date Registered</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredCustomerOptions.map((customer: any) => (
+                              <TableRow key={customer.value} className="border-red-800">
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">
+                                  {customer.customer_id ? String(customer.customer_id).slice(0, 8) : "WALK-IN"}
+                                </TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{customer.label}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{customer.email || "N/A"}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{customer.contact_number || "N/A"}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{customer.date_registered || "N/A"}</TableCell>
+                                <TableCell className="text-center whitespace-nowrap">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => selectCustomer(customer)}
+                                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                  >
+                                    Select
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <Select
                   value={customerName}
                   onValueChange={(value) => {

@@ -549,6 +549,38 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
 }
 
 function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduct, onSave }: { products: UiProduct[]; categories: any[]; stockForm: StockFormData; setStockForm: (data: StockFormData) => void; selectedProduct?: UiProduct; onSave: () => void }) {
+  const [settingsProductSearch, setSettingsProductSearch] = useState("");
+  const filteredProducts = useMemo(() => {
+    const term = settingsProductSearch.trim().toLowerCase();
+    if (!term) return products;
+    return products.filter((product) =>
+      [
+        product.sku,
+        product.name,
+        product.brand,
+        product.category,
+        product.color,
+        product.gender,
+        product.size,
+        String(product.unit_price),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [products, settingsProductSearch]);
+
+  const selectProductForSettings = (value: string) => {
+    const product = products.find((item) => item.product_id === value);
+    setStockForm({
+      ...stockForm,
+      product_id: value,
+      srp: product?.srp || product?.unit_price || 0,
+      reorder_level: product?.reorder_level || 10,
+      status: product?.status || 'Active',
+    });
+  };
+
   return (
     <Card className="bg-red-700 border-red-800">
       <CardHeader>
@@ -558,21 +590,57 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
             <Label className="text-yellow-300">Select Existing Product</Label>
-            <Select value={stockForm.product_id} onValueChange={(value) => {
-              const product = products.find((item) => item.product_id === value);
-              setStockForm({
-                ...stockForm,
-                product_id: value,
-                srp: product?.srp || product?.unit_price || 0,
-                reorder_level: product?.reorder_level || 10,
-                status: product?.status || 'Active',
-              });
-            }}>
+            <Select value={stockForm.product_id} onValueChange={selectProductForSettings}>
               <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200"><SelectValue placeholder="Choose product from Product List" /></SelectTrigger>
               <SelectContent className="bg-red-700 border-red-800 text-yellow-200 max-h-72">
                 {products.map((product) => <SelectItem key={product.product_id} value={product.product_id}>{product.name} - {product.brand} - Size {product.size}</SelectItem>)}
               </SelectContent>
             </Select>
+            <div className="rounded-lg border border-red-800 bg-red-800/30 p-3 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                <Input
+                  value={settingsProductSearch}
+                  onChange={(event) => setSettingsProductSearch(event.target.value)}
+                  placeholder="Search master product by SKU, name, brand, category, color, size, or unit price..."
+                  className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                />
+              </div>
+              <div className="border border-red-800 rounded-lg overflow-auto max-h-64">
+                <Table className="min-w-[980px]">
+                  <TableHeader>
+                    <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                      <TableHead className="text-yellow-300 text-center">SKU</TableHead>
+                      <TableHead className="text-yellow-300 text-center">Product</TableHead>
+                      <TableHead className="text-yellow-300 text-center">Brand</TableHead>
+                      <TableHead className="text-yellow-300 text-center">Category</TableHead>
+                      <TableHead className="text-yellow-300 text-center">Color</TableHead>
+                      <TableHead className="text-yellow-300 text-center">Gender</TableHead>
+                      <TableHead className="text-yellow-300 text-center">Size</TableHead>
+                      <TableHead className="text-yellow-300 text-center">Unit Price</TableHead>
+                      <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.map((product) => (
+                      <TableRow key={product.product_id} className="border-red-800">
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.name}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.category}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.color}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.gender}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.size}</TableCell>
+                        <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatMoney(product.unit_price)}</TableCell>
+                        <TableCell className="text-center whitespace-nowrap">
+                          <Button size="sm" onClick={() => selectProductForSettings(product.product_id)} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">Select</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           </div>
           <div className="rounded-lg bg-red-800/50 border border-red-800 p-4 text-yellow-200">
             <p className="text-yellow-300 font-medium mb-2">Product Details</p>

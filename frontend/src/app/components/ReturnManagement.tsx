@@ -11,7 +11,7 @@ import { Badge } from "./ui/badge";
 import { Plus, Search, Eye, RotateCcw, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../lib/auth-context";
-import { useInventory, useProducts, useReturns, useReturnsMutations, useSales } from "../../lib/hooks";
+import { useInventory, useProducts, useReturns, useSales } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
 
 type ReturnDetail = {
@@ -21,6 +21,9 @@ type ReturnDetail = {
   quantity_returned: number;
   reason: string;
   refund_amount: number;
+  replacementProductName: string;
+  price_difference: number;
+  inventory_action: string;
 };
 
 type ReturnRow = {
@@ -32,7 +35,12 @@ type ReturnRow = {
   customerName: string;
   return_date: string;
   total_refund: number;
-  status: "Completed";
+  return_type: string;
+  return_status: string;
+  additional_payment: number;
+  adjustment_amount: number;
+  processedBy: string;
+  salesStatus: string;
   returnDetails: ReturnDetail[];
 };
 
@@ -42,6 +50,8 @@ type ExchangeForm = {
   replacement_product_id: string;
   quantity: number;
   reason: string;
+  return_action: "Replacement" | "Partial Return" | "Full Return" | "Adjustment";
+  inventory_action: "Defective / Not Sellable" | "Return to Stock";
 };
 
 const defaultForm: ExchangeForm = {
@@ -50,6 +60,8 @@ const defaultForm: ExchangeForm = {
   replacement_product_id: "",
   quantity: 1,
   reason: "",
+  return_action: "Replacement",
+  inventory_action: "Defective / Not Sellable",
 };
 
 function buildClientId() {
@@ -73,6 +85,31 @@ function formatSequence(prefix: string, sequence: number) {
   return `${prefix}-${String(sequence).padStart(3, "0")}`;
 }
 
+async function tryUpdateById(table: string, idColumn: string, id: string, payloads: Record<string, any>[]) {
+  let lastError: any = null;
+  for (const payload of payloads) {
+    const { error } = await supabase.from(table as any).update(payload).eq(idColumn as any, id);
+    if (!error) return;
+    lastError = error;
+  }
+  if (lastError) throw lastError;
+}
+
+async function tryInsertRow(table: string, payloads: Record<string, any>[]) {
+  let lastError: any = null;
+  for (const payload of payloads) {
+    const { error } = await supabase.from(table as any).insert(payload);
+    if (!error) return;
+    lastError = error;
+  }
+  if (lastError) throw lastError;
+}
+
+function normalizeSaleStatus(value: string | null | undefined) {
+  const normalized = String(value ?? "Completed").trim();
+  return normalized || "Completed";
+}
+
 export function ReturnManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -80,13 +117,15 @@ export function ReturnManagement() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
   const inventoryQuery = useInventory();
-  const returnsMutations = useReturnsMutations();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [viewingReturn, setViewingReturn] = useState<ReturnRow | null>(null);
   const [formData, setFormData] = useState<ExchangeForm>(defaultForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [salePickerSearch, setSalePickerSearch] = useState("");
+  const [returnedItemSearch, setReturnedItemSearch] = useState("");
+  const [replacementSearch, setReplacementSearch] = useState("");
 
   const sales = (salesQuery.data as any[]) ?? [];
   const productRows = (productsQuery.data as any[]) ?? [];
@@ -151,13 +190,20 @@ export function ReturnManagement() {
             display_sales_id: salesDisplayMap.get(String(sale.sales_id ?? "")) ?? "SALES-000",
             customerName: customer?.name ?? "Walk-in Customer",
             user_id: String(sale.user_id ?? ""),
+            total_amount: Number(sale.total_amount ?? 0),
+            sales_status: normalizeSaleStatus(sale.sales_status ?? sale.status),
+            return_status: String(sale.return_status ?? "None"),
             details: details.map((detail: any) => {
               const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
               const qty = Number(detail.quantity ?? 0);
+              const returnedQty = Number(detail.returned_quantity ?? 0);
               return {
+                sales_detail_id: String(detail.sales_detail_id ?? ""),
                 product_id: String(detail.product_id ?? ""),
                 productName: product?.product_name ?? productMap.get(String(detail.product_id ?? ""))?.name ?? "N/A",
                 quantity: qty,
+                returned_quantity: returnedQty,
+                returnable_quantity: Math.max(0, qty - returnedQty),
                 price: Number(detail.price ?? (qty ? Number(detail.subtotal ?? 0) / qty : 0)),
                 subtotal: Number(detail.subtotal ?? 0),
               };
@@ -170,27 +216,87 @@ export function ReturnManagement() {
   const selectedSale = salesOptions.find((sale) => sale.sales_id === formData.sales_id);
   const selectedOriginalItem = selectedSale?.details.find((detail) => detail.product_id === formData.returned_product_id);
   const replacementProduct = productMap.get(formData.replacement_product_id);
-  const maxReturnQty = Math.max(1, Number(selectedOriginalItem?.quantity ?? 1));
+  const requiresReplacement = formData.return_action === "Replacement" || formData.return_action === "Adjustment";
+  const maxReturnQty = Math.max(1, Number(selectedOriginalItem?.returnable_quantity ?? selectedOriginalItem?.quantity ?? 1));
   const quantity = Math.min(Math.max(1, Number(formData.quantity || 1)), maxReturnQty);
   const originalTotal = Number(selectedOriginalItem?.price ?? 0) * quantity;
   const replacementTotal = Number(replacementProduct?.price ?? 0) * quantity;
   const priceDifference = replacementTotal - originalTotal;
   const customerPays = Math.max(0, priceDifference);
-  const isLowerReplacement = Boolean(replacementProduct && selectedOriginalItem && priceDifference < 0);
   const exchangeSummary =
-    priceDifference > 0
+    !requiresReplacement
+      ? `${formData.return_action}: ${formatCurrency(originalTotal)} will be adjusted`
+      : priceDifference > 0
       ? `Customer adds ${formatCurrency(customerPays)}`
       : priceDifference < 0
-        ? `Not allowed: replacement is ${formatCurrency(Math.abs(priceDifference))} lower`
+        ? `Refund or store credit: ${formatCurrency(Math.abs(priceDifference))}`
         : "Even exchange";
   const eligibleReplacementProducts = useMemo(
-    () =>
-      products.filter((product) => {
-        if (!selectedOriginalItem) return true;
-        return Number(product.price ?? 0) >= Number(selectedOriginalItem.price ?? 0);
-      }),
-    [products, selectedOriginalItem],
+    () => products,
+    [products],
   );
+
+  const filteredSaleOptions = useMemo(() => {
+    const term = salePickerSearch.trim().toLowerCase();
+    if (!term) return salesOptions;
+    return salesOptions.filter((sale) =>
+      [sale.display_sales_id, sale.sales_id, sale.customerName, sale.sales_status, sale.return_status]
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [salePickerSearch, salesOptions]);
+
+  const filteredReturnedItems = useMemo(() => {
+    const term = returnedItemSearch.trim().toLowerCase();
+    const details = selectedSale?.details ?? [];
+    if (!term) return details;
+    return details.filter((detail) =>
+      [detail.product_id, detail.productName, String(detail.quantity), String(detail.price)]
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [returnedItemSearch, selectedSale?.details]);
+
+  const filteredReplacementProducts = useMemo(() => {
+    const term = replacementSearch.trim().toLowerCase();
+    const availableProducts = eligibleReplacementProducts.filter((product) => product.stock > 0);
+    if (!term) return availableProducts;
+    return availableProducts.filter((product) =>
+      [
+        product.product_id,
+        product.name,
+        product.brand,
+        product.color,
+        product.size,
+        String(product.price),
+        String(product.stock),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [eligibleReplacementProducts, replacementSearch]);
+
+  const selectSaleForReturn = (saleId: string) => {
+    setFormData({
+      ...formData,
+      sales_id: saleId,
+      returned_product_id: "",
+      replacement_product_id: "",
+      quantity: 1,
+    });
+  };
+
+  const selectReturnedProduct = (productId: string) => {
+    setFormData({
+      ...formData,
+      returned_product_id: productId,
+      replacement_product_id: "",
+      quantity: 1,
+    });
+  };
 
   const displayReturns = useMemo<ReturnRow[]>(() => {
     const sortedAsc = [...returnRows].sort((a, b) => {
@@ -206,6 +312,7 @@ export function ReturnManagement() {
     return returnRows.map((row: any) => {
       const sale = Array.isArray(row.sales_transaction) ? row.sales_transaction[0] : row.sales_transaction;
       const customer = Array.isArray(sale?.customer) ? sale.customer[0] : sale?.customer;
+      const processedUser = Array.isArray(row.user) ? row.user[0] : row.user;
       const details = Array.isArray(row.return_details) ? row.return_details : [];
       return {
         return_id: String(row.return_id ?? ""),
@@ -216,9 +323,15 @@ export function ReturnManagement() {
         customerName: customer?.name ?? "Walk-in Customer",
         return_date: formatDate(row.return_date ?? row.created_at),
         total_refund: Number(row.total_refund ?? 0),
-        status: "Completed",
+        return_type: String(row.return_type ?? "Replacement"),
+        return_status: String(row.return_status ?? "Completed"),
+        additional_payment: Number(row.additional_payment ?? 0),
+        adjustment_amount: Number(row.adjustment_amount ?? 0),
+        processedBy: processedUser?.name ?? processedUser?.username ?? "Staff",
+        salesStatus: normalizeSaleStatus(sale?.sales_status ?? sale?.status),
         returnDetails: details.map((detail: any) => {
           const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
+          const replacement = Array.isArray(detail.replacement_product) ? detail.replacement_product[0] : detail.replacement_product;
           return {
             return_detail_id: String(detail.return_detail_id ?? ""),
             product_id: String(detail.product_id ?? ""),
@@ -226,6 +339,9 @@ export function ReturnManagement() {
             quantity_returned: Number(detail.quantity_returned ?? 0),
             reason: String(detail.reason ?? ""),
             refund_amount: Number(detail.refund_amount ?? 0),
+            replacementProductName: replacement?.product_name ?? "N/A",
+            price_difference: Number(detail.price_difference ?? 0),
+            inventory_action: String(detail.inventory_action ?? "Defective / Not Sellable"),
           };
         }),
       };
@@ -261,9 +377,63 @@ export function ReturnManagement() {
     if (error) throw error;
   };
 
+  const createInventoryLog = async (productId: string, quantityChange: number, transactionType: string, referenceId: string) => {
+    await tryInsertRow("inventory_log", [
+      {
+        inventory_log_id: buildClientId(),
+        product_id: productId,
+        quantity_change: quantityChange,
+        transaction_type: transactionType,
+        reference_id: referenceId,
+        date_updated: new Date().toISOString(),
+      },
+    ]);
+  };
+
+  const recordAdditionalPayment = async (salesId: string, amount: number) => {
+    if (amount <= 0) return;
+
+    const { data: existingPayment } = await supabase
+      .from("payment")
+      .select("payment_id, amount_paid")
+      .eq("sales_id", salesId)
+      .maybeSingle();
+
+    if (existingPayment?.payment_id) {
+      const nextAmountPaid = Number(existingPayment.amount_paid ?? 0) + amount;
+      const { error } = await supabase
+        .from("payment")
+        .update({
+          amount_paid: nextAmountPaid,
+          payment_status: "completed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("payment_id", existingPayment.payment_id);
+      if (error) throw error;
+      return;
+    }
+
+    await tryInsertRow("payment", [
+      {
+        payment_id: buildClientId(),
+        sales_id: salesId,
+        payment_method: "cash",
+        amount_paid: amount,
+        change_amount: 0,
+        payment_status: "completed",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+  };
+
   const handleAddReturn = async () => {
-    if (!selectedSale || !selectedOriginalItem || !replacementProduct) {
-      toast.error("Please select the original sale, returned item, and replacement item");
+    if (!selectedSale || !selectedOriginalItem) {
+      toast.error("Please select the original sale and returned item");
+      return;
+    }
+    if (requiresReplacement && !replacementProduct) {
+      toast.error("Please select the replacement item");
       return;
     }
     if (!formData.reason.trim()) {
@@ -274,57 +444,133 @@ export function ReturnManagement() {
       toast.error(`Only ${maxReturnQty} unit(s) can be returned from this sale item`);
       return;
     }
-    if (replacementProduct.product_id !== selectedOriginalItem.product_id && replacementProduct.stock < quantity) {
+    if (requiresReplacement && replacementProduct && replacementProduct.stock < quantity) {
       toast.error(`Only ${replacementProduct.stock} replacement unit(s) available`);
-      return;
-    }
-    if (isLowerReplacement) {
-      toast.error("Replacement item must be the same price or higher. Cheaper replacements are not allowed.");
       return;
     }
 
     const returnId = buildClientId();
+    const selectedSalesDetailId = selectedOriginalItem.sales_detail_id;
+    const nextReturnedQty = Number(selectedOriginalItem.returned_quantity ?? 0) + quantity;
+    const isFullyReturnedItem = nextReturnedQty >= Number(selectedOriginalItem.quantity ?? 0);
+    const allOtherItemsReturned = (selectedSale.details ?? [])
+      .filter((detail: any) => detail.sales_detail_id !== selectedSalesDetailId)
+      .every((detail: any) => Number(detail.returnable_quantity ?? detail.quantity ?? 0) <= 0);
+    const isFullTransactionReturn = isFullyReturnedItem && allOtherItemsReturned;
+    const additionalPayment = Math.max(0, priceDifference);
+    const refundAmount = formData.return_action === "Replacement" ? Math.max(0, -priceDifference) : originalTotal;
+    const adjustmentAmount = additionalPayment - refundAmount;
+    const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + adjustmentAmount);
+    const salesStatus = isFullTransactionReturn
+      ? formData.return_action === "Full Return"
+        ? "Fully Returned"
+        : "Adjusted"
+      : formData.return_action === "Replacement" || formData.return_action === "Adjustment"
+        ? "Adjusted"
+        : "Partially Returned";
     const replacementNote = [
-      `Replacement exchange`,
+      `${formData.return_action}`,
       `Returned: ${selectedOriginalItem.productName}`,
-      `Replacement: ${replacementProduct.name}`,
+      replacementProduct ? `Replacement: ${replacementProduct.name}` : "Replacement: N/A",
       `Rule: ${exchangeSummary}`,
+      `Inventory action: ${formData.inventory_action}`,
       `Reason: ${formData.reason.trim()}`,
     ].join(" | ");
 
     try {
       setIsSaving(true);
-      await returnsMutations.createMutation.mutateAsync({
-        return_id: returnId,
-        sales_id: selectedSale.sales_id,
-        user_id: user?.user_id ?? selectedSale.user_id,
-        return_date: new Date().toISOString(),
-        total_refund: 0,
-      } as any);
+      await tryInsertRow("returns", [
+        {
+          return_id: returnId,
+          sales_id: selectedSale.sales_id,
+          user_id: user?.user_id ?? selectedSale.user_id,
+          return_date: new Date().toISOString(),
+          return_type: formData.return_action,
+          return_status: "Completed",
+          total_refund: refundAmount,
+          additional_payment: additionalPayment,
+          adjustment_amount: adjustmentAmount,
+          remarks: replacementNote,
+        },
+        {
+          return_id: returnId,
+          sales_id: selectedSale.sales_id,
+          user_id: user?.user_id ?? selectedSale.user_id,
+          return_date: new Date().toISOString(),
+          total_refund: refundAmount,
+        },
+      ]);
 
-      const { error: detailError } = await supabase.from("return_details").insert({
-        return_detail_id: buildClientId(),
-        return_id: returnId,
-        product_id: selectedOriginalItem.product_id,
-        quantity_returned: quantity,
-        reason: replacementNote,
-        refund_amount: 0,
-      });
-      if (detailError) throw detailError;
+      await tryInsertRow("return_details", [
+        {
+          return_detail_id: buildClientId(),
+          return_id: returnId,
+          product_id: selectedOriginalItem.product_id,
+          quantity_returned: quantity,
+          reason: replacementNote,
+          refund_amount: refundAmount,
+          replacement_product_id: replacementProduct?.product_id ?? null,
+          replacement_quantity: replacementProduct ? quantity : 0,
+          price_difference: priceDifference,
+          inventory_action: formData.inventory_action,
+        },
+        {
+          return_detail_id: buildClientId(),
+          return_id: returnId,
+          product_id: selectedOriginalItem.product_id,
+          quantity_returned: quantity,
+          reason: replacementNote,
+          refund_amount: refundAmount,
+        },
+      ]);
 
-      if (selectedOriginalItem.product_id === replacementProduct.product_id) {
-        await updateInventoryStock(selectedOriginalItem.product_id, 0);
-      } else {
+      try {
+        await tryUpdateById("sales_details", "sales_detail_id", selectedSalesDetailId, [
+          {
+            returned_quantity: nextReturnedQty,
+            replacement_product_id: replacementProduct?.product_id ?? null,
+            item_status: isFullyReturnedItem ? (replacementProduct ? "Replaced" : "Returned") : "Partially Returned",
+          },
+        ]);
+      } catch {
+        // Older schemas may not have return-tracking columns on sales_details yet.
+      }
+
+      await tryUpdateById("sales_transaction", "sales_id", selectedSale.sales_id, [
+        {
+          original_total_amount: Number(selectedSale.total_amount ?? 0),
+          adjusted_total_amount: adjustedTotal,
+          total_amount: adjustedTotal,
+          sales_status: salesStatus,
+          return_status: "Completed",
+          updated_at: new Date().toISOString(),
+        },
+        {
+          total_amount: adjustedTotal,
+          updated_at: new Date().toISOString(),
+        },
+      ]);
+
+      await recordAdditionalPayment(selectedSale.sales_id, additionalPayment);
+
+      if (formData.inventory_action === "Return to Stock") {
         await updateInventoryStock(selectedOriginalItem.product_id, quantity);
+        await createInventoryLog(selectedOriginalItem.product_id, quantity, "Return", returnId);
+      }
+
+      if (replacementProduct) {
         await updateInventoryStock(replacementProduct.product_id, -quantity);
+        await createInventoryLog(replacementProduct.product_id, -quantity, "Replacement", returnId);
       }
 
       await queryClient.invalidateQueries({ queryKey: ["returns"] });
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       await queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["sales"] });
+      await queryClient.invalidateQueries({ queryKey: ["payments"] });
       setIsAddDialogOpen(false);
       setFormData(defaultForm);
-      toast.success(`Replacement recorded. ${exchangeSummary}.`);
+      toast.success(`${formData.return_action} recorded. Sales transaction preserved and adjusted.`);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to record replacement return");
     } finally {
@@ -412,7 +658,7 @@ export function ReturnManagement() {
               </DialogTrigger>
               <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-3xl max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle className="text-yellow-300">Record Replacement Return</DialogTitle>
+                  <DialogTitle className="text-yellow-300">Record Return / Replacement</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="space-y-2">
@@ -420,13 +666,7 @@ export function ReturnManagement() {
                     <Select
                       value={formData.sales_id}
                       onValueChange={(value) =>
-                        setFormData({
-                          ...formData,
-                          sales_id: value,
-                          returned_product_id: "",
-                          replacement_product_id: "",
-                          quantity: 1,
-                        })
+                        selectSaleForReturn(value)
                       }
                     >
                       <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
@@ -440,6 +680,98 @@ export function ReturnManagement() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="rounded-lg border border-red-800 bg-red-800/30 p-3 space-y-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                        <Input
+                          value={salePickerSearch}
+                          onChange={(event) => setSalePickerSearch(event.target.value)}
+                          placeholder="Search sale by sales ID, customer, or status..."
+                          className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                        />
+                      </div>
+                      <div className="border border-red-800 rounded-lg overflow-auto max-h-48">
+                        <Table className="min-w-[760px]">
+                          <TableHeader>
+                            <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                              <TableHead className="text-yellow-300 text-center">Sales ID</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Customer</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Items</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Amount</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Status</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredSaleOptions.map((sale) => (
+                              <TableRow key={sale.sales_id} className="border-red-800">
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{sale.display_sales_id}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{sale.customerName}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{sale.details.length}</TableCell>
+                                <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatCurrency(sale.total_amount)}</TableCell>
+                                <TableCell className="text-center whitespace-nowrap">
+                                  <Badge className="bg-green-600 text-white">{sale.sales_status}</Badge>
+                                </TableCell>
+                                <TableCell className="text-center whitespace-nowrap">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => selectSaleForReturn(sale.sales_id)}
+                                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                  >
+                                    Select
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-yellow-300">Return Action *</Label>
+                      <Select
+                        value={formData.return_action}
+                        onValueChange={(value) =>
+                          setFormData({
+                            ...formData,
+                            return_action: value as ExchangeForm["return_action"],
+                            replacement_product_id:
+                              value === "Replacement" || value === "Adjustment" ? formData.replacement_product_id : "",
+                          })
+                        }
+                      >
+                        <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                          <SelectValue placeholder="Select return action" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                          <SelectItem value="Replacement">Replacement</SelectItem>
+                          <SelectItem value="Partial Return">Partial Return</SelectItem>
+                          <SelectItem value="Full Return">Full Return</SelectItem>
+                          <SelectItem value="Adjustment">Adjustment</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-yellow-300">Returned Item Inventory Action *</Label>
+                      <Select
+                        value={formData.inventory_action}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, inventory_action: value as ExchangeForm["inventory_action"] })
+                        }
+                      >
+                        <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                          <SelectValue placeholder="Select inventory action" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                          <SelectItem value="Defective / Not Sellable">Defective / Not Sellable</SelectItem>
+                          <SelectItem value="Return to Stock">Return to Stock</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -448,12 +780,7 @@ export function ReturnManagement() {
                       <Select
                         value={formData.returned_product_id}
                         onValueChange={(value) =>
-                          setFormData({
-                            ...formData,
-                            returned_product_id: value,
-                            replacement_product_id: "",
-                            quantity: 1,
-                          })
+                          selectReturnedProduct(value)
                         }
                         disabled={!selectedSale}
                       >
@@ -471,13 +798,14 @@ export function ReturnManagement() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-yellow-300">Replacement Item *</Label>
+                      <Label className="text-yellow-300">Replacement Item {requiresReplacement ? "*" : ""}</Label>
                       <Select
                         value={formData.replacement_product_id}
                         onValueChange={(value) => setFormData({ ...formData, replacement_product_id: value })}
+                        disabled={!requiresReplacement}
                       >
                         <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                          <SelectValue placeholder="Select replacement" />
+                          <SelectValue placeholder={requiresReplacement ? "Select replacement" : "No replacement needed"} />
                         </SelectTrigger>
                         <SelectContent className="bg-red-700 border-red-800 text-yellow-200 max-h-72">
                           {eligibleReplacementProducts.map((product) => (
@@ -489,6 +817,119 @@ export function ReturnManagement() {
                       </Select>
                     </div>
                   </div>
+
+                  {selectedSale && (
+                    <div className="rounded-lg border border-red-800 bg-red-800/30 p-3 space-y-3">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <Label className="text-yellow-300">Purchased Products Grid</Label>
+                        <div className="relative md:w-80">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                          <Input
+                            value={returnedItemSearch}
+                            onChange={(event) => setReturnedItemSearch(event.target.value)}
+                            placeholder="Search purchased product..."
+                            className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                          />
+                        </div>
+                      </div>
+                      <div className="border border-red-800 rounded-lg overflow-auto max-h-48">
+                        <Table className="min-w-[760px]">
+                          <TableHeader>
+                            <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                              <TableHead className="text-yellow-300 text-center">SKU</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Product</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Qty Sold</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Returnable</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Price</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredReturnedItems.map((detail: any) => (
+                              <TableRow key={`${detail.sales_detail_id}-${detail.product_id}`} className="border-red-800">
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{detail.product_id.slice(0, 8)}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{detail.productName}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{detail.quantity}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{detail.returnable_quantity}</TableCell>
+                                <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatCurrency(detail.price)}</TableCell>
+                                <TableCell className="text-center whitespace-nowrap">
+                                  <Button
+                                    size="sm"
+                                    disabled={Number(detail.returnable_quantity ?? 0) <= 0}
+                                    onClick={() => selectReturnedProduct(detail.product_id)}
+                                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-50"
+                                  >
+                                    Select
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
+
+                  {requiresReplacement && (
+                    <div className="rounded-lg border border-red-800 bg-red-800/30 p-3 space-y-3">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <Label className="text-yellow-300">Replacement Product Grid</Label>
+                        <div className="relative md:w-80">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                          <Input
+                            value={replacementSearch}
+                            onChange={(event) => setReplacementSearch(event.target.value)}
+                            placeholder="Search replacement by SKU, name, brand..."
+                            className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                          />
+                        </div>
+                      </div>
+                      <div className="border border-red-800 rounded-lg overflow-auto max-h-56">
+                        <Table className="min-w-[980px]">
+                          <TableHeader>
+                            <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                              <TableHead className="text-yellow-300 text-center">SKU</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Product</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Brand</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Color</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Size</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Price</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Stock</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Status</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredReplacementProducts.map((product) => (
+                              <TableRow key={product.product_id} className="border-red-800">
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.product_id.slice(0, 8)}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.name}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.color}</TableCell>
+                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.size}</TableCell>
+                                <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatCurrency(product.price)}</TableCell>
+                                <TableCell className="text-center whitespace-nowrap">
+                                  <Badge className="bg-yellow-400 text-red-900">{product.stock} units</Badge>
+                                </TableCell>
+                                <TableCell className="text-center whitespace-nowrap">
+                                  <Badge className="bg-green-600 text-white">Active</Badge>
+                                </TableCell>
+                                <TableCell className="text-center whitespace-nowrap">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setFormData({ ...formData, replacement_product_id: product.product_id })}
+                                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                  >
+                                    Select
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
@@ -515,7 +956,7 @@ export function ReturnManagement() {
                   <div className="rounded-lg border border-red-800 bg-red-800/40 p-3">
                     <p className="text-yellow-300 font-medium">{exchangeSummary}</p>
                     <p className="text-yellow-200 text-sm">
-                      Business rule: no full refunds and no cheaper replacements. Replacement must be the same price or higher; higher replacements require the customer to add the difference.
+                      Business rule: original sales stay for audit. Higher replacements require additional payment; lower replacements record the difference as refund/store credit.
                     </p>
                   </div>
 
@@ -532,10 +973,10 @@ export function ReturnManagement() {
                 <DialogFooter>
                   <Button
                     onClick={handleAddReturn}
-                    disabled={isSaving || isLowerReplacement}
+                    disabled={isSaving}
                     className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
                   >
-                    {isSaving ? "Recording..." : "Record Replacement"}
+                    {isSaving ? "Recording..." : "Record Return"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -554,31 +995,43 @@ export function ReturnManagement() {
           </div>
 
           <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-            <Table className="w-full min-w-[980px]">
+            <Table className="w-full min-w-[1280px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Items</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Adjustment</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Product Returned</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Type</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Refund / Credit</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Additional Pay</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Status</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Date</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredReturns.map((returnItem) => (
+                {filteredReturns.map((returnItem) => {
+                  const firstDetail = returnItem.returnDetails[0];
+                  const returnedProduct = firstDetail?.productName ?? "N/A";
+                  const returnedQty = returnItem.returnDetails.reduce((sum, detail) => sum + detail.quantity_returned, 0);
+                  return (
                   <TableRow key={returnItem.return_id} className="border-red-800">
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.display_return_id}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.display_sales_id}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.customerName}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">
-                      {returnItem.returnDetails.reduce((sum, detail) => sum + detail.quantity_returned, 0)} item(s)
-                    </TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">No refund</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnedProduct}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnedQty}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.return_type}</TableCell>
+                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">{formatCurrency(returnItem.total_refund)}</TableCell>
+                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">{formatCurrency(returnItem.additional_payment)}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
-                      <Badge className="bg-green-600 text-white">Completed</Badge>
+                      <Badge className="bg-green-600 text-white">{returnItem.return_status}</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-center">
+                      <Badge className="bg-yellow-500 text-red-950">{returnItem.salesStatus}</Badge>
                     </TableCell>
                     <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{returnItem.return_date}</TableCell>
                     <TableCell className="text-center">
@@ -607,21 +1060,42 @@ export function ReturnManagement() {
                                 <p className="text-sm text-yellow-200">Original Sale</p>
                                 <p className="text-yellow-300">{returnItem.display_sales_id}</p>
                               </div>
+                              <div>
+                                <p className="text-sm text-yellow-200">Return Type</p>
+                                <p className="text-yellow-300">{returnItem.return_type}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-yellow-200">Processed By</p>
+                                <p className="text-yellow-300">{returnItem.processedBy}</p>
+                              </div>
                             </div>
                             <div>
-                              <p className="text-sm text-yellow-200 mb-2">Exchange Details</p>
+                              <p className="text-sm text-yellow-200 mb-2">Return Details</p>
                               {returnItem.returnDetails.map((detail) => (
                                 <div key={detail.return_detail_id} className="bg-red-600 p-3 rounded mb-2">
                                   <p className="text-yellow-300">{detail.productName}</p>
-                                  <p className="text-yellow-200 text-xs">Qty: {detail.quantity_returned} | No refund issued</p>
+                                  <p className="text-yellow-200 text-xs">
+                                    Qty: {detail.quantity_returned} | Refund/Credit: {formatCurrency(detail.refund_amount)}
+                                  </p>
+                                  <p className="text-yellow-200 text-xs">
+                                    Replacement: {detail.replacementProductName} | Inventory: {detail.inventory_action}
+                                  </p>
                                   <p className="text-yellow-200 text-xs mt-1">{detail.reason}</p>
                                 </div>
                               ))}
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div>
-                                <p className="text-sm text-yellow-200">Refund Policy</p>
-                                <p className="text-yellow-300">Replacement only</p>
+                                <p className="text-sm text-yellow-200">Refund / Credit</p>
+                                <p className="text-yellow-300">{formatCurrency(returnItem.total_refund)}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-yellow-200">Additional Pay</p>
+                                <p className="text-yellow-300">{formatCurrency(returnItem.additional_payment)}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-yellow-200">Sales Status</p>
+                                <p className="text-yellow-300">{returnItem.salesStatus}</p>
                               </div>
                               <div>
                                 <p className="text-sm text-yellow-200">Return Date</p>
@@ -633,7 +1107,8 @@ export function ReturnManagement() {
                       </Dialog>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
