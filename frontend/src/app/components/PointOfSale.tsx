@@ -590,7 +590,7 @@ export function PointOfSale() {
           <CardContent className="space-y-4">
             <Dialog open={isProductGridOpen} onOpenChange={setIsProductGridOpen}>
               <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[92vw] !max-w-[1040px] max-h-[84vh] overflow-hidden p-0 shadow-2xl">
-                <div className="border-b border-red-800/70 bg-red-800/20 p-5">
+                <div className="border-b border-red-800 p-5">
                   <DialogHeader>
                     <DialogTitle className="text-yellow-300 flex items-center gap-2">
                       <Package className="w-5 h-5" />
@@ -603,13 +603,13 @@ export function PointOfSale() {
                       value={productSearch}
                       onChange={(event) => setProductSearch(event.target.value)}
                       placeholder="Search by SKU, product, brand, category, color, size, or price..."
-                      className="mt-4 h-11 rounded-xl border-red-800 bg-red-900/35 pl-10 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
+                      className="mt-4 h-11 rounded-xl bg-red-600 border-red-800 pl-10 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
                     />
                   </div>
                 </div>
                 <div className="p-5">
-                  <div className="overflow-hidden rounded-2xl border border-red-800 bg-red-900/15">
-                    <div className="grid grid-cols-[1.45fr_0.9fr_1.25fr_1fr_0.8fr_0.85fr_0.8fr] bg-red-800/80 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
+                  <div className="overflow-hidden rounded-xl border border-red-800">
+                    <div className="grid grid-cols-[1.45fr_0.9fr_1.25fr_1fr_0.8fr_0.85fr_0.8fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
                       <div>Product</div>
                       <div>Brand</div>
                       <div>Category</div>
@@ -622,7 +622,7 @@ export function PointOfSale() {
                       {filteredProductInventory.map((product) => (
                         <div
                           key={product.product_id}
-                          className="grid grid-cols-[1.45fr_0.9fr_1.25fr_1fr_0.8fr_0.85fr_0.8fr] items-center border-t border-red-800/70 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/35"
+                          className="grid grid-cols-[1.45fr_0.9fr_1.25fr_1fr_0.8fr_0.85fr_0.8fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
                         >
                           <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
                           <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
