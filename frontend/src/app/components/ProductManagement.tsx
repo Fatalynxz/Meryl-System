@@ -649,18 +649,18 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
               <p className="text-xs text-yellow-200/60">Click a product row to load its default details and configure stock.</p>
             </div>
           </div>
-          <div className="rounded-2xl border border-[#2d2d3a] bg-[#15151d] p-5 text-yellow-100 shadow-inner shadow-black/20">
-            <div className="mb-4 flex items-center gap-2">
-              <Package className="h-5 w-5 text-yellow-300" />
+          <div className="rounded-2xl border border-[#2d2d3a] bg-[#15151d] p-4 text-yellow-100 shadow-inner shadow-black/20">
+            <div className="mb-3 flex items-center gap-2">
+              <Package className="h-4 w-4 text-yellow-300" />
               <p className="font-semibold text-yellow-100">Product Details</p>
             </div>
             {selectedProduct ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <p className="text-2xl font-bold text-white">{selectedProduct.name}</p>
-                  <p className="text-sm text-yellow-200/60">{shortId(selectedProduct.sku)} - {selectedProduct.brand}</p>
+                  <p className="text-xl font-bold text-white">{selectedProduct.name}</p>
+                  <p className="text-xs text-yellow-200/60">{shortId(selectedProduct.sku)} - {selectedProduct.brand}</p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <DetailPill label="Category" value={selectedProduct.category} />
                   <DetailPill label="Variant" value={`${selectedProduct.color} / ${selectedProduct.size}`} />
                   <DetailPill label="Gender" value={selectedProduct.gender} />
@@ -668,16 +668,16 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                   <DetailPill label="Current Stock" value={`${selectedProduct.stock} units`} />
                   <DetailPill label="Current Status" value={selectedProduct.status} />
                 </div>
-                <div className="rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs text-yellow-100/80">
+                <div className="rounded-lg border border-yellow-400/20 bg-yellow-400/10 p-2 text-xs text-yellow-100/80">
                   Configure stock-in quantity, SRP, reorder level, and inventory status below before saving.
                 </div>
               </div>
             ) : (
-              <div className="flex min-h-[240px] flex-col items-center justify-center rounded-xl border border-dashed border-[#343443] bg-[#111118] p-6 text-center">
-                <Package className="mb-3 h-10 w-10 text-yellow-300/70" />
-                <p className="font-semibold text-white">No product selected yet</p>
-                <p className="mt-2 max-w-sm text-sm text-yellow-200/60">
-                  Choose a product from the master list to stock it in, set its SRP, and make it available in POS.
+              <div className="flex min-h-[160px] flex-col items-center justify-center rounded-xl border border-dashed border-[#343443] bg-[#111118] p-4 text-center">
+                <Package className="mb-2 h-8 w-8 text-yellow-300/70" />
+                <p className="text-sm font-semibold text-white">No product selected yet</p>
+                <p className="mt-1 max-w-xs text-xs text-yellow-200/60">
+                  Choose a product to set SRP, stock-in quantity, and POS availability.
                 </p>
               </div>
             )}
@@ -755,7 +755,7 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
 
 function DetailPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-[#2d2d3a] bg-[#1d1d27] p-3">
+    <div className="rounded-lg border border-[#2d2d3a] bg-[#1d1d27] p-2.5">
       <p className="text-xs uppercase tracking-wide text-yellow-300/60">{label}</p>
       <p className="mt-1 truncate text-sm font-semibold text-yellow-50">{value || "N/A"}</p>
     </div>
