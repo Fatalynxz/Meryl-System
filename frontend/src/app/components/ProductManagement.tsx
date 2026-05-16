@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Edit, Package, Plus, Search, Settings, Trash2, Warehouse } from "lucide-react";
+import { Edit, Info, Package, Plus, Search, Settings, Trash2, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { useCategories, useInventory, useProducts, useProductsMutations } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
@@ -94,6 +94,14 @@ function toDbStatus(status: InventoryStatus): "active" | "inactive" {
 function toUiStatus(value: string | null | undefined): InventoryStatus {
   const normalized = String(value ?? "").trim().toLowerCase();
   return normalized === "active" || normalized === "available" ? "Active" : "Inactive";
+}
+
+function getProductStatusMeta(product?: UiProduct) {
+  if (!product) return { label: "Not Selected", className: "border-slate-500/30 bg-slate-500/15 text-slate-200" };
+  if (product.status !== "Active") return { label: "Inactive", className: "border-slate-500/30 bg-slate-500/15 text-slate-200" };
+  if (Number(product.stock || 0) <= 0) return { label: "Out of Stock", className: "border-red-500/40 bg-red-500/15 text-red-200" };
+  if (Number(product.stock || 0) <= Number(product.reorder_level || 0)) return { label: "Low Stock", className: "border-yellow-400/40 bg-yellow-400/15 text-yellow-100" };
+  return { label: "Active", className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-200" };
 }
 
 function stockCondition(stock: number, reorder: number) {
@@ -550,6 +558,7 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
 
 function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduct, onSave }: { products: UiProduct[]; categories: any[]; stockForm: StockFormData; setStockForm: (data: StockFormData) => void; selectedProduct?: UiProduct; onSave: () => void }) {
   const [settingsProductSearch, setSettingsProductSearch] = useState("");
+  const statusMeta = getProductStatusMeta(selectedProduct);
   const filteredProducts = useMemo(() => {
     const term = settingsProductSearch.trim().toLowerCase();
     if (!term) return products;
@@ -583,38 +592,38 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
 
   return (
     <Card className="border-[#24242f] bg-[#101017]">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="text-yellow-300 flex items-center gap-2"><Settings className="w-5 h-5" />Product Settings / Item Parameter</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-2">
-            <Label className="text-yellow-300">Select Existing Product</Label>
+      <CardContent className="space-y-4 p-5 pt-0">
+        <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="space-y-3 rounded-2xl border border-[#24242f] bg-[#12121a] p-4">
+            <Label className="text-sm font-semibold text-yellow-200">Select Existing Product</Label>
             <Select value={stockForm.product_id} onValueChange={selectProductForSettings}>
-              <SelectTrigger className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100"><SelectValue placeholder="Choose product from Product List" /></SelectTrigger>
+              <SelectTrigger className="h-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus:ring-yellow-400/50"><SelectValue placeholder="Choose product from Product List" /></SelectTrigger>
               <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100 max-h-72">
                 {products.map((product) => <SelectItem key={product.product_id} value={product.product_id}>{product.name} - {product.brand} - Size {product.size}</SelectItem>)}
               </SelectContent>
             </Select>
-            <div className="rounded-2xl border border-red-900/70 bg-[#15151d] p-4 shadow-inner shadow-black/20 space-y-4">
+            <div className="rounded-2xl border border-[#2d2d3a] bg-[#15151d] p-4 shadow-inner shadow-black/20 space-y-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                 <Input
                   value={settingsProductSearch}
                   onChange={(event) => setSettingsProductSearch(event.target.value)}
-                  placeholder="Search by SKU, product, brand, category, color, size, or unit price..."
+                  placeholder="Search by SKU, product, brand, category, color, size, or unit price"
                   className="h-11 pl-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400/50"
                 />
               </div>
               <div className="rounded-xl border border-[#2d2d3a] overflow-hidden">
-                <div className="grid grid-cols-[1.5fr_0.9fr_1.1fr_1fr_0.9fr] gap-3 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
+                <div className="sticky top-0 z-10 grid grid-cols-[1.6fr_0.8fr_1.05fr_1fr_0.85fr] gap-3 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
                   <span>Product</span>
                   <span className="text-center">Brand</span>
                   <span className="text-center">Category</span>
                   <span className="text-center">Variant</span>
                   <span className="text-right">Unit Price</span>
                 </div>
-                <div className="max-h-60 overflow-y-auto overflow-x-hidden">
+                <div className="max-h-64 overflow-y-auto overflow-x-hidden">
                   {filteredProducts.length > 0 ? (
                     filteredProducts.map((product) => {
                       const isSelected = stockForm.product_id === product.product_id;
@@ -624,8 +633,8 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                           type="button"
                           key={product.product_id}
                           onClick={() => selectProductForSettings(product.product_id)}
-                          className={`grid w-full grid-cols-[1.5fr_0.9fr_1.1fr_1fr_0.9fr] items-center gap-3 border-t border-[#2d2d3a] px-4 py-3 text-left transition ${
-                            isSelected ? "bg-yellow-400 text-red-950" : "text-yellow-100 hover:bg-yellow-400/10"
+                          className={`grid w-full grid-cols-[1.6fr_0.8fr_1.05fr_1fr_0.85fr] items-center gap-3 border-t border-[#2d2d3a] px-4 py-3 text-left transition duration-150 ${
+                            isSelected ? "bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20" : "text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
                           }`}
                         >
                           <span className="min-w-0">
@@ -649,16 +658,19 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
               <p className="text-xs text-yellow-200/60">Click a product row to load its default details and configure stock.</p>
             </div>
           </div>
-          <div className="rounded-2xl border border-[#2d2d3a] bg-[#15151d] p-4 text-yellow-100 shadow-inner shadow-black/20">
+          <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-4 text-yellow-100 shadow-inner shadow-black/20">
             <div className="mb-3 flex items-center gap-2">
               <Package className="h-4 w-4 text-yellow-300" />
               <p className="font-semibold text-yellow-100">Product Details</p>
             </div>
             {selectedProduct ? (
               <div className="space-y-3">
-                <div>
-                  <p className="text-xl font-bold text-white">{selectedProduct.name}</p>
-                  <p className="text-xs text-yellow-200/60">{shortId(selectedProduct.sku)} - {selectedProduct.brand}</p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-xl font-bold text-white">{selectedProduct.name}</p>
+                    <p className="text-xs text-yellow-200/60">{shortId(selectedProduct.sku)} - {selectedProduct.brand}</p>
+                  </div>
+                  <Badge className={`w-fit border px-3 py-1 ${statusMeta.className}`}>{statusMeta.label}</Badge>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <DetailPill label="Category" value={selectedProduct.category} />
@@ -666,10 +678,11 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                   <DetailPill label="Gender" value={selectedProduct.gender} />
                   <DetailPill label="Unit Price" value={formatMoney(selectedProduct.unit_price)} />
                   <DetailPill label="Current Stock" value={`${selectedProduct.stock} units`} />
-                  <DetailPill label="Current Status" value={selectedProduct.status} />
+                  <DetailPill label="Inventory Status" value={selectedProduct.status} />
                 </div>
-                <div className="rounded-lg border border-yellow-400/20 bg-yellow-400/10 p-2 text-xs text-yellow-100/80">
-                  Configure stock-in quantity, SRP, reorder level, and inventory status below before saving.
+                <div className="flex gap-2 rounded-lg border border-yellow-400/20 bg-yellow-400/10 p-2.5 text-xs text-yellow-100/80">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-yellow-300" />
+                  <span>Configure stock-in quantity, SRP, reorder level, and inventory status below before saving.</span>
                 </div>
               </div>
             ) : (
@@ -684,35 +697,47 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <NumberField label="Stock-in Quantity" value={stockForm.stock_in} onChange={(value) => setStockForm({ ...stockForm, stock_in: value })} />
-          <NumberField label="SRP / Selling Price" value={stockForm.srp} onChange={(value) => setStockForm({ ...stockForm, srp: value })} />
-          <NumberField label="Reorder Level" value={stockForm.reorder_level} onChange={(value) => setStockForm({ ...stockForm, reorder_level: value })} />
-        </div>
+        <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold text-yellow-100">Inventory Configuration</p>
+              <p className="text-xs text-yellow-200/50">Set sellable stock, pricing, reorder threshold, and status.</p>
+            </div>
+          </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-yellow-300">Manufacturer Date</Label>
-            <Input type="date" value={stockForm.manufacturer_date} onChange={(event) => setStockForm({ ...stockForm, manufacturer_date: event.target.value })} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
+          <div className="grid gap-3 md:grid-cols-3">
+            <NumberField label="Stock-in Quantity" value={stockForm.stock_in} onChange={(value) => setStockForm({ ...stockForm, stock_in: value })} />
+            <NumberField label="SRP / Selling Price" value={stockForm.srp} onChange={(value) => setStockForm({ ...stockForm, srp: value })} />
+            <NumberField label="Reorder Level" value={stockForm.reorder_level} onChange={(value) => setStockForm({ ...stockForm, reorder_level: value })} />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-yellow-300">Expiration Date</Label>
-            <Input type="date" value={stockForm.expiration_date} onChange={(event) => setStockForm({ ...stockForm, expiration_date: event.target.value })} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-yellow-300">Inventory Status</Label>
-            <Select value={stockForm.status} onValueChange={(value) => setStockForm({ ...stockForm, status: value as InventoryStatus })}>
-              <SelectTrigger className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100"><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
-            </Select>
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100/80 md:flex-row md:items-center md:justify-between">
-          <p>
-            Saves inventory settings and logs stock-in to INVENTORY_LOG. SRP/status are currently mapped to PRODUCT until the INVENTORY columns are added.
-          </p>
-          <Button onClick={onSave} className="h-9 shrink-0 bg-yellow-400 px-5 text-red-900 hover:bg-yellow-500">Save Settings</Button>
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-yellow-300">Manufacturer Date</Label>
+              <Input type="date" value={stockForm.manufacturer_date} onChange={(event) => setStockForm({ ...stockForm, manufacturer_date: event.target.value })} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus-visible:ring-yellow-400/50" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-yellow-300">Expiration Date</Label>
+              <Input type="date" value={stockForm.expiration_date} onChange={(event) => setStockForm({ ...stockForm, expiration_date: event.target.value })} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus-visible:ring-yellow-400/50" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-yellow-300">Inventory Status</Label>
+              <Select value={stockForm.status} onValueChange={(value) => setStockForm({ ...stockForm, status: value as InventoryStatus })}>
+                <SelectTrigger className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus:ring-yellow-400/50"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100"><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100/80 lg:flex-row lg:items-center lg:justify-between">
+            <p>
+              Saves inventory settings and logs stock-in to INVENTORY_LOG. SRP/status are currently mapped to PRODUCT until the INVENTORY columns are added.
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <Button variant="outline" onClick={() => setStockForm(defaultStockForm)} className="h-9 border-[#3a3a46] bg-transparent px-4 text-yellow-100 hover:bg-[#1d1d27] hover:text-yellow-300">Clear</Button>
+              <Button onClick={onSave} className="h-9 bg-yellow-400 px-5 text-red-900 hover:bg-yellow-500">Save Settings</Button>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -775,7 +800,7 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-semibold text-yellow-300">{label}</Label>
-      <Input type="number" value={value === 0 ? "" : value} onChange={(event) => onChange(event.target.value === "" ? 0 : Math.max(0, Number(event.target.value) || 0))} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100" />
+      <Input type="number" value={value === 0 ? "" : value} onChange={(event) => onChange(event.target.value === "" ? 0 : Math.max(0, Number(event.target.value) || 0))} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus-visible:ring-yellow-400/50" />
     </div>
   );
 }
