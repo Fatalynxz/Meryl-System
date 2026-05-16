@@ -867,47 +867,60 @@ export function PointOfSale() {
                   </Button>
                 </div>
                 <Dialog open={isCustomerGridOpen} onOpenChange={setIsCustomerGridOpen}>
-                  <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-5xl max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="text-yellow-300">Select Customer</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
+                  <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[92vw] !max-w-[820px] max-h-[82vh] overflow-hidden p-0">
+                    <div className="border-b border-red-800 p-5">
+                      <DialogHeader>
+                        <DialogTitle className="text-yellow-300 flex items-center gap-2">
+                          <Users className="w-5 h-5" />
+                          Select Customer
+                        </DialogTitle>
+                      </DialogHeader>
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                         <Input
                           value={customerSearch}
                           onChange={(event) => setCustomerSearch(event.target.value)}
-                          placeholder="Search by customer ID, name, email, or contact number..."
-                          className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                          placeholder="Search by name, email, or contact number..."
+                          className="mt-4 pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
                         />
                       </div>
-                      <div className="border border-red-800 rounded-lg overflow-x-auto">
-                        <Table className="min-w-[760px]">
-                          <TableHeader>
+                    </div>
+                    <div className="p-5 pt-4">
+                      <div className="border border-red-800 rounded-xl overflow-hidden">
+                        <div className="max-h-[52vh] overflow-y-auto overflow-x-hidden">
+                        <Table className="w-full table-fixed text-sm">
+                          <TableHeader className="sticky top-0 z-10">
                             <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                              <TableHead className="text-yellow-300 text-center">Customer ID</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Name</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Email</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Contact Number</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Date Registered</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                              <TableHead className="w-[24%] px-3 text-center text-yellow-300">Name</TableHead>
+                              <TableHead className="w-[36%] px-3 text-center text-yellow-300">Email</TableHead>
+                              <TableHead className="w-[24%] px-3 text-center text-yellow-300">Contact</TableHead>
+                              <TableHead className="w-[16%] px-3 text-center text-yellow-300">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {filteredCustomerOptions.map((customer: any) => (
-                              <TableRow key={customer.value} className="border-red-800">
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">
-                                  {customer.customer_id ? String(customer.customer_id).slice(0, 8) : "WALK-IN"}
+                              <TableRow
+                                key={customer.value}
+                                onClick={() => selectCustomer(customer)}
+                                className="cursor-pointer border-red-800 transition-colors hover:bg-red-800/60"
+                              >
+                                <TableCell className="truncate px-3 text-center text-yellow-200" title={customer.label}>
+                                  {customer.label}
                                 </TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{customer.label}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{customer.email || "N/A"}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{customer.contact_number || "N/A"}</TableCell>
-                                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{customer.date_registered || "N/A"}</TableCell>
-                                <TableCell className="text-center whitespace-nowrap">
+                                <TableCell className="truncate px-3 text-center text-yellow-200" title={customer.email || "N/A"}>
+                                  {customer.email || "N/A"}
+                                </TableCell>
+                                <TableCell className="truncate px-3 text-center text-yellow-200" title={customer.contact_number || "N/A"}>
+                                  {customer.contact_number || "N/A"}
+                                </TableCell>
+                                <TableCell className="px-3 text-center">
                                   <Button
                                     size="sm"
-                                    onClick={() => selectCustomer(customer)}
-                                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      selectCustomer(customer);
+                                    }}
+                                    className="h-8 bg-yellow-400 px-3 text-red-900 hover:bg-yellow-500"
                                   >
                                     Select
                                   </Button>
@@ -916,7 +929,11 @@ export function PointOfSale() {
                             ))}
                           </TableBody>
                         </Table>
+                        </div>
                       </div>
+                      <p className="mt-3 text-xs text-yellow-200/70">
+                        Click a row or the Select button to use an existing customer. Use Walk-in Customer for quick sales.
+                      </p>
                     </div>
                   </DialogContent>
                 </Dialog>
