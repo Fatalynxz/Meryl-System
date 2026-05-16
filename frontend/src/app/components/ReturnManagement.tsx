@@ -172,13 +172,21 @@ export function ReturnManagement() {
   const replacementTotal = Number(replacementProduct?.price ?? 0) * quantity;
   const priceDifference = replacementTotal - originalTotal;
   const customerPays = Math.max(0, priceDifference);
-  const excessRefund = Math.max(0, -priceDifference);
+  const isLowerReplacement = Boolean(replacementProduct && selectedOriginalItem && priceDifference < 0);
   const exchangeSummary =
     priceDifference > 0
       ? `Customer adds ${formatCurrency(customerPays)}`
       : priceDifference < 0
-        ? `Return excess ${formatCurrency(excessRefund)}`
+        ? `Not allowed: replacement is ${formatCurrency(Math.abs(priceDifference))} lower`
         : "Even exchange";
+  const eligibleReplacementProducts = useMemo(
+    () =>
+      products.filter((product) => {
+        if (!selectedOriginalItem) return true;
+        return Number(product.price ?? 0) >= Number(selectedOriginalItem.price ?? 0);
+      }),
+    [products, selectedOriginalItem],
+  );
 
   const displayReturns = useMemo<ReturnRow[]>(() => {
     const sortedAsc = [...returnRows].sort((a, b) => {
@@ -260,6 +268,10 @@ export function ReturnManagement() {
       toast.error(`Only ${replacementProduct.stock} replacement unit(s) available`);
       return;
     }
+    if (isLowerReplacement) {
+      toast.error("Replacement item must be the same price or higher. Cheaper replacements are not allowed.");
+      return;
+    }
 
     const returnId = buildClientId();
     const replacementNote = [
@@ -277,7 +289,7 @@ export function ReturnManagement() {
         sales_id: selectedSale.sales_id,
         user_id: user?.user_id ?? selectedSale.user_id,
         return_date: new Date().toISOString(),
-        total_refund: excessRefund,
+        total_refund: 0,
       } as any);
 
       const { error: detailError } = await supabase.from("return_details").insert({
@@ -286,7 +298,7 @@ export function ReturnManagement() {
         product_id: selectedOriginalItem.product_id,
         quantity_returned: quantity,
         reason: replacementNote,
-        refund_amount: excessRefund,
+        refund_amount: 0,
       });
       if (detailError) throw detailError;
 
@@ -317,12 +329,13 @@ export function ReturnManagement() {
       returnItem.customerName.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const totalExcessReturned = displayReturns.reduce((sum, item) => sum + item.total_refund, 0);
   const completedReturns = displayReturns.length;
   const higherReplacementCount = displayReturns.filter((item) =>
     item.returnDetails.some((detail) => detail.reason.toLowerCase().includes("customer adds")),
   ).length;
-  const excessRefundCount = displayReturns.filter((item) => item.total_refund > 0).length;
+  const evenExchangeCount = displayReturns.filter((item) =>
+    item.returnDetails.some((detail) => detail.reason.toLowerCase().includes("even exchange")),
+  ).length;
 
   return (
     <div className="space-y-4">
@@ -331,8 +344,8 @@ export function ReturnManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Excess Returned</p>
-                <p className="text-2xl text-yellow-300">{formatCurrency(totalExcessReturned)}</p>
+                <p className="text-sm text-yellow-200">Refunds Issued</p>
+                <p className="text-2xl text-yellow-300">{formatCurrency(0)}</p>
               </div>
               <RotateCcw className="h-8 w-8 text-yellow-400" />
             </div>
@@ -364,8 +377,8 @@ export function ReturnManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Excess Refund Cases</p>
-                <p className="text-2xl text-yellow-300">{excessRefundCount}</p>
+                <p className="text-sm text-yellow-200">Even Exchanges</p>
+                <p className="text-2xl text-yellow-300">{evenExchangeCount}</p>
               </div>
               <RotateCcw className="h-8 w-8 text-yellow-400" />
             </div>
@@ -397,7 +410,13 @@ export function ReturnManagement() {
                     <Select
                       value={formData.sales_id}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, sales_id: value, returned_product_id: "", quantity: 1 })
+                        setFormData({
+                          ...formData,
+                          sales_id: value,
+                          returned_product_id: "",
+                          replacement_product_id: "",
+                          quantity: 1,
+                        })
                       }
                     >
                       <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
@@ -418,7 +437,14 @@ export function ReturnManagement() {
                       <Label className="text-yellow-300">Returned Item *</Label>
                       <Select
                         value={formData.returned_product_id}
-                        onValueChange={(value) => setFormData({ ...formData, returned_product_id: value, quantity: 1 })}
+                        onValueChange={(value) =>
+                          setFormData({
+                            ...formData,
+                            returned_product_id: value,
+                            replacement_product_id: "",
+                            quantity: 1,
+                          })
+                        }
                         disabled={!selectedSale}
                       >
                         <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
@@ -444,7 +470,7 @@ export function ReturnManagement() {
                           <SelectValue placeholder="Select replacement" />
                         </SelectTrigger>
                         <SelectContent className="bg-red-700 border-red-800 text-yellow-200 max-h-72">
-                          {products.map((product) => (
+                          {eligibleReplacementProducts.map((product) => (
                             <SelectItem key={product.product_id} value={product.product_id}>
                               {product.name} - {product.size} - {formatCurrency(product.price)} ({product.stock} stock)
                             </SelectItem>
@@ -479,7 +505,7 @@ export function ReturnManagement() {
                   <div className="rounded-lg border border-red-800 bg-red-800/40 p-3">
                     <p className="text-yellow-300 font-medium">{exchangeSummary}</p>
                     <p className="text-yellow-200 text-sm">
-                      No full refund is recorded. The system only records the excess amount when the replacement is cheaper.
+                      Business rule: no full refunds and no cheaper replacements. Replacement must be the same price or higher; higher replacements require the customer to add the difference.
                     </p>
                   </div>
 
@@ -496,7 +522,7 @@ export function ReturnManagement() {
                 <DialogFooter>
                   <Button
                     onClick={handleAddReturn}
-                    disabled={isSaving}
+                    disabled={isSaving || isLowerReplacement}
                     className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
                   >
                     {isSaving ? "Recording..." : "Record Replacement"}
@@ -525,7 +551,7 @@ export function ReturnManagement() {
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Items</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Excess Returned</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Adjustment</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Date</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
@@ -540,7 +566,7 @@ export function ReturnManagement() {
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">
                       {returnItem.returnDetails.reduce((sum, detail) => sum + detail.quantity_returned, 0)} item(s)
                     </TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">{formatCurrency(returnItem.total_refund)}</TableCell>
+                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">No refund</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
                       <Badge className="bg-green-600 text-white">Completed</Badge>
                     </TableCell>
@@ -577,15 +603,15 @@ export function ReturnManagement() {
                               {returnItem.returnDetails.map((detail) => (
                                 <div key={detail.return_detail_id} className="bg-red-600 p-3 rounded mb-2">
                                   <p className="text-yellow-300">{detail.productName}</p>
-                                  <p className="text-yellow-200 text-xs">Qty: {detail.quantity_returned} | Excess returned: {formatCurrency(detail.refund_amount)}</p>
+                                  <p className="text-yellow-200 text-xs">Qty: {detail.quantity_returned} | No refund issued</p>
                                   <p className="text-yellow-200 text-xs mt-1">{detail.reason}</p>
                                 </div>
                               ))}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <p className="text-sm text-yellow-200">Total Excess Returned</p>
-                                <p className="text-yellow-300">{formatCurrency(returnItem.total_refund)}</p>
+                                <p className="text-sm text-yellow-200">Refund Policy</p>
+                                <p className="text-yellow-300">Replacement only</p>
                               </div>
                               <div>
                                 <p className="text-sm text-yellow-200">Return Date</p>

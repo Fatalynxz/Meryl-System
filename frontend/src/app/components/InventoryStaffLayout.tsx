@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Dashboard } from './Dashboard';
 import { ProductManagement } from './ProductManagement';
-import { ReturnManagement } from './ReturnManagement';
-import { LayoutDashboard, Package, LogOut, RotateCcw, Search, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Search, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { NotificationCenter } from './NotificationCenter';
 import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
@@ -21,14 +20,12 @@ export function InventoryStaffLayout() {
 
   const navItems = [
     { id: 'products', label: 'Inventory', icon: Package },
-    { id: 'returns', label: 'Returns', icon: RotateCcw },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   ];
 
   const renderContent = () => {
     switch (activeView) {
       case 'products': return <ProductManagement />;
-      case 'returns': return <ReturnManagement />;
       case 'dashboard': return <Dashboard />;
       default: return <ProductManagement />;
     }

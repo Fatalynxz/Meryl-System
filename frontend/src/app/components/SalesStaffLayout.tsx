@@ -4,7 +4,8 @@ import { Dashboard } from './Dashboard';
 import { PointOfSale } from './PointOfSale';
 import { SalesManagement } from './SalesManagement';
 import { CustomerManagement } from './CustomerManagement';
-import { LayoutDashboard, ShoppingCart, Users, CreditCard, LogOut, Search, Sparkles } from 'lucide-react';
+import { ReturnManagement } from './ReturnManagement';
+import { LayoutDashboard, ShoppingCart, Users, CreditCard, LogOut, Search, Sparkles, RotateCcw } from 'lucide-react';
 import { Button } from './ui/button';
 import { NotificationCenter } from './NotificationCenter';
 import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
@@ -23,6 +24,7 @@ export function SalesStaffLayout() {
   const navItems = [
     { id: 'pos', label: 'Point of Sale', icon: CreditCard },
     { id: 'sales', label: 'Sales History', icon: ShoppingCart },
+    { id: 'returns', label: 'Returns', icon: RotateCcw },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   ];
@@ -31,6 +33,7 @@ export function SalesStaffLayout() {
     switch (activeView) {
       case 'pos': return <PointOfSale />;
       case 'sales': return <SalesManagement />;
+      case 'returns': return <ReturnManagement />;
       case 'customers': return <CustomerManagement />;
       case 'dashboard': return <Dashboard />;
       default: return <PointOfSale />;
