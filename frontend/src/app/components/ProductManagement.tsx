@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -107,9 +107,14 @@ function formatMoney(value: number) {
   return `PHP ${Number(value || 0).toLocaleString()}`;
 }
 
-export function ProductManagement() {
+type ProductManagementProps = {
+  view?: ProductTab;
+  onViewChange?: (view: ProductTab) => void;
+};
+
+export function ProductManagement({ view, onViewChange }: ProductManagementProps = {}) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<ProductTab>("inventory");
+  const [internalActiveTab, setInternalActiveTab] = useState<ProductTab>(view ?? "inventory");
   const [searchTerm, setSearchTerm] = useState("");
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<UiProduct | null>(null);
@@ -120,6 +125,16 @@ export function ProductManagement() {
   const inventoryQuery = useInventory();
   const categoriesQuery = useCategories();
   const productMutations = useProductsMutations();
+  const activeTab = view ?? internalActiveTab;
+
+  useEffect(() => {
+    if (view) setInternalActiveTab(view);
+  }, [view]);
+
+  const setActiveTab = (nextView: ProductTab) => {
+    setInternalActiveTab(nextView);
+    onViewChange?.(nextView);
+  };
 
   const categories = ((categoriesQuery.data as any[]) ?? []).filter((category: any) => {
     const name = String(category?.category_name ?? "").trim().toLowerCase();
@@ -180,6 +195,7 @@ export function ProductManagement() {
   }, [activeTab, products, searchTerm]);
 
   const selectedSettingsProduct = productMap.get(stockForm.product_id);
+  const isExternallyRouted = Boolean(view);
 
   const openAddProduct = () => {
     setEditingProduct(null);
@@ -339,7 +355,7 @@ export function ProductManagement() {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-red-700 border-red-800">
+      {!isExternallyRouted && <Card className="bg-red-700 border-red-800">
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -377,7 +393,7 @@ export function ProductManagement() {
             <TabButton active={activeTab === "inventory"} onClick={() => setActiveTab("inventory")} icon={<Warehouse className="w-4 h-4" />} label="Inventory" />
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {activeTab === "settings" ? (
         <ProductSettingsPage
@@ -396,7 +412,30 @@ export function ProductManagement() {
                 {activeTab === "list" ? <Package className="w-5 h-5" /> : <Warehouse className="w-5 h-5" />}
                 {activeTab === "list" ? "Product List / Master Data" : "Sellable Inventory"}
               </CardTitle>
-              <Badge className="bg-yellow-400 text-red-900">{filteredProducts.length} records</Badge>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-yellow-400 text-red-900">{filteredProducts.length} records</Badge>
+                {activeTab === "list" && isExternallyRouted && (
+                  <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button onClick={openAddProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Product
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="text-yellow-300">{editingProduct ? "Edit Product Master" : "Add Product Master"}</DialogTitle>
+                      </DialogHeader>
+                      <ProductMasterForm formData={productForm} setFormData={setProductForm} categories={categories} />
+                      <DialogFooter>
+                        <Button onClick={saveProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                          {editingProduct ? "Update Product" : "Save Product"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>

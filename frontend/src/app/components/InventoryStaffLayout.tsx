@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ProductManagement } from './ProductManagement';
-import { Package, LogOut, Search, Sparkles } from 'lucide-react';
+import { Package, LogOut, Search, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
 import { Button } from './ui/button';
 import { NotificationCenter } from './NotificationCenter';
 import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
@@ -9,7 +9,7 @@ import { useAuth } from '../../lib/auth-context';
 
 export function InventoryStaffLayout() {
   const navigate = useNavigate();
-  const [activeView, setActiveView] = useState('products');
+  const [activeView, setActiveView] = useState('product-list');
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
@@ -18,13 +18,21 @@ export function InventoryStaffLayout() {
   };
 
   const navItems = [
-    { id: 'products', label: 'Inventory', icon: Package },
+    { id: 'product-list', label: 'Product List', icon: Package },
+    { id: 'product-settings', label: 'Product Settings', icon: SlidersHorizontal },
+    { id: 'inventory', label: 'Inventory', icon: Warehouse },
   ];
 
   const renderContent = () => {
     switch (activeView) {
-      case 'products': return <ProductManagement />;
-      default: return <ProductManagement />;
+      case 'product-list':
+        return <ProductManagement view="list" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
+      case 'product-settings':
+        return <ProductManagement view="settings" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
+      case 'inventory':
+        return <ProductManagement view="inventory" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
+      default:
+        return <ProductManagement view="list" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
     }
   };
 

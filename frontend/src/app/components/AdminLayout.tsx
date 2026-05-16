@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Dashboard } from './Dashboard';
-import { LayoutDashboard, Package, ShoppingCart, Users, CreditCard, TrendingUp, Tag, BarChart3, LogOut, UserCog, RotateCcw, Search, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, CreditCard, TrendingUp, Tag, BarChart3, LogOut, UserCog, RotateCcw, Search, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
 import { Button } from './ui/button';
 import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
 import { useAuth } from '../../lib/auth-context';
@@ -126,7 +126,9 @@ export function AdminLayout() {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'pos', label: 'Point of Sale', icon: CreditCard },
-    { id: 'products', label: 'Inventory', icon: Package },
+    { id: 'product-list', label: 'Product List', icon: Package },
+    { id: 'product-settings', label: 'Product Settings', icon: SlidersHorizontal },
+    { id: 'inventory', label: 'Inventory', icon: Warehouse },
     { id: 'sales', label: 'Sales', icon: ShoppingCart },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
@@ -138,7 +140,9 @@ export function AdminLayout() {
 
   const preloadByView: Record<string, () => Promise<unknown>> = {
     pos: loadPointOfSale,
-    products: loadProductManagement,
+    'product-list': loadProductManagement,
+    'product-settings': loadProductManagement,
+    inventory: loadProductManagement,
     sales: loadSalesManagement,
     customers: loadCustomerManagement,
     analytics: loadPredictiveAnalytics,
@@ -152,7 +156,9 @@ export function AdminLayout() {
     switch (activeView) {
       case 'dashboard': return <Dashboard />;
       case 'pos': return <PointOfSale />;
-      case 'products': return <ProductManagement />;
+      case 'product-list': return <ProductManagement view="list" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
+      case 'product-settings': return <ProductManagement view="settings" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
+      case 'inventory': return <ProductManagement view="inventory" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
       case 'sales': return <SalesManagement />;
       case 'customers': return <CustomerManagement />;
       case 'analytics': return <PredictiveAnalytics />;
