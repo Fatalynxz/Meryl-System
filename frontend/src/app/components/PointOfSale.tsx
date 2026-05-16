@@ -244,14 +244,6 @@ export function PointOfSale() {
     );
   }, [customerOptions, customerSearch]);
 
-  const selectProductVariant = (variant: ProductVariant) => {
-    setSelectedProductKey(variant.product_name);
-    setSelectedColor(variant.color);
-    setSelectedSize(variant.size);
-    setIsProductGridOpen(false);
-    toast.success(`${variant.product_name} selected`);
-  };
-
   const selectCustomer = (customer: any) => {
     setCustomerName(customer.value);
     if (customer.value !== "walk-in") {
@@ -327,17 +319,10 @@ export function PointOfSale() {
         .map((v) => ({ ...v }))
     : [];
 
-  const addToCart = () => {
-    if (!selectedProductKey) return toast.error("Please select a product");
-    if (!selectedColor) return toast.error("Please select a color");
-    if (!selectedSize) return toast.error("Please select a size");
-
-    const selectedVariant = productInventory.find(
-      (v) => v.product_name === selectedProductKey && v.color === selectedColor && v.size === selectedSize,
-    );
-    if (!selectedVariant) return;
-    if (quantity > selectedVariant.stock_quantity) {
-      return toast.error(`Only ${selectedVariant.stock_quantity} units available in stock`);
+  const addVariantToCart = (selectedVariant: ProductVariant, requestedQuantity: number, manualDiscount: number) => {
+    if (requestedQuantity > selectedVariant.stock_quantity) {
+      toast.error(`Only ${selectedVariant.stock_quantity} units available in stock`);
+      return false;
     }
 
     const meta = productMetaById.get(selectedVariant.product_id);
@@ -366,10 +351,10 @@ export function PointOfSale() {
       })?.[0]?.promo;
     const promoDiscount = matchedPromotion
       ? promoToPercent(matchedPromotion.discountType, matchedPromotion.discountValue, selectedVariant.price)
-      : discount;
+      : manualDiscount;
 
     const isBogoApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bogo"));
-    const quantityToAdd = isBogoApplied ? quantity * 2 : quantity;
+    const quantityToAdd = isBogoApplied ? requestedQuantity * 2 : requestedQuantity;
     const finalDiscount = isBogoApplied ? 50 : promoDiscount;
 
     const existingItem = cart.find((item) => item.id === selectedVariant.product_id);
@@ -416,6 +401,34 @@ export function PointOfSale() {
     } else {
       toast.success("Product added to cart");
     }
+    return true;
+  };
+
+  const addToCart = () => {
+    if (!selectedProductKey) return toast.error("Please select a product");
+    if (!selectedColor) return toast.error("Please select a color");
+    if (!selectedSize) return toast.error("Please select a size");
+
+    const selectedVariant = productInventory.find(
+      (v) => v.product_name === selectedProductKey && v.color === selectedColor && v.size === selectedSize,
+    );
+    if (!selectedVariant) return;
+
+    const added = addVariantToCart(selectedVariant, quantity, discount);
+    if (!added) return;
+
+    setSelectedProductKey("");
+    setSelectedColor("");
+    setSelectedSize("");
+    setQuantity(1);
+    setDiscount(0);
+  };
+
+  const selectProductVariant = (variant: ProductVariant) => {
+    const added = addVariantToCart(variant, 1, 0);
+    if (!added) return;
+    setIsProductGridOpen(false);
+    setProductSearch("");
   };
 
   const removeFromCart = (id: string) => setCart(cart.filter((item) => item.id !== id));
@@ -576,7 +589,7 @@ export function PointOfSale() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Dialog open={isProductGridOpen} onOpenChange={setIsProductGridOpen}>
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[96vw] !max-w-[1400px] max-h-[88vh] overflow-hidden p-0">
+              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[94vw] !max-w-[1100px] max-h-[88vh] overflow-hidden p-0">
                 <div className="border-b border-red-800 p-5">
                   <DialogHeader>
                     <DialogTitle className="text-yellow-300 flex items-center gap-2">
@@ -600,45 +613,38 @@ export function PointOfSale() {
                     <Table className="w-full table-fixed text-sm">
                       <TableHeader className="sticky top-0 z-10">
                         <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                          <TableHead className="w-[11%] px-2 text-center text-yellow-300">SKU</TableHead>
-                          <TableHead className="w-[15%] px-2 text-center text-yellow-300">Product</TableHead>
-                          <TableHead className="w-[10%] px-2 text-center text-yellow-300">Brand</TableHead>
-                          <TableHead className="w-[12%] px-2 text-center text-yellow-300">Category</TableHead>
-                          <TableHead className="w-[9%] px-2 text-center text-yellow-300">Color</TableHead>
-                          <TableHead className="w-[8%] px-2 text-center text-yellow-300">Gender</TableHead>
-                          <TableHead className="w-[6%] px-2 text-center text-yellow-300">Size</TableHead>
-                          <TableHead className="w-[9%] px-2 text-center text-yellow-300">Price</TableHead>
-                          <TableHead className="w-[8%] px-2 text-center text-yellow-300">Stock</TableHead>
-                          <TableHead className="w-[6%] px-2 text-center text-yellow-300">Status</TableHead>
-                          <TableHead className="w-[6%] px-2 text-center text-yellow-300">Action</TableHead>
+                          <TableHead className="w-[24%] px-3 text-center text-yellow-300">Product</TableHead>
+                          <TableHead className="w-[14%] px-3 text-center text-yellow-300">Brand</TableHead>
+                          <TableHead className="w-[20%] px-3 text-center text-yellow-300">Category</TableHead>
+                          <TableHead className="w-[16%] px-3 text-center text-yellow-300">Variant</TableHead>
+                          <TableHead className="w-[11%] px-3 text-center text-yellow-300">Price</TableHead>
+                          <TableHead className="w-[9%] px-3 text-center text-yellow-300">Stock</TableHead>
+                          <TableHead className="w-[6%] px-3 text-center text-yellow-300">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredProductInventory.map((product) => (
                           <TableRow key={product.product_id} className="border-red-800">
-                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.product_id}>
-                              {product.product_id.slice(0, 12)}
+                            <TableCell className="truncate px-3 text-center text-yellow-200" title={product.product_name}>{product.product_name}</TableCell>
+                            <TableCell className="truncate px-3 text-center text-yellow-200" title={product.brand}>{product.brand}</TableCell>
+                            <TableCell className="truncate px-3 text-center text-yellow-200" title={product.category}>{product.category}</TableCell>
+                            <TableCell
+                              className="truncate px-3 text-center text-yellow-200"
+                              title={`${product.color} / Size ${product.size}`}
+                            >
+                              {product.color} / {product.size}
                             </TableCell>
-                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.product_name}>{product.product_name}</TableCell>
-                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.brand}>{product.brand}</TableCell>
-                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.category}>{product.category}</TableCell>
-                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.color}>{product.color}</TableCell>
-                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.gender}>{product.gender}</TableCell>
-                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.size}>{product.size}</TableCell>
-                            <TableCell className="truncate px-2 text-center text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</TableCell>
-                            <TableCell className="px-2 text-center">
+                            <TableCell className="truncate px-3 text-center text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</TableCell>
+                            <TableCell className="px-3 text-center">
                               <Badge className="max-w-full truncate bg-yellow-400 text-red-900">{product.stock_quantity} units</Badge>
                             </TableCell>
-                            <TableCell className="px-2 text-center">
-                              <Badge className="max-w-full truncate bg-green-600 text-white">{product.status}</Badge>
-                            </TableCell>
-                            <TableCell className="px-2 text-center">
+                            <TableCell className="px-3 text-center">
                               <Button
                                 size="sm"
                                 onClick={() => selectProductVariant(product)}
                                 className="h-8 bg-yellow-400 px-3 text-red-900 hover:bg-yellow-500"
                               >
-                                Select
+                                Add
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -648,7 +654,7 @@ export function PointOfSale() {
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-yellow-200/70">
-                    Only Active products with available stock can be selected. Click Select to auto-fill the POS form.
+                    Only Active products with available stock are shown. Click Add to place 1 unit directly in the cart.
                   </p>
                 </div>
               </DialogContent>
