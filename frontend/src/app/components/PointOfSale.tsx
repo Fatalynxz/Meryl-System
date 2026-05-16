@@ -576,59 +576,67 @@ export function PointOfSale() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Dialog open={isProductGridOpen} onOpenChange={setIsProductGridOpen}>
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-6xl max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="text-yellow-300">Select Available Product</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
+              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[96vw] !max-w-[1400px] max-h-[88vh] overflow-hidden p-0">
+                <div className="border-b border-red-800 p-5">
+                  <DialogHeader>
+                    <DialogTitle className="text-yellow-300 flex items-center gap-2">
+                      <Package className="w-5 h-5" />
+                      Select Product
+                    </DialogTitle>
+                  </DialogHeader>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                     <Input
                       value={productSearch}
                       onChange={(event) => setProductSearch(event.target.value)}
                       placeholder="Search by SKU, product, brand, category, color, size, or price..."
-                      className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                      className="mt-4 pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
                     />
                   </div>
-                  <div className="border border-red-800 rounded-lg overflow-x-auto">
-                    <Table className="min-w-[980px]">
-                      <TableHeader>
+                </div>
+                <div className="p-5 pt-4">
+                  <div className="border border-red-800 rounded-xl overflow-hidden">
+                    <div className="max-h-[58vh] overflow-y-auto overflow-x-hidden">
+                    <Table className="w-full table-fixed text-sm">
+                      <TableHeader className="sticky top-0 z-10">
                         <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                          <TableHead className="text-yellow-300 text-center">SKU</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Product</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Brand</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Category</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Color</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Gender</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Size</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Price</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Stock</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Status</TableHead>
-                          <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                          <TableHead className="w-[11%] px-2 text-center text-yellow-300">SKU</TableHead>
+                          <TableHead className="w-[15%] px-2 text-center text-yellow-300">Product</TableHead>
+                          <TableHead className="w-[10%] px-2 text-center text-yellow-300">Brand</TableHead>
+                          <TableHead className="w-[12%] px-2 text-center text-yellow-300">Category</TableHead>
+                          <TableHead className="w-[9%] px-2 text-center text-yellow-300">Color</TableHead>
+                          <TableHead className="w-[8%] px-2 text-center text-yellow-300">Gender</TableHead>
+                          <TableHead className="w-[6%] px-2 text-center text-yellow-300">Size</TableHead>
+                          <TableHead className="w-[9%] px-2 text-center text-yellow-300">Price</TableHead>
+                          <TableHead className="w-[8%] px-2 text-center text-yellow-300">Stock</TableHead>
+                          <TableHead className="w-[6%] px-2 text-center text-yellow-300">Status</TableHead>
+                          <TableHead className="w-[6%] px-2 text-center text-yellow-300">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredProductInventory.map((product) => (
                           <TableRow key={product.product_id} className="border-red-800">
-                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.product_id.slice(0, 8)}</TableCell>
-                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.product_name}</TableCell>
-                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
-                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.category}</TableCell>
-                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.color}</TableCell>
-                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.gender}</TableCell>
-                            <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.size}</TableCell>
-                            <TableCell className="text-yellow-300 text-center whitespace-nowrap">PHP {product.price}</TableCell>
-                            <TableCell className="text-center whitespace-nowrap">
-                              <Badge className="bg-yellow-400 text-red-900">{product.stock_quantity} units</Badge>
+                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.product_id}>
+                              {product.product_id.slice(0, 12)}
                             </TableCell>
-                            <TableCell className="text-center whitespace-nowrap">
-                              <Badge className="bg-green-600 text-white">{product.status}</Badge>
+                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.product_name}>{product.product_name}</TableCell>
+                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.brand}>{product.brand}</TableCell>
+                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.category}>{product.category}</TableCell>
+                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.color}>{product.color}</TableCell>
+                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.gender}>{product.gender}</TableCell>
+                            <TableCell className="truncate px-2 text-center text-yellow-200" title={product.size}>{product.size}</TableCell>
+                            <TableCell className="truncate px-2 text-center text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</TableCell>
+                            <TableCell className="px-2 text-center">
+                              <Badge className="max-w-full truncate bg-yellow-400 text-red-900">{product.stock_quantity} units</Badge>
                             </TableCell>
-                            <TableCell className="text-center whitespace-nowrap">
+                            <TableCell className="px-2 text-center">
+                              <Badge className="max-w-full truncate bg-green-600 text-white">{product.status}</Badge>
+                            </TableCell>
+                            <TableCell className="px-2 text-center">
                               <Button
                                 size="sm"
                                 onClick={() => selectProductVariant(product)}
-                                className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                className="h-8 bg-yellow-400 px-3 text-red-900 hover:bg-yellow-500"
                               >
                                 Select
                               </Button>
@@ -637,7 +645,11 @@ export function PointOfSale() {
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   </div>
+                  <p className="mt-3 text-xs text-yellow-200/70">
+                    Only Active products with available stock can be selected. Click Select to auto-fill the POS form.
+                  </p>
                 </div>
               </DialogContent>
             </Dialog>
