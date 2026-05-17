@@ -669,7 +669,8 @@ export function PredictiveAnalytics() {
               <Table>
                 <TableHeader className="bg-[#1f1f28]">
                   <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
-                    <TableHead className="text-center text-white">Segment</TableHead>
+                    <TableHead className="text-center text-white">Gender</TableHead>
+                    <TableHead className="text-center text-white">Age Range</TableHead>
                     <TableHead className="text-center text-white">Customers</TableHead>
                     <TableHead className="text-center text-white">Orders</TableHead>
                     <TableHead className="text-center text-white">Revenue</TableHead>
@@ -679,7 +680,8 @@ export function PredictiveAnalytics() {
                 <TableBody>
                   {analytics.segmentRows.slice(0, 8).map((segment) => (
                     <TableRow key={segment.segment} className="border-[#2b2b36] hover:bg-white/[0.03]">
-                      <TableCell className="text-center font-semibold text-white">{segment.segment}</TableCell>
+                      <TableCell className="text-center font-semibold text-white">{segment.gender}</TableCell>
+                      <TableCell className="text-center text-white/80">{segment.ageRange}</TableCell>
                       <TableCell className="text-center text-white/80">{segment.customers}</TableCell>
                       <TableCell className="text-center text-white/80">{segment.orders}</TableCell>
                       <TableCell className="text-center text-yellow-300">{money(segment.revenue)}</TableCell>
@@ -688,7 +690,7 @@ export function PredictiveAnalytics() {
                   ))}
                   {!analytics.segmentRows.length && (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-white/50">No customer sales data yet.</TableCell>
+                      <TableCell colSpan={6} className="py-8 text-center text-white/50">No customer sales data yet.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
