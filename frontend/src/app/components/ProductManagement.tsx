@@ -596,7 +596,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
         <CardTitle className="text-yellow-300 flex items-center gap-2"><Settings className="w-5 h-5" />Product Settings / Item Parameter</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5 p-6 pt-0">
-        <div className="grid gap-6 2xl:gap-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.55fr)]">
+        <div className="grid gap-6 2xl:gap-8 xl:grid-cols-[minmax(0,1.55fr)_minmax(260px,0.45fr)]">
           <div className="space-y-4 rounded-2xl border border-[#24242f] bg-[#12121a] p-5">
             <Label className="text-sm font-semibold text-yellow-200">Select Existing Product</Label>
             <Select value={stockForm.product_id} onValueChange={selectProductForSettings}>
@@ -658,21 +658,21 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
               <p className="text-xs text-yellow-200/60">Click a product row to load its default details and configure stock.</p>
             </div>
           </div>
-          <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-4 text-yellow-100 shadow-inner shadow-black/20">
-            <div className="mb-3 flex items-center gap-2">
+          <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-3.5 text-yellow-100 shadow-inner shadow-black/20">
+            <div className="mb-2.5 flex items-center gap-2">
               <Package className="h-4 w-4 text-yellow-300" />
               <p className="font-semibold text-yellow-100">Product Details</p>
             </div>
             {selectedProduct ? (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-xl font-bold text-white">{selectedProduct.name}</p>
+                    <p className="text-lg font-bold leading-tight text-white">{selectedProduct.name}</p>
                     <p className="text-xs text-yellow-200/60">{shortId(selectedProduct.sku)} - {selectedProduct.brand}</p>
                   </div>
-                  <Badge className={`w-fit border px-3 py-1 ${statusMeta.className}`}>{statusMeta.label}</Badge>
+                  <Badge className={`w-fit border px-2.5 py-0.5 text-xs ${statusMeta.className}`}>{statusMeta.label}</Badge>
                 </div>
-                <div className="grid gap-2">
+                <div className="grid gap-1.5">
                   <DetailPill label="Category" value={selectedProduct.category} />
                   <DetailPill label="Variant" value={`${selectedProduct.color} / ${selectedProduct.size}`} />
                   <DetailPill label="Gender" value={selectedProduct.gender} />
@@ -680,13 +680,13 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                   <DetailPill label="Current Stock" value={`${selectedProduct.stock} units`} />
                   <DetailPill label="Inventory Status" value={selectedProduct.status} />
                 </div>
-                <div className="flex gap-2 rounded-lg border border-yellow-400/20 bg-yellow-400/10 p-2.5 text-xs text-yellow-100/80">
+                <div className="flex gap-2 rounded-lg border border-yellow-400/20 bg-yellow-400/10 p-2 text-xs text-yellow-100/80">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-yellow-300" />
                   <span>Configure stock-in quantity, SRP, reorder level, and inventory status below before saving.</span>
                 </div>
               </div>
             ) : (
-              <div className="flex min-h-[140px] flex-col items-center justify-center rounded-xl border border-dashed border-[#343443] bg-[#111118] p-4 text-center">
+              <div className="flex min-h-[120px] flex-col items-center justify-center rounded-xl border border-dashed border-[#343443] bg-[#111118] p-3 text-center">
                 <Package className="mb-2 h-8 w-8 text-yellow-300/70" />
                 <p className="text-sm font-semibold text-white">No product selected yet</p>
                 <p className="mt-1 max-w-xs text-xs text-yellow-200/60">
@@ -780,9 +780,9 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
 
 function DetailPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-[#2d2d3a] bg-[#1d1d27] p-2.5">
-      <p className="text-xs uppercase tracking-wide text-yellow-300/60">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold text-yellow-50">{value || "N/A"}</p>
+    <div className="rounded-lg border border-[#2d2d3a] bg-[#1d1d27] px-2.5 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-yellow-300/60">{label}</p>
+      <p className="mt-0.5 truncate text-sm font-semibold leading-tight text-yellow-50">{value || "N/A"}</p>
     </div>
   );
 }
