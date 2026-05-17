@@ -608,14 +608,12 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                   className="h-11 pl-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400/50"
                 />
               </div>
-              <div className="mx-auto w-full max-w-[560px] rounded-xl border border-[#2d2d3a] overflow-hidden">
-                <div className="sticky top-0 z-10 grid grid-cols-[190px_80px_100px_105px] gap-2 bg-[#1d1d27] px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
+              <div className="rounded-xl border border-[#2d2d3a] bg-[#101018] p-2">
+                <div className="mb-2 flex items-center justify-between px-2 text-xs font-semibold uppercase tracking-wide text-yellow-200/70">
                   <span>Product</span>
-                  <span>Brand</span>
-                  <span>Variant</span>
-                  <span className="text-right">Unit Price</span>
+                  <span>Unit Price</span>
                 </div>
-                <div className="max-h-64 overflow-y-auto overflow-x-hidden">
+                <div className="max-h-64 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
                   {filteredProducts.length > 0 ? (
                     filteredProducts.map((product) => {
                       const isSelected = stockForm.product_id === product.product_id;
@@ -625,22 +623,26 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                           type="button"
                           key={product.product_id}
                           onClick={() => selectProductForSettings(product.product_id)}
-                          className={`grid w-full grid-cols-[190px_80px_100px_105px] items-center gap-2 border-t border-[#2d2d3a] px-3 py-2.5 text-left transition duration-150 ${
-                            isSelected ? "bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20" : "text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
+                          className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition duration-150 ${
+                            isSelected
+                              ? "border-yellow-400 bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20"
+                              : "border-[#262633] bg-[#15151d] text-yellow-100 hover:border-yellow-400/40 hover:bg-yellow-400/10 hover:text-white"
                           }`}
                         >
-                          <span className="min-w-0">
-                            <span className="block truncate font-semibold">{product.name}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold">{product.name}</span>
                             <span className={`block truncate text-xs ${isSelected ? "text-red-950/70" : "text-yellow-200/50"}`}>{shortId(product.sku)}</span>
                           </span>
-                          <span className="truncate">{product.brand}</span>
-                          <span className="truncate">{product.color} / {product.size}</span>
-                          <span className="text-right font-semibold">{formatMoney(product.unit_price)}</span>
+                          <span className="hidden min-w-0 items-center gap-1.5 sm:flex">
+                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${isSelected ? "bg-red-950/10 text-red-950" : "bg-[#20202a] text-yellow-100"}`}>{product.brand}</span>
+                            <span className={`rounded-full px-2 py-1 text-xs ${isSelected ? "bg-red-950/10 text-red-950" : "bg-[#20202a] text-yellow-100/80"}`}>{product.color} / {product.size}</span>
+                          </span>
+                          <span className="shrink-0 text-right text-sm font-bold">{formatMoney(product.unit_price)}</span>
                         </button>
                       );
                     })
                   ) : (
-                    <div className="border-t border-[#2d2d3a] px-4 py-8 text-center text-sm text-yellow-200/60">
+                    <div className="rounded-lg border border-[#2d2d3a] px-4 py-8 text-center text-sm text-yellow-200/60">
                       No master products match your search.
                     </div>
                   )}
