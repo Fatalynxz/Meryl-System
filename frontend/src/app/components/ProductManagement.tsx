@@ -609,10 +609,10 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                 />
               </div>
               <div className="rounded-xl border border-[#2d2d3a] overflow-hidden">
-                <div className="sticky top-0 z-10 grid grid-cols-[minmax(220px,1.7fr)_0.75fr_0.9fr_0.8fr] gap-5 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
+                <div className="sticky top-0 z-10 grid grid-cols-[minmax(180px,1.35fr)_0.65fr_0.8fr_0.7fr] gap-3 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
                   <span>Product</span>
-                  <span className="text-center">Brand</span>
-                  <span className="text-center">Variant</span>
+                  <span>Brand</span>
+                  <span>Variant</span>
                   <span className="text-right">Unit Price</span>
                 </div>
                 <div className="max-h-64 overflow-y-auto overflow-x-hidden">
@@ -625,7 +625,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                           type="button"
                           key={product.product_id}
                           onClick={() => selectProductForSettings(product.product_id)}
-                          className={`grid w-full grid-cols-[minmax(220px,1.7fr)_0.75fr_0.9fr_0.8fr] items-center gap-5 border-t border-[#2d2d3a] px-4 py-3 text-left transition duration-150 ${
+                          className={`grid w-full grid-cols-[minmax(180px,1.35fr)_0.65fr_0.8fr_0.7fr] items-center gap-3 border-t border-[#2d2d3a] px-4 py-2.5 text-left transition duration-150 ${
                             isSelected ? "bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20" : "text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
                           }`}
                         >
@@ -633,8 +633,8 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                             <span className="block truncate font-semibold">{product.name}</span>
                             <span className={`block truncate text-xs ${isSelected ? "text-red-950/70" : "text-yellow-200/50"}`}>{shortId(product.sku)}</span>
                           </span>
-                          <span className="truncate text-center">{product.brand}</span>
-                          <span className="truncate text-center">{product.color} / {product.size}</span>
+                          <span className="truncate">{product.brand}</span>
+                          <span className="truncate">{product.color} / {product.size}</span>
                           <span className="text-right font-semibold">{formatMoney(product.unit_price)}</span>
                         </button>
                       );
