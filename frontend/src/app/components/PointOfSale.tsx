@@ -65,6 +65,10 @@ function productVariantLabel(product: Pick<ProductVariant, "color" | "gender" | 
     .join(" / ") || "Default";
 }
 
+function isSellableProduct(product: ProductVariant) {
+  return product.status.toLowerCase() === "active" && Number(product.stock_quantity || 0) > 0;
+}
+
 const PROMO_TYPE_MARKERS = {
   bundle: "__TYPE_BUNDLE__",
   bogo: "__TYPE_BOGO__",
@@ -192,10 +196,9 @@ export function PointOfSale() {
     const variants: ProductVariant[] = [];
     for (const row of rows) {
       const inventory = inventoryByProductId[String(row.product_id)] ?? null;
+      if (!inventory) continue;
       const stock = Number(inventory?.stock_quantity ?? 0);
       const status = String(inventory?.inventory_status ?? row.status ?? "inactive").trim().toLowerCase();
-      if (stock <= 0) continue;
-      if (status !== "active" && status !== "available") continue;
       variants.push({
         product_id: row.product_id,
         product_name: row.product_name,
@@ -206,11 +209,16 @@ export function PointOfSale() {
         size: row.size ?? "N/A",
         price: Number(inventory?.srp ?? row.cost_price ?? 0),
         stock_quantity: stock,
-        status: status === "available" ? "Active" : status.charAt(0).toUpperCase() + status.slice(1),
+        status: status === "active" || status === "available" ? "Active" : "Inactive",
       });
     }
     return variants;
   }, [productsQuery.data, inventoryQuery.data]);
+
+  const sellableProductInventory = useMemo(
+    () => productInventory.filter(isSellableProduct),
+    [productInventory],
+  );
 
   const filteredProductInventory = useMemo(() => {
     const term = productSearch.trim().toLowerCase();
@@ -302,31 +310,35 @@ export function PointOfSale() {
 
   const productGroups: ProductGroup[] = useMemo(
     () =>
-      productInventory.reduce((acc, variant) => {
+      sellableProductInventory.reduce((acc, variant) => {
         const key = variant.product_name;
         const existing = acc.find((g) => g.key === key);
         if (existing) existing.variants.push(variant);
         else acc.push({ key, product_name: variant.product_name, color: variant.color, variants: [variant] });
         return acc;
       }, [] as ProductGroup[]),
-    [productInventory],
+    [sellableProductInventory],
   );
 
   const availableColors = selectedProductKey
     ? Array.from(new Set(
-        productInventory
+        sellableProductInventory
           .filter((v) => v.product_name === selectedProductKey)
           .map((v) => v.color)
       ))
     : [];
 
   const availableSizes = (selectedProductKey && selectedColor)
-    ? productInventory
+    ? sellableProductInventory
         .filter((v) => v.product_name === selectedProductKey && v.color === selectedColor)
         .map((v) => ({ ...v }))
     : [];
 
   const addVariantToCart = (selectedVariant: ProductVariant, requestedQuantity: number, manualDiscount: number) => {
+    if (!isSellableProduct(selectedVariant)) {
+      toast.error("This product is not sellable. Set it to Active and make sure it has stock first.");
+      return false;
+    }
     if (requestedQuantity > selectedVariant.stock_quantity) {
       toast.error(`Only ${selectedVariant.stock_quantity} units available in stock`);
       return false;
@@ -416,7 +428,7 @@ export function PointOfSale() {
     if (!selectedColor) return toast.error("Please select a color");
     if (!selectedSize) return toast.error("Please select a size");
 
-    const selectedVariant = productInventory.find(
+    const selectedVariant = sellableProductInventory.find(
       (v) => v.product_name === selectedProductKey && v.color === selectedColor && v.size === selectedSize,
     );
     if (!selectedVariant) return;
@@ -616,46 +628,56 @@ export function PointOfSale() {
                 </div>
                 <div className="p-5">
                   <div className="overflow-hidden rounded-xl border border-red-800">
-                    <div className="grid grid-cols-[1.45fr_0.9fr_1.25fr_1fr_0.8fr_0.85fr_0.8fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
+                    <div className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.8fr_0.75fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
                       <div>Product</div>
                       <div>Brand</div>
                       <div>Category</div>
                       <div>Variant</div>
                       <div>Price</div>
                       <div>Stock</div>
+                      <div>Status</div>
                       <div>Action</div>
                     </div>
                     <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
-                      {filteredProductInventory.map((product) => (
-                        <div
-                          key={product.product_id}
-                          className="grid grid-cols-[1.45fr_0.9fr_1.25fr_1fr_0.8fr_0.85fr_0.8fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
-                        >
-                          <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
-                          <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
-                          <div className="truncate text-yellow-200" title={product.category}>{product.category}</div>
-                          <div className="truncate text-yellow-200" title={productVariantLabel(product)}>
-                            {productVariantLabel(product)}
+                      {filteredProductInventory.map((product) => {
+                        const sellable = isSellableProduct(product);
+                        return (
+                          <div
+                            key={product.product_id}
+                            className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.8fr_0.75fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
+                          >
+                            <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
+                            <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
+                            <div className="truncate text-yellow-200" title={product.category}>{product.category}</div>
+                            <div className="truncate text-yellow-200" title={productVariantLabel(product)}>
+                              {productVariantLabel(product)}
+                            </div>
+                            <div className="truncate font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</div>
+                            <div className="min-w-0">
+                              <Badge className="max-w-full truncate rounded-full bg-yellow-400 px-3 py-1 text-red-900">{product.stock_quantity} units</Badge>
+                            </div>
+                            <div className="min-w-0">
+                              <Badge className={sellable ? "rounded-full bg-green-700 px-3 py-1 text-white" : "rounded-full bg-gray-600 px-3 py-1 text-white"}>
+                                {sellable ? "Sellable" : product.status}
+                              </Badge>
+                            </div>
+                            <div className="flex justify-center">
+                              <Button
+                                size="sm"
+                                disabled={!sellable}
+                                onClick={() => selectProductVariant(product)}
+                                className="h-8 rounded-full bg-yellow-400 px-4 font-semibold text-red-900 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-300"
+                              >
+                                {sellable ? "Add" : "Locked"}
+                              </Button>
+                            </div>
                           </div>
-                          <div className="truncate font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</div>
-                          <div className="min-w-0">
-                            <Badge className="max-w-full truncate rounded-full bg-yellow-400 px-3 py-1 text-red-900">{product.stock_quantity} units</Badge>
-                          </div>
-                          <div className="flex justify-center">
-                            <Button
-                              size="sm"
-                              onClick={() => selectProductVariant(product)}
-                              className="h-8 rounded-full bg-yellow-400 px-4 font-semibold text-red-900 hover:bg-yellow-500"
-                            >
-                              Add
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                   <p className="mt-3 text-center text-xs text-yellow-200/70">
-                    Admin and Cashier see the same sellable inventory here: only Active products with available stock are shown. Click Add to place 1 unit directly in the cart.
+                    Admin and Cashier see the same inventory records here. Only Active products with available stock can be added to the cart.
                   </p>
                 </div>
               </DialogContent>
