@@ -608,8 +608,8 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                   className="h-11 pl-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400/50"
                 />
               </div>
-              <div className="rounded-xl border border-[#2d2d3a] overflow-hidden">
-                <div className="sticky top-0 z-10 grid grid-cols-[minmax(180px,1.35fr)_0.65fr_0.8fr_0.7fr] gap-3 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
+              <div className="mx-auto w-full max-w-[700px] rounded-xl border border-[#2d2d3a] overflow-hidden">
+                <div className="sticky top-0 z-10 grid grid-cols-[minmax(180px,260px)_110px_130px_120px] gap-3 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
                   <span>Product</span>
                   <span>Brand</span>
                   <span>Variant</span>
@@ -625,7 +625,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                           type="button"
                           key={product.product_id}
                           onClick={() => selectProductForSettings(product.product_id)}
-                          className={`grid w-full grid-cols-[minmax(180px,1.35fr)_0.65fr_0.8fr_0.7fr] items-center gap-3 border-t border-[#2d2d3a] px-4 py-2.5 text-left transition duration-150 ${
+                          className={`grid w-full grid-cols-[minmax(180px,260px)_110px_130px_120px] items-center gap-3 border-t border-[#2d2d3a] px-4 py-2.5 text-left transition duration-150 ${
                             isSelected ? "bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20" : "text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
                           }`}
                         >
