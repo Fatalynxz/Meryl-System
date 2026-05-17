@@ -596,7 +596,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
         <CardTitle className="text-yellow-300 flex items-center gap-2"><Settings className="w-5 h-5" />Product Settings / Item Parameter</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5 p-6 pt-0">
-        <div className="grid gap-6 2xl:gap-8 xl:grid-cols-[minmax(0,1.14fr)_minmax(360px,0.86fr)]">
+        <div className="grid gap-6 2xl:gap-8 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.55fr)]">
           <div className="space-y-4 rounded-2xl border border-[#24242f] bg-[#12121a] p-5">
             <Label className="text-sm font-semibold text-yellow-200">Select Existing Product</Label>
             <Select value={stockForm.product_id} onValueChange={selectProductForSettings}>
@@ -658,7 +658,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
               <p className="text-xs text-yellow-200/60">Click a product row to load its default details and configure stock.</p>
             </div>
           </div>
-          <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-5 text-yellow-100 shadow-inner shadow-black/20">
+          <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-4 text-yellow-100 shadow-inner shadow-black/20">
             <div className="mb-3 flex items-center gap-2">
               <Package className="h-4 w-4 text-yellow-300" />
               <p className="font-semibold text-yellow-100">Product Details</p>
@@ -672,7 +672,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                   </div>
                   <Badge className={`w-fit border px-3 py-1 ${statusMeta.className}`}>{statusMeta.label}</Badge>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2">
                   <DetailPill label="Category" value={selectedProduct.category} />
                   <DetailPill label="Variant" value={`${selectedProduct.color} / ${selectedProduct.size}`} />
                   <DetailPill label="Gender" value={selectedProduct.gender} />
@@ -686,7 +686,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                 </div>
               </div>
             ) : (
-              <div className="flex min-h-[160px] flex-col items-center justify-center rounded-xl border border-dashed border-[#343443] bg-[#111118] p-4 text-center">
+              <div className="flex min-h-[140px] flex-col items-center justify-center rounded-xl border border-dashed border-[#343443] bg-[#111118] p-4 text-center">
                 <Package className="mb-2 h-8 w-8 text-yellow-300/70" />
                 <p className="text-sm font-semibold text-white">No product selected yet</p>
                 <p className="mt-1 max-w-xs text-xs text-yellow-200/60">
