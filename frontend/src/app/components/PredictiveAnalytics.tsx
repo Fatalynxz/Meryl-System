@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -145,6 +145,7 @@ function MetricCard({ title, value, note, icon: Icon }: { title: string; value: 
 }
 
 export function PredictiveAnalytics() {
+  const [analyticsView, setAnalyticsView] = useState<"overview" | "product" | "customer" | "sales">("overview");
   const salesQuery = useSales();
   const productsQuery = useProducts();
   const customersQuery = useCustomers();
@@ -397,9 +398,50 @@ export function PredictiveAnalytics() {
     return <div className="text-sm text-white/60">Loading analytics...</div>;
   }
 
+  const showOverview = analyticsView === "overview";
+  const showProduct = analyticsView === "overview" || analyticsView === "product";
+  const showCustomer = analyticsView === "overview" || analyticsView === "customer";
+  const showSales = analyticsView === "overview" || analyticsView === "sales";
+
+  const filterTabs = [
+    { id: "overview" as const, label: "Overview", icon: BarChart3, count: null },
+    { id: "product" as const, label: "Product Analytics", icon: Package, count: analytics.productMovement.length },
+    { id: "customer" as const, label: "Customer Analytics", icon: Users, count: analytics.segmentRows.length },
+    { id: "sales" as const, label: "Sales Analytics", icon: TrendingUp, count: analytics.trendChart.length },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="rounded-2xl border border-[#2b2b36] bg-[#16161d] p-2">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+          {filterTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = analyticsView === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setAnalyticsView(tab.id)}
+                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  isActive
+                    ? "bg-yellow-400 text-red-950 shadow-lg shadow-yellow-400/10"
+                    : "bg-white/[0.03] text-white/70 hover:bg-white/[0.07] hover:text-white"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{tab.label}</span>
+                {tab.count !== null && (
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${isActive ? "bg-red-950/15" : "bg-yellow-400/15 text-yellow-300"}`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {showOverview && <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Predicted Next Month"
           value={shortMoney(analytics.predictedNextMonth)}
@@ -424,9 +466,9 @@ export function PredictiveAnalytics() {
           note="Grouped by gender and age range"
           icon={Users}
         />
-      </div>
+      </div>}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
+      {showSales && <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
@@ -478,9 +520,9 @@ export function PredictiveAnalytics() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </div>}
 
-      <Card className="bg-[#16161d] border-[#2b2b36]">
+      {showProduct && <Card className="bg-[#16161d] border-[#2b2b36]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Package className="h-5 w-5 text-yellow-400" />
@@ -524,9 +566,9 @@ export function PredictiveAnalytics() {
             </Table>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      {showProduct && <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
@@ -583,9 +625,10 @@ export function PredictiveAnalytics() {
             )) : <p className="text-sm text-white/55">No restock alerts. Inventory looks healthy.</p>}
           </CardContent>
         </Card>
-      </div>
+      </div>}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.2fr]">
+      {(showProduct || showCustomer) && <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.2fr]">
+        {showProduct && (
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
             <CardTitle className="text-white">Top Brand, Size, and Category</CardTitle>
@@ -611,7 +654,9 @@ export function PredictiveAnalytics() {
             ))}
           </CardContent>
         </Card>
+        )}
 
+        {showCustomer && (
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
@@ -651,9 +696,10 @@ export function PredictiveAnalytics() {
             </div>
           </CardContent>
         </Card>
-      </div>
+        )}
+      </div>}
 
-      <Card className="bg-[#16161d] border-[#2b2b36]">
+      {(showOverview || analyticsView === "product") && <Card className="bg-[#16161d] border-[#2b2b36]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Sparkles className="h-5 w-5 text-yellow-400" /> Targeted Marketing Recommendations
@@ -680,7 +726,7 @@ export function PredictiveAnalytics() {
             )}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   );
 }
