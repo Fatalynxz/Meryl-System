@@ -604,15 +604,14 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                 <Input
                   value={settingsProductSearch}
                   onChange={(event) => setSettingsProductSearch(event.target.value)}
-                  placeholder="Search by SKU, product, brand, category, color, size, or unit price"
+                  placeholder="Search by SKU, product, brand, variant, or unit price"
                   className="h-11 pl-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400/50"
                 />
               </div>
               <div className="rounded-xl border border-[#2d2d3a] overflow-hidden">
-                <div className="sticky top-0 z-10 grid grid-cols-[1.25fr_0.75fr_1.05fr_0.9fr_0.85fr] gap-4 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
+                <div className="sticky top-0 z-10 grid grid-cols-[minmax(220px,1.7fr)_0.75fr_0.9fr_0.8fr] gap-5 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
                   <span>Product</span>
                   <span className="text-center">Brand</span>
-                  <span className="text-center">Category</span>
                   <span className="text-center">Variant</span>
                   <span className="text-right">Unit Price</span>
                 </div>
@@ -626,7 +625,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                           type="button"
                           key={product.product_id}
                           onClick={() => selectProductForSettings(product.product_id)}
-                          className={`grid w-full grid-cols-[1.25fr_0.75fr_1.05fr_0.9fr_0.85fr] items-center gap-4 border-t border-[#2d2d3a] px-4 py-3 text-left transition duration-150 ${
+                          className={`grid w-full grid-cols-[minmax(220px,1.7fr)_0.75fr_0.9fr_0.8fr] items-center gap-5 border-t border-[#2d2d3a] px-4 py-3 text-left transition duration-150 ${
                             isSelected ? "bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20" : "text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
                           }`}
                         >
@@ -635,7 +634,6 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                             <span className={`block truncate text-xs ${isSelected ? "text-red-950/70" : "text-yellow-200/50"}`}>{shortId(product.sku)}</span>
                           </span>
                           <span className="truncate text-center">{product.brand}</span>
-                          <span className="truncate text-center">{product.category}</span>
                           <span className="truncate text-center">{product.color} / {product.size}</span>
                           <span className="text-right font-semibold">{formatMoney(product.unit_price)}</span>
                         </button>
