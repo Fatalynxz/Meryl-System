@@ -58,6 +58,13 @@ type ActivePromotionRule = {
   endDate: string;
 };
 
+function productVariantLabel(product: Pick<ProductVariant, "color" | "gender" | "size">) {
+  return [product.color, product.gender, product.size ? `Size ${product.size}` : ""]
+    .map((value) => String(value ?? "").trim())
+    .filter((value) => value && value.toLowerCase() !== "n/a" && value.toLowerCase() !== "default")
+    .join(" / ") || "Default";
+}
+
 const PROMO_TYPE_MARKERS = {
   bundle: "__TYPE_BUNDLE__",
   bogo: "__TYPE_BOGO__",
@@ -602,7 +609,7 @@ export function PointOfSale() {
                     <Input
                       value={productSearch}
                       onChange={(event) => setProductSearch(event.target.value)}
-                      placeholder="Search by SKU, product, brand, category, color, size, or price..."
+                      placeholder="Search by SKU, product, brand, category, variant, size, or price..."
                       className="mt-4 h-11 rounded-xl bg-red-600 border-red-800 pl-10 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
                     />
                   </div>
@@ -627,8 +634,8 @@ export function PointOfSale() {
                           <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
                           <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
                           <div className="truncate text-yellow-200" title={product.category}>{product.category}</div>
-                          <div className="truncate text-yellow-200" title={`${product.color} / Size ${product.size}`}>
-                            {product.color} / {product.size}
+                          <div className="truncate text-yellow-200" title={productVariantLabel(product)}>
+                            {productVariantLabel(product)}
                           </div>
                           <div className="truncate font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</div>
                           <div className="min-w-0">
@@ -648,7 +655,7 @@ export function PointOfSale() {
                     </div>
                   </div>
                   <p className="mt-3 text-center text-xs text-yellow-200/70">
-                    Only Active products with available stock are shown. Click Add to place 1 unit directly in the cart.
+                    Admin and Cashier see the same sellable inventory here: only Active products with available stock are shown. Click Add to place 1 unit directly in the cart.
                   </p>
                 </div>
               </DialogContent>

@@ -115,6 +115,13 @@ function formatMoney(value: number) {
   return `PHP ${Number(value || 0).toLocaleString()}`;
 }
 
+function variantLabel(product: Pick<UiProduct, "color" | "gender" | "size">) {
+  return [product.color, product.gender, product.size ? `Size ${product.size}` : ""]
+    .map((value) => String(value ?? "").trim())
+    .filter((value) => value && value.toLowerCase() !== "n/a" && value.toLowerCase() !== "default")
+    .join(" / ") || "Default";
+}
+
 function productGroupKey(product: UiProduct) {
   return [product.name, product.brand, product.category].map((value) => value.trim().toLowerCase()).join("::");
 }
@@ -202,7 +209,11 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         product.name.toLowerCase().includes(q) ||
         product.brand.toLowerCase().includes(q) ||
         product.category.toLowerCase().includes(q) ||
-        product.sku.toLowerCase().includes(q),
+        product.sku.toLowerCase().includes(q) ||
+        product.color.toLowerCase().includes(q) ||
+        product.gender.toLowerCase().includes(q) ||
+        product.size.toLowerCase().includes(q) ||
+        variantLabel(product).toLowerCase().includes(q),
     );
   }, [activeTab, products, searchTerm]);
 
@@ -447,7 +458,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
             <div className="mb-4 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
               <Input
-                placeholder="Search by SKU, product, brand, or category..."
+                placeholder={activeTab === "inventory" ? "Search by SKU, product, brand, category, or variant..." : "Search by SKU, product, brand, or category..."}
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
@@ -518,10 +529,10 @@ function ProductListTable({ products, onEdit, onDelete, onConfigure }: { product
 function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onConfigure: (product: UiProduct) => void }) {
   return (
     <div className="border border-red-800 rounded-lg overflow-x-auto">
-      <Table className="w-full min-w-[1120px]">
+      <Table className="w-full min-w-[1040px]">
         <TableHeader>
           <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-            {['SKU', 'Product', 'Brand', 'Category', 'Color', 'Gender', 'Size', 'Price', 'Stock', 'Reorder', 'Status', 'Condition', 'Actions'].map((head) => (
+            {['SKU', 'Product', 'Brand', 'Category', 'Variant', 'Price', 'Stock', 'Reorder', 'Status', 'Condition', 'Actions'].map((head) => (
               <TableHead key={head} className="text-yellow-300 text-center whitespace-nowrap">{head}</TableHead>
             ))}
           </TableRow>
@@ -535,9 +546,7 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.name}</TableCell>
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.category}</TableCell>
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.color}</TableCell>
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.gender}</TableCell>
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.size}</TableCell>
+                <TableCell className="text-yellow-200 text-center whitespace-nowrap" title={variantLabel(product)}>{variantLabel(product)}</TableCell>
                 <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatMoney(product.srp)}</TableCell>
                 <TableCell className="text-center whitespace-nowrap"><Badge className="bg-yellow-400 text-red-900">{product.stock} units</Badge></TableCell>
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.reorder_level}</TableCell>
