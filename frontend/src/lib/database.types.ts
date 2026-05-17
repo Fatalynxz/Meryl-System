@@ -69,23 +69,29 @@ export type Database = {
       inventory: {
         Row: {
           inventory_id: string
+          inventory_status: string | null
           last_updated: string | null
           product_id: string
           reorder_level: number | null
+          srp: number | null
           stock_quantity: number
         }
         Insert: {
           inventory_id: string
+          inventory_status?: string | null
           last_updated?: string | null
           product_id: string
           reorder_level?: number | null
+          srp?: number | null
           stock_quantity: number
         }
         Update: {
           inventory_id?: string
+          inventory_status?: string | null
           last_updated?: string | null
           product_id?: string
           reorder_level?: number | null
+          srp?: number | null
           stock_quantity?: number
         }
         Relationships: []

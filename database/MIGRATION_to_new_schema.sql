@@ -98,6 +98,8 @@ CREATE TABLE IF NOT EXISTS inventory (
   product_id UUID NOT NULL UNIQUE REFERENCES product(product_id) ON DELETE CASCADE,
   stock_quantity INT NOT NULL DEFAULT 0,
   reorder_level INT DEFAULT 5,
+  srp DECIMAL(10, 2) DEFAULT 0,
+  inventory_status VARCHAR(20) DEFAULT 'inactive' CHECK (inventory_status IN ('active', 'inactive')),
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

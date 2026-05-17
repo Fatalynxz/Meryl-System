@@ -293,43 +293,36 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     }
 
     const nextStock = Number(product.stock || 0) + Number(stockForm.stock_in || 0);
+    const inventoryPayload = {
+      stock_quantity: nextStock,
+      reorder_level: Number(stockForm.reorder_level || 0),
+      srp: Number(stockForm.srp || product.srp || product.unit_price || 0),
+      inventory_status: toDbStatus(stockForm.status),
+      last_updated: new Date().toISOString(),
+    };
+
     try {
       if (product.inventory_id) {
         const { error } = await supabase
           .from("inventory")
-          .update({
-            stock_quantity: nextStock,
-            reorder_level: Number(stockForm.reorder_level || 0),
-            last_updated: new Date().toISOString(),
-          })
+          .update(inventoryPayload as any)
           .eq("inventory_id", product.inventory_id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("inventory").insert({
           inventory_id: buildClientId("inv"),
           product_id: product.product_id,
-          stock_quantity: nextStock,
-          reorder_level: Number(stockForm.reorder_level || 0),
-          last_updated: new Date().toISOString(),
+          ...inventoryPayload,
         });
         if (error) throw error;
       }
-
-      await productMutations.updateMutation.mutateAsync({
-        id: product.product_id,
-        payload: {
-          cost_price: Number(stockForm.srp || product.unit_price),
-          reorder_level: Number(stockForm.reorder_level || 0),
-          status: toDbStatus(stockForm.status),
-        } as any,
-      });
 
       if (Number(stockForm.stock_in) !== 0) {
         const { error: logError } = await supabase.from("inventory_log").insert({
           inventory_log_id: buildClientId("log"),
           product_id: product.product_id,
           quantity_change: Number(stockForm.stock_in),
-          transaction_type: "Stock In",
+          transaction_type: "restock",
           reference_id: product.inventory_id || null,
           date_updated: new Date().toISOString(),
         });
@@ -731,7 +724,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
 
           <div className="mt-4 flex flex-col gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100/80 lg:flex-row lg:items-center lg:justify-between">
             <p>
-              Saves inventory settings and logs stock-in to INVENTORY_LOG. SRP/status are currently mapped to PRODUCT until the INVENTORY columns are added.
+              Saves SRP, stock, reorder level, and status to INVENTORY. Product List unit price stays unchanged.
             </p>
             <div className="flex shrink-0 gap-2">
               <Button variant="outline" onClick={() => setStockForm(defaultStockForm)} className="h-9 border-[#3a3a46] bg-transparent px-4 text-yellow-100 hover:bg-[#1d1d27] hover:text-yellow-300">Clear</Button>
