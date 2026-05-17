@@ -115,6 +115,10 @@ function formatMoney(value: number) {
   return `PHP ${Number(value || 0).toLocaleString()}`;
 }
 
+function productGroupKey(product: UiProduct) {
+  return [product.name, product.brand, product.category].map((value) => value.trim().toLowerCase()).join("::");
+}
+
 type ProductManagementProps = {
   view?: ProductTab;
   onViewChange?: (view: ProductTab) => void;
@@ -551,26 +555,54 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
 
 function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduct, onSave }: { products: UiProduct[]; categories: any[]; stockForm: StockFormData; setStockForm: (data: StockFormData) => void; selectedProduct?: UiProduct; onSave: () => void }) {
   const [settingsProductSearch, setSettingsProductSearch] = useState("");
+  const [expandedGroupKey, setExpandedGroupKey] = useState("");
   const statusMeta = getProductStatusMeta(selectedProduct);
-  const filteredProducts = useMemo(() => {
+  const productGroups = useMemo(() => {
+    const groupMap = new Map<string, { key: string; name: string; brand: string; category: string; variants: UiProduct[] }>();
+    for (const product of products) {
+      const key = productGroupKey(product);
+      const existing = groupMap.get(key);
+      if (existing) {
+        existing.variants.push(product);
+      } else {
+        groupMap.set(key, {
+          key,
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          variants: [product],
+        });
+      }
+    }
+    return Array.from(groupMap.values()).map((group) => ({
+      ...group,
+      variants: group.variants.sort((a, b) => `${a.color} ${a.size}`.localeCompare(`${b.color} ${b.size}`, undefined, { numeric: true })),
+    }));
+  }, [products]);
+
+  const filteredProductGroups = useMemo(() => {
     const term = settingsProductSearch.trim().toLowerCase();
-    if (!term) return products;
-    return products.filter((product) =>
-      [
-        product.sku,
-        product.name,
-        product.brand,
-        product.category,
-        product.color,
-        product.gender,
-        product.size,
-        String(product.unit_price),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [products, settingsProductSearch]);
+    if (!term) return productGroups;
+    return productGroups.filter((group) => {
+      const searchable = [
+        group.name,
+        group.brand,
+        group.category,
+        ...group.variants.flatMap((product) => [
+          product.sku,
+          product.color,
+          product.gender,
+          product.size,
+          String(product.unit_price),
+        ]),
+      ].join(" ").toLowerCase();
+      return searchable.includes(term);
+    });
+  }, [productGroups, settingsProductSearch]);
+
+  useEffect(() => {
+    if (selectedProduct) setExpandedGroupKey(productGroupKey(selectedProduct));
+  }, [selectedProduct]);
 
   const selectProductForSettings = (value: string) => {
     const product = products.find((item) => item.product_id === value);
@@ -581,6 +613,13 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
       reorder_level: product?.reorder_level || 10,
       status: product?.status || 'Active',
     });
+  };
+
+  const formatPriceRange = (variants: UiProduct[]) => {
+    const prices = variants.map((product) => Number(product.unit_price || 0));
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    return min === max ? formatMoney(min) : `${formatMoney(min)} - ${formatMoney(max)}`;
   };
 
   return (
@@ -609,36 +648,55 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                 />
               </div>
               <div className="rounded-xl border border-[#2d2d3a] bg-[#101018] p-2">
-                <div className="mb-2 flex items-center justify-between px-2 text-xs font-semibold uppercase tracking-wide text-yellow-200/70">
-                  <span>Product</span>
-                  <span>Unit Price</span>
-                </div>
-                <div className="max-h-64 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
-                  {filteredProducts.length > 0 ? (
-                    filteredProducts.map((product) => {
-                      const isSelected = stockForm.product_id === product.product_id;
+                <div className="max-h-72 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+                  {filteredProductGroups.length > 0 ? (
+                    filteredProductGroups.map((group) => {
+                      const isOpen = expandedGroupKey === group.key;
+                      const hasSelectedVariant = group.variants.some((product) => product.product_id === stockForm.product_id);
 
                       return (
-                        <button
-                          type="button"
-                          key={product.product_id}
-                          onClick={() => selectProductForSettings(product.product_id)}
-                          className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition duration-150 ${
-                            isSelected
-                              ? "border-yellow-400 bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20"
-                              : "border-[#262633] bg-[#15151d] text-yellow-100 hover:border-yellow-400/40 hover:bg-yellow-400/10 hover:text-white"
-                          }`}
-                        >
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold">{product.name}</span>
-                            <span className={`block truncate text-xs ${isSelected ? "text-red-950/70" : "text-yellow-200/50"}`}>{shortId(product.sku)}</span>
-                          </span>
-                          <span className="hidden min-w-0 items-center gap-1.5 sm:flex">
-                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${isSelected ? "bg-red-950/10 text-red-950" : "bg-[#20202a] text-yellow-100"}`}>{product.brand}</span>
-                            <span className={`rounded-full px-2 py-1 text-xs ${isSelected ? "bg-red-950/10 text-red-950" : "bg-[#20202a] text-yellow-100/80"}`}>{product.color} / {product.size}</span>
-                          </span>
-                          <span className="shrink-0 text-right text-sm font-bold">{formatMoney(product.unit_price)}</span>
-                        </button>
+                        <div key={group.key} className={`rounded-lg border transition ${hasSelectedVariant ? "border-yellow-400/80 bg-yellow-400/10" : "border-[#262633] bg-[#15151d]"}`}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedGroupKey(isOpen ? "" : group.key)}
+                            className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                          >
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold text-white">{group.name}</span>
+                              <span className="block truncate text-xs text-yellow-200/55">{group.brand} - {group.category}</span>
+                            </span>
+                            <span className="hidden rounded-full bg-[#20202a] px-2.5 py-1 text-xs text-yellow-100 sm:inline-flex">
+                              {group.variants.length} variant{group.variants.length === 1 ? "" : "s"}
+                            </span>
+                            <span className="shrink-0 text-right text-xs font-semibold text-yellow-200">{formatPriceRange(group.variants)}</span>
+                          </button>
+
+                          {isOpen && (
+                            <div className="space-y-1 border-t border-[#2d2d3a] p-2">
+                              {group.variants.map((product) => {
+                                const isSelected = stockForm.product_id === product.product_id;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={product.product_id}
+                                    onClick={() => selectProductForSettings(product.product_id)}
+                                    className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
+                                      isSelected
+                                        ? "bg-yellow-400 text-red-950"
+                                        : "bg-[#111118] text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
+                                    }`}
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="font-semibold">{product.color} / Size {product.size}</span>
+                                      <span className={`ml-2 text-xs ${isSelected ? "text-red-950/70" : "text-yellow-200/45"}`}>{shortId(product.sku)}</span>
+                                    </span>
+                                    <span className="shrink-0 font-semibold">{formatMoney(product.unit_price)}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       );
                     })
                   ) : (
@@ -648,7 +706,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                   )}
                 </div>
               </div>
-              <p className="text-xs text-yellow-200/60">Click a product row to load its default details and configure stock.</p>
+              <p className="text-xs text-yellow-200/60">Open a product group, then select the exact color/size variant to configure stock.</p>
             </div>
           </div>
           <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-3.5 text-yellow-100 shadow-inner shadow-black/20">
