@@ -595,9 +595,9 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
       <CardHeader className="pb-3">
         <CardTitle className="text-yellow-300 flex items-center gap-2"><Settings className="w-5 h-5" />Product Settings / Item Parameter</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 p-5 pt-0">
-        <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-          <div className="space-y-3 rounded-2xl border border-[#24242f] bg-[#12121a] p-4">
+      <CardContent className="space-y-5 p-6 pt-0">
+        <div className="grid gap-6 2xl:gap-8 xl:grid-cols-[minmax(0,1.14fr)_minmax(360px,0.86fr)]">
+          <div className="space-y-4 rounded-2xl border border-[#24242f] bg-[#12121a] p-5">
             <Label className="text-sm font-semibold text-yellow-200">Select Existing Product</Label>
             <Select value={stockForm.product_id} onValueChange={selectProductForSettings}>
               <SelectTrigger className="h-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus:ring-yellow-400/50"><SelectValue placeholder="Choose product from Product List" /></SelectTrigger>
@@ -616,7 +616,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                 />
               </div>
               <div className="rounded-xl border border-[#2d2d3a] overflow-hidden">
-                <div className="sticky top-0 z-10 grid grid-cols-[1.6fr_0.8fr_1.05fr_1fr_0.85fr] gap-3 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
+                <div className="sticky top-0 z-10 grid grid-cols-[1.7fr_0.75fr_1.05fr_1fr_0.85fr] gap-4 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
                   <span>Product</span>
                   <span className="text-center">Brand</span>
                   <span className="text-center">Category</span>
@@ -633,7 +633,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                           type="button"
                           key={product.product_id}
                           onClick={() => selectProductForSettings(product.product_id)}
-                          className={`grid w-full grid-cols-[1.6fr_0.8fr_1.05fr_1fr_0.85fr] items-center gap-3 border-t border-[#2d2d3a] px-4 py-3 text-left transition duration-150 ${
+                          className={`grid w-full grid-cols-[1.7fr_0.75fr_1.05fr_1fr_0.85fr] items-center gap-4 border-t border-[#2d2d3a] px-4 py-3 text-left transition duration-150 ${
                             isSelected ? "bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20" : "text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
                           }`}
                         >
@@ -658,7 +658,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
               <p className="text-xs text-yellow-200/60">Click a product row to load its default details and configure stock.</p>
             </div>
           </div>
-          <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-4 text-yellow-100 shadow-inner shadow-black/20">
+          <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-5 text-yellow-100 shadow-inner shadow-black/20">
             <div className="mb-3 flex items-center gap-2">
               <Package className="h-4 w-4 text-yellow-300" />
               <p className="font-semibold text-yellow-100">Product Details</p>
