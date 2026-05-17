@@ -616,7 +616,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                 />
               </div>
               <div className="rounded-xl border border-[#2d2d3a] overflow-hidden">
-                <div className="sticky top-0 z-10 grid grid-cols-[1.7fr_0.75fr_1.05fr_1fr_0.85fr] gap-4 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
+                <div className="sticky top-0 z-10 grid grid-cols-[1.25fr_0.75fr_1.05fr_0.9fr_0.85fr] gap-4 bg-[#1d1d27] px-4 py-3 text-xs font-semibold uppercase tracking-wide text-yellow-200/80">
                   <span>Product</span>
                   <span className="text-center">Brand</span>
                   <span className="text-center">Category</span>
@@ -633,7 +633,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                           type="button"
                           key={product.product_id}
                           onClick={() => selectProductForSettings(product.product_id)}
-                          className={`grid w-full grid-cols-[1.7fr_0.75fr_1.05fr_1fr_0.85fr] items-center gap-4 border-t border-[#2d2d3a] px-4 py-3 text-left transition duration-150 ${
+                          className={`grid w-full grid-cols-[1.25fr_0.75fr_1.05fr_0.9fr_0.85fr] items-center gap-4 border-t border-[#2d2d3a] px-4 py-3 text-left transition duration-150 ${
                             isSelected ? "bg-yellow-400 text-red-950 shadow-inner shadow-yellow-700/20" : "text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
                           }`}
                         >
