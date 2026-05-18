@@ -969,92 +969,96 @@ export function PredictiveAnalytics() {
       )}
 
       {showCustomer && (
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Card className="bg-[#16161d] border-[#2b2b36]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Users className="h-5 w-5 text-yellow-400" /> Gender Analytics
-            </CardTitle>
-            <p className="text-sm text-white/55">Customer demand grouped by recorded customer gender.</p>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-3 flex justify-end">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Users className="h-5 w-5 text-yellow-400" /> Gender Analytics
+                </CardTitle>
+                <p className="mt-2 text-sm text-white/55">Demand grouped by customer gender.</p>
+              </div>
               <Badge className="bg-yellow-400 text-red-950">{analytics.genderRows.length} groups</Badge>
             </div>
-            <div className="overflow-hidden rounded-2xl border border-[#2b2b36]">
-              <Table>
-                <TableHeader className="bg-[#1f1f28]">
-                  <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
-                    <TableHead className="text-center text-white">Gender</TableHead>
-                    <TableHead className="text-center text-white">Customers</TableHead>
-                    <TableHead className="text-center text-white">Orders</TableHead>
-                    <TableHead className="text-center text-white">Revenue</TableHead>
-                    <TableHead className="text-center text-white">Top Category</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {analytics.genderRows.length ? analytics.genderRows.map((segment) => (
-                    <TableRow key={segment.label} className="border-[#2b2b36] hover:bg-white/[0.03]">
-                      <TableCell className="text-center font-semibold text-white">{segment.label}</TableCell>
-                      <TableCell className="text-center text-white/80">{segment.customers}</TableCell>
-                      <TableCell className="text-center text-white/80">{segment.orders}</TableCell>
-                      <TableCell className="text-center text-yellow-300">{money(segment.revenue)}</TableCell>
-                      <TableCell className="text-center text-white/80">{segment.topCategory}</TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-white/50">
-                        No gender analytics yet. Add gender values to customer profiles to unlock this view.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {analytics.genderRows.length ? analytics.genderRows.map((segment) => (
+              <div key={segment.label} className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4 transition hover:border-yellow-400/35">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-semibold text-white">{segment.label}</p>
+                    <p className="mt-1 text-xs text-white/45">Top category: {segment.topCategory}</p>
+                  </div>
+                  <p className="shrink-0 text-right text-sm font-semibold text-yellow-300">{money(segment.revenue)}</p>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="rounded-xl bg-white/[0.04] px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wide text-white/35">Customers</p>
+                    <p className="font-semibold text-white">{segment.customers}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wide text-white/35">Orders</p>
+                    <p className="font-semibold text-white">{segment.orders}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] px-3 py-2 sm:col-span-1 col-span-2">
+                    <p className="text-[10px] uppercase tracking-wide text-white/35">Revenue</p>
+                    <p className="font-semibold text-white">{money(segment.revenue)}</p>
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-2xl border border-dashed border-[#2b2b36] bg-[#111118] p-6 text-center">
+                <p className="font-semibold text-white/70">No gender analytics yet</p>
+                <p className="mt-1 text-sm text-white/45">Add gender values to customer profiles to unlock this view.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="bg-[#16161d] border-[#2b2b36]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Users className="h-5 w-5 text-yellow-400" /> Age Range Analytics
-            </CardTitle>
-            <p className="text-sm text-white/55">Customer demand grouped by recorded age or birthdate.</p>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-3 flex justify-end">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Users className="h-5 w-5 text-yellow-400" /> Age Range Analytics
+                </CardTitle>
+                <p className="mt-2 text-sm text-white/55">Demand grouped by recorded age or birthdate.</p>
+              </div>
               <Badge className="bg-yellow-400 text-red-950">{analytics.ageRows.length} groups</Badge>
             </div>
-            <div className="overflow-hidden rounded-2xl border border-[#2b2b36]">
-              <Table>
-                <TableHeader className="bg-[#1f1f28]">
-                  <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
-                    <TableHead className="text-center text-white">Age Range</TableHead>
-                    <TableHead className="text-center text-white">Customers</TableHead>
-                    <TableHead className="text-center text-white">Orders</TableHead>
-                    <TableHead className="text-center text-white">Revenue</TableHead>
-                    <TableHead className="text-center text-white">Top Category</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {analytics.ageRows.length ? analytics.ageRows.map((segment) => (
-                    <TableRow key={segment.label} className="border-[#2b2b36] hover:bg-white/[0.03]">
-                      <TableCell className="text-center font-semibold text-white">{segment.label}</TableCell>
-                      <TableCell className="text-center text-white/80">{segment.customers}</TableCell>
-                      <TableCell className="text-center text-white/80">{segment.orders}</TableCell>
-                      <TableCell className="text-center text-yellow-300">{money(segment.revenue)}</TableCell>
-                      <TableCell className="text-center text-white/80">{segment.topCategory}</TableCell>
-                    </TableRow>
-                  )) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-white/50">
-                        No age range analytics yet. Add age or birthdate values to customer profiles to unlock this view.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {analytics.ageRows.length ? analytics.ageRows.map((segment) => (
+              <div key={segment.label} className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4 transition hover:border-yellow-400/35">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-semibold text-white">{segment.label}</p>
+                    <p className="mt-1 text-xs text-white/45">Top category: {segment.topCategory}</p>
+                  </div>
+                  <p className="shrink-0 text-right text-sm font-semibold text-yellow-300">{money(segment.revenue)}</p>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="rounded-xl bg-white/[0.04] px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wide text-white/35">Customers</p>
+                    <p className="font-semibold text-white">{segment.customers}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-wide text-white/35">Orders</p>
+                    <p className="font-semibold text-white">{segment.orders}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/[0.04] px-3 py-2 sm:col-span-1 col-span-2">
+                    <p className="text-[10px] uppercase tracking-wide text-white/35">Revenue</p>
+                    <p className="font-semibold text-white">{money(segment.revenue)}</p>
+                  </div>
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-2xl border border-dashed border-[#2b2b36] bg-[#111118] p-6 text-center">
+                <p className="font-semibold text-white/70">No age range analytics yet</p>
+                <p className="mt-1 text-sm text-white/45">Add age or birthdate values to customer profiles to unlock this view.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
