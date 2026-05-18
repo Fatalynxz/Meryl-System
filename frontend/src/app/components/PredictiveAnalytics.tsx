@@ -969,7 +969,7 @@ export function PredictiveAnalytics() {
       )}
 
       {showCustomer && (
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5">
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
