@@ -400,8 +400,17 @@ export function PredictiveAnalytics() {
       };
     };
 
-    const genderRows = Array.from(genderSegments.values()).map(formatCustomerSegment).sort((a, b) => b.revenue - a.revenue);
-    const ageRows = Array.from(ageSegments.values()).map(formatCustomerSegment).sort((a, b) => b.revenue - a.revenue);
+    const isKnownGender = (label: string) => !["unknown", "n/a", "none"].includes(String(label).trim().toLowerCase());
+    const isKnownAgeRange = (label: string) => !["unknown age", "unknown", "n/a", "none"].includes(String(label).trim().toLowerCase());
+
+    const genderRows = Array.from(genderSegments.values())
+      .map(formatCustomerSegment)
+      .filter((row) => isKnownGender(row.label))
+      .sort((a, b) => b.revenue - a.revenue);
+    const ageRows = Array.from(ageSegments.values())
+      .map(formatCustomerSegment)
+      .filter((row) => isKnownAgeRange(row.label))
+      .sort((a, b) => b.revenue - a.revenue);
 
     const topBrands = Array.from(brandStats.values()).sort((a, b) => b.units - a.units).slice(0, 5);
     const topSizes = Array.from(sizeStats.values()).sort((a, b) => b.units - a.units).slice(0, 5);
@@ -716,7 +725,7 @@ export function PredictiveAnalytics() {
             <CardTitle className="flex items-center gap-2 text-white">
               <Users className="h-5 w-5 text-yellow-400" /> Gender Analytics
             </CardTitle>
-            <p className="text-sm text-white/55">Customer demand grouped by gender. Unknown means the customer profile does not have that field yet.</p>
+            <p className="text-sm text-white/55">Customer demand grouped by recorded customer gender.</p>
           </CardHeader>
           <CardContent>
             <div className="mb-3 flex justify-end">
@@ -744,7 +753,9 @@ export function PredictiveAnalytics() {
                     </TableRow>
                   )) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-white/50">No gender analytics yet.</TableCell>
+                      <TableCell colSpan={5} className="py-8 text-center text-white/50">
+                        No gender analytics yet. Add gender values to customer profiles to unlock this view.
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -758,7 +769,7 @@ export function PredictiveAnalytics() {
             <CardTitle className="flex items-center gap-2 text-white">
               <Users className="h-5 w-5 text-yellow-400" /> Age Range Analytics
             </CardTitle>
-            <p className="text-sm text-white/55">Customer demand grouped by age range. Unknown Age means the profile does not have birthdate or age yet.</p>
+            <p className="text-sm text-white/55">Customer demand grouped by recorded age or birthdate.</p>
           </CardHeader>
           <CardContent>
             <div className="mb-3 flex justify-end">
@@ -786,7 +797,9 @@ export function PredictiveAnalytics() {
                     </TableRow>
                   )) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-white/50">No age range analytics yet.</TableCell>
+                      <TableCell colSpan={5} className="py-8 text-center text-white/50">
+                        No age range analytics yet. Add age or birthdate values to customer profiles to unlock this view.
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
