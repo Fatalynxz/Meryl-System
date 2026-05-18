@@ -252,19 +252,19 @@ export function Dashboard() {
         <div className="absolute right-20 bottom-0 w-40 h-40 rounded-full bg-[#E5202A]/10 blur-2xl" />
         <div className="relative grid md:grid-cols-3 gap-6 items-center">
           <div className="md:col-span-2">
-            <div className="text-[11px] uppercase tracking-widest text-[#FFD60A]">Total Balance</div>
+            <div className="text-[11px] uppercase tracking-widest text-[#FFD60A]">Net Sales Revenue</div>
             <div className="mt-2 text-white text-4xl tracking-tight">{formatPeso(totalRevenue)}</div>
             <div className="flex items-center gap-2 mt-3 text-sm text-white/60">
               <span className="inline-flex items-center gap-1 bg-[#FFD60A] text-[#1A1A22] px-2 py-0.5 rounded-full text-xs">
                 <ArrowUpRight className="w-3 h-3" /> {monthRevenueChange >= 0 ? "+" : ""}
                 {monthRevenueChange.toFixed(1)}%
               </span>
-              vs last month · all stores combined
+              vs last month - completed sales only
             </div>
           </div>
           <div className="h-24">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
+              <AreaChart data={revenueData} margin={{ top: 10, right: 12, left: 12, bottom: 0 }}>
                 <defs>
                   <linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#FFD60A" stopOpacity={0.6} />
@@ -328,7 +328,7 @@ export function Dashboard() {
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData}>
+              <AreaChart data={revenueData} margin={{ top: 8, right: 28, left: 28, bottom: 12 }}>
                 <defs>
                   <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#E5202A" stopOpacity={0.4} />
@@ -336,8 +336,17 @@ export function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="day" stroke="#ffffff40" fontSize={11} tickLine={false} axisLine={false} interval={0} />
+                <XAxis
+                  dataKey="day"
+                  stroke="#ffffff40"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={0}
+                  padding={{ left: 24, right: 24 }}
+                />
                 <Tooltip
+                  formatter={(value) => [formatPeso(Number(value)), "Revenue"]}
                   contentStyle={{
                     background: "#0E0E12",
                     border: "1px solid #ffffff20",
