@@ -18,6 +18,7 @@ import {
 import { useCustomers, useProducts, useSales } from "../../lib/hooks";
 
 type RevenueTrendPeriod = "daily" | "weekly" | "monthly" | "quarterly" | "annually";
+type RankingMetric = "units" | "revenue";
 
 const revenueTrendOptions: Array<{ id: RevenueTrendPeriod; label: string }> = [
   { id: "daily", label: "Daily" },
@@ -189,6 +190,8 @@ export function PredictiveAnalytics() {
   const [analyticsView, setAnalyticsView] = useState<"overview" | "product" | "customer" | "sales">("overview");
   const [revenueTrendPeriod, setRevenueTrendPeriod] = useState<RevenueTrendPeriod>("daily");
   const [productAnalyticsPeriod, setProductAnalyticsPeriod] = useState<RevenueTrendPeriod>("monthly");
+  const [topRankingPeriod, setTopRankingPeriod] = useState<RevenueTrendPeriod>("monthly");
+  const [topRankingMetric, setTopRankingMetric] = useState<RankingMetric>("units");
   const salesQuery = useSales();
   const productsQuery = useProducts();
   const customersQuery = useCustomers();
@@ -207,6 +210,10 @@ export function PredictiveAnalytics() {
     productPeriodStart.setDate(now.getDate() - productPeriodDays[productAnalyticsPeriod]);
     productPeriodStart.setHours(0, 0, 0, 0);
     const productPeriodLabel = revenueTrendOptions.find((option) => option.id === productAnalyticsPeriod)?.label ?? "Monthly";
+    const topRankingPeriodStart = new Date(now);
+    topRankingPeriodStart.setDate(now.getDate() - productPeriodDays[topRankingPeriod]);
+    topRankingPeriodStart.setHours(0, 0, 0, 0);
+    const topRankingPeriodLabel = revenueTrendOptions.find((option) => option.id === topRankingPeriod)?.label ?? "Monthly";
 
     const customerMap = new Map(customers.map((customer: any) => [String(customer.customer_id ?? ""), customer]));
     const productMap = new Map(products.map((product: any) => [String(product.product_id ?? ""), product]));
@@ -248,6 +255,7 @@ export function PredictiveAnalytics() {
       const in30 = date >= last30;
       const in90 = date >= last90;
       const inProductPeriod = date >= productPeriodStart;
+      const inTopRankingPeriod = date >= topRankingPeriodStart;
       const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
       const customer = getOne(sale.customer) ?? customerMap.get(String(sale.customer_id ?? ""));
       const gender = getCustomerGender(customer);
@@ -350,7 +358,7 @@ export function PredictiveAnalytics() {
         const categoryPrev = categoryStats.get(category) ?? { name: category, units: 0, revenue: 0 };
         const brandPrev = brandStats.get(brand) ?? { name: brand, units: 0, revenue: 0 };
         const sizePrev = sizeStats.get(size) ?? { name: size, units: 0, revenue: 0 };
-        if (inProductPeriod) {
+        if (inTopRankingPeriod) {
           categoryPrev.units += qty;
           categoryPrev.revenue += revenue;
           brandPrev.units += qty;
@@ -512,9 +520,23 @@ export function PredictiveAnalytics() {
       .filter((row) => isKnownAgeRange(row.label))
       .sort((a, b) => b.revenue - a.revenue);
 
-    const topBrands = Array.from(brandStats.values()).sort((a, b) => b.units - a.units).slice(0, 5);
-    const topSizes = Array.from(sizeStats.values()).sort((a, b) => b.units - a.units).slice(0, 5);
-    const topCategories = Array.from(categoryStats.values()).sort((a, b) => b.units - a.units).slice(0, 5);
+    const buildRankingRows = (rows: any[]) => {
+      const total = rows.reduce((sum, row) => sum + Number(row[topRankingMetric] ?? 0), 0);
+      return rows
+        .sort((a, b) => Number(b[topRankingMetric] ?? 0) - Number(a[topRankingMetric] ?? 0))
+        .slice(0, 5)
+        .map((row) => {
+          const value = Number(row[topRankingMetric] ?? 0);
+          return {
+            ...row,
+            share: total > 0 ? Math.round((value / total) * 100) : 0,
+          };
+        });
+    };
+
+    const topBrands = buildRankingRows(Array.from(brandStats.values()));
+    const topSizes = buildRankingRows(Array.from(sizeStats.values()));
+    const topCategories = buildRankingRows(Array.from(categoryStats.values()));
 
     const promotionSuggestions = [
       ...overstockSlowMovers.slice(0, 3).map((product) => ({
@@ -551,8 +573,9 @@ export function PredictiveAnalytics() {
       revenue30,
       totalUnits90,
       productPeriodLabel,
+      topRankingPeriodLabel,
     };
-  }, [customers, productAnalyticsPeriod, products, revenueTrendPeriod, sales]);
+  }, [customers, productAnalyticsPeriod, products, revenueTrendPeriod, sales, topRankingMetric, topRankingPeriod]);
 
   if (salesQuery.isLoading || productsQuery.isLoading || customersQuery.isLoading) {
     return <div className="text-sm text-white/60">Loading analytics...</div>;
@@ -838,24 +861,87 @@ export function PredictiveAnalytics() {
         {showProduct && (
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
-            <CardTitle className="text-white">Top Brand, Size, and Category</CardTitle>
-            <p className="text-sm text-white/55">
-              Descriptive analytics for buying decisions based on the selected {analytics.productPeriodLabel.toLowerCase()} product period.
-            </p>
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <CardTitle className="text-white">Top Brand, Size, and Category</CardTitle>
+                <p className="mt-1 text-sm text-white/55">
+                  Ranking buying preferences by {topRankingMetric === "revenue" ? "revenue" : "units sold"} for the selected {analytics.topRankingPeriodLabel.toLowerCase()} period.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 xl:items-end">
+                <div className="flex flex-wrap gap-2">
+                  {revenueTrendOptions.map((option) => {
+                    const active = topRankingPeriod === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTopRankingPeriod(option.id)}
+                        className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                          active
+                            ? "bg-yellow-400 text-red-950"
+                            : "border border-[#2b2b36] bg-white/[0.03] text-white/70 hover:border-yellow-400/50 hover:text-yellow-200"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex w-fit overflow-hidden rounded-xl border border-[#2b2b36] bg-white/[0.03] p-1">
+                  {[
+                    { id: "units", label: "Units" },
+                    { id: "revenue", label: "Revenue" },
+                  ].map((option) => {
+                    const active = topRankingMetric === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTopRankingMetric(option.id as RankingMetric)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                          active ? "bg-yellow-400 text-red-950" : "text-white/65 hover:text-yellow-200"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-1">
+          <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {[
               { title: "Brands", rows: analytics.topBrands },
               { title: "Sizes", rows: analytics.topSizes },
               { title: "Categories", rows: analytics.topCategories },
             ].map((group) => (
               <div key={group.title} className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
-                <p className="mb-3 text-sm font-semibold text-yellow-300">{group.title}</p>
-                <div className="space-y-2">
+                <div className="mb-4 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-yellow-300">{group.title}</p>
+                  <Badge className="bg-white/10 text-white/70">{group.rows.length} ranked</Badge>
+                </div>
+                <div className="space-y-3">
                   {group.rows.length ? group.rows.map((row: any, index: number) => (
-                    <div key={row.name} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate text-white/80">{index + 1}. {row.name}</span>
-                      <span className="font-semibold text-white">{row.units} units</span>
+                    <div key={row.name} className="rounded-xl border border-[#2b2b36] bg-[#111118] p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-xs font-bold text-red-950">
+                            {index + 1}
+                          </span>
+                          <span className="truncate font-semibold text-white">{row.name}</span>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold text-yellow-300">
+                          {topRankingMetric === "revenue" ? money(row.revenue) : `${row.units} units`}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                          <div className="h-full rounded-full bg-yellow-400" style={{ width: `${row.share}%` }} />
+                        </div>
+                        <span className="w-10 text-right text-xs font-semibold text-white/60">{row.share}%</span>
+                      </div>
                     </div>
                   )) : <span className="text-sm text-white/45">No data yet.</span>}
                 </div>
