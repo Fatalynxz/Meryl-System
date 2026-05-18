@@ -27,6 +27,14 @@ const revenueTrendOptions: Array<{ id: RevenueTrendPeriod; label: string }> = [
   { id: "annually", label: "Annually" },
 ];
 
+const productPeriodDays: Record<RevenueTrendPeriod, number> = {
+  daily: 1,
+  weekly: 7,
+  monthly: 30,
+  quarterly: 90,
+  annually: 365,
+};
+
 function money(value: number) {
   return `PHP ${Math.round(value || 0).toLocaleString("en-PH")}`;
 }
@@ -180,6 +188,7 @@ function MetricCard({ title, value, note, icon: Icon }: { title: string; value: 
 export function PredictiveAnalytics() {
   const [analyticsView, setAnalyticsView] = useState<"overview" | "product" | "customer" | "sales">("overview");
   const [revenueTrendPeriod, setRevenueTrendPeriod] = useState<RevenueTrendPeriod>("daily");
+  const [productAnalyticsPeriod, setProductAnalyticsPeriod] = useState<RevenueTrendPeriod>("monthly");
   const salesQuery = useSales();
   const productsQuery = useProducts();
   const customersQuery = useCustomers();
@@ -194,6 +203,10 @@ export function PredictiveAnalytics() {
     last30.setDate(now.getDate() - 30);
     const last90 = new Date(now);
     last90.setDate(now.getDate() - 90);
+    const productPeriodStart = new Date(now);
+    productPeriodStart.setDate(now.getDate() - productPeriodDays[productAnalyticsPeriod]);
+    productPeriodStart.setHours(0, 0, 0, 0);
+    const productPeriodLabel = revenueTrendOptions.find((option) => option.id === productAnalyticsPeriod)?.label ?? "Monthly";
 
     const customerMap = new Map(customers.map((customer: any) => [String(customer.customer_id ?? ""), customer]));
     const productMap = new Map(products.map((product: any) => [String(product.product_id ?? ""), product]));
@@ -222,8 +235,10 @@ export function PredictiveAnalytics() {
         price: getPrice(product),
         units30: 0,
         units90: 0,
+        unitsPeriod: 0,
         revenue30: 0,
         revenue90: 0,
+        revenuePeriod: 0,
       });
     });
 
@@ -232,6 +247,7 @@ export function PredictiveAnalytics() {
       if (!date) return;
       const in30 = date >= last30;
       const in90 = date >= last90;
+      const inProductPeriod = date >= productPeriodStart;
       const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
       const customer = getOne(sale.customer) ?? customerMap.get(String(sale.customer_id ?? ""));
       const gender = getCustomerGender(customer);
@@ -311,9 +327,15 @@ export function PredictiveAnalytics() {
             price: getPrice(product, detail),
             units30: 0,
             units90: 0,
+            unitsPeriod: 0,
             revenue30: 0,
             revenue90: 0,
+            revenuePeriod: 0,
           };
+          if (inProductPeriod) {
+            prev.unitsPeriod += qty;
+            prev.revenuePeriod += revenue;
+          }
           if (in30) {
             prev.units30 += qty;
             prev.revenue30 += revenue;
@@ -348,19 +370,19 @@ export function PredictiveAnalytics() {
     });
 
     const productRows = Array.from(productStats.values());
-    const avgUnits30 = productRows.length
-      ? productRows.reduce((sum, product) => sum + product.units30, 0) / productRows.length
+    const avgUnitsPeriod = productRows.length
+      ? productRows.reduce((sum, product) => sum + product.unitsPeriod, 0) / productRows.length
       : 0;
 
     const productMovement = productRows
       .map((product) => {
         const averageStock = Math.max(1, (Number(product.stock) + Number(product.units90)) / 2);
         const turnover = Number(product.units90) / averageStock;
-        const movement = product.units30 === 0
+        const movement = product.unitsPeriod === 0
           ? "Dead Stock"
-          : product.units30 >= Math.max(3, avgUnits30 * 1.3)
+          : product.unitsPeriod >= Math.max(3, avgUnitsPeriod * 1.3)
             ? "Fast"
-            : product.units30 <= Math.max(1, avgUnits30 * 0.5)
+            : product.unitsPeriod <= Math.max(1, avgUnitsPeriod * 0.5)
               ? "Slow"
               : "Steady";
         const stockCondition = product.stock <= 0
@@ -372,7 +394,7 @@ export function PredictiveAnalytics() {
               : "Good";
         return { ...product, turnover, movement, stockCondition };
       })
-      .sort((a, b) => b.units30 - a.units30 || b.stock - a.stock);
+      .sort((a, b) => b.unitsPeriod - a.unitsPeriod || b.stock - a.stock);
 
     const totalUnits90 = productMovement.reduce((sum, product) => sum + product.units90, 0);
     const totalStock = productMovement.reduce((sum, product) => sum + product.stock, 0);
@@ -498,8 +520,8 @@ export function PredictiveAnalytics() {
       ...overstockSlowMovers.slice(0, 3).map((product) => ({
         title: `Markdown ${product.name}`,
         target: `${product.brand} ${product.category}`,
-        reason: `${product.movement} with ${product.stock} units on hand and only ${product.units30} sold in 30 days.`,
-        action: product.units30 === 0 ? "Bundle or BOGO" : "10%-15% discount",
+        reason: `${product.movement} with ${product.stock} units on hand and only ${product.unitsPeriod} sold in the ${productPeriodLabel.toLowerCase()} view.`,
+        action: product.unitsPeriod === 0 ? "Bundle or BOGO" : "10%-15% discount",
       })),
       ...restockAlerts.slice(0, 2).map((product) => ({
         title: `Protect stock for ${product.name}`,
@@ -528,8 +550,9 @@ export function PredictiveAnalytics() {
       promotionSuggestions,
       revenue30,
       totalUnits90,
+      productPeriodLabel,
     };
-  }, [customers, products, revenueTrendPeriod, sales]);
+  }, [customers, productAnalyticsPeriod, products, revenueTrendPeriod, sales]);
 
   if (salesQuery.isLoading || productsQuery.isLoading || customersQuery.isLoading) {
     return <div className="text-sm text-white/60">Loading analytics...</div>;
@@ -684,11 +707,34 @@ export function PredictiveAnalytics() {
 
       {showProduct && <Card className="bg-[#16161d] border-[#2b2b36]">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Package className="h-5 w-5 text-yellow-400" />
-            Product Analytics
-          </CardTitle>
-          <p className="text-sm text-white/55">Fast movers, slow movers, dead stock, stock condition, and turnover per item.</p>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Package className="h-5 w-5 text-yellow-400" />
+                Product Analytics
+              </CardTitle>
+              <p className="mt-1 text-sm text-white/55">Fast movers, slow movers, dead stock, stock condition, and turnover per item.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {revenueTrendOptions.map((option) => {
+                const active = productAnalyticsPeriod === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setProductAnalyticsPeriod(option.id)}
+                    className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                      active
+                        ? "bg-yellow-400 text-red-950"
+                        : "border border-[#2b2b36] bg-white/[0.03] text-white/70 hover:border-yellow-400/50 hover:text-yellow-200"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-2xl border border-[#2b2b36]">
@@ -699,7 +745,7 @@ export function PredictiveAnalytics() {
                   <TableHead className="text-center text-white">Brand</TableHead>
                   <TableHead className="text-center text-white">Category</TableHead>
                   <TableHead className="text-center text-white">Size</TableHead>
-                  <TableHead className="text-center text-white">Sold 30D</TableHead>
+                  <TableHead className="text-center text-white">Sold ({analytics.productPeriodLabel})</TableHead>
                   <TableHead className="text-center text-white">Stock</TableHead>
                   <TableHead className="text-center text-white">Turnover</TableHead>
                   <TableHead className="text-center text-white">Movement</TableHead>
@@ -712,7 +758,7 @@ export function PredictiveAnalytics() {
                     <TableCell className="text-center text-white/80">{product.brand}</TableCell>
                     <TableCell className="text-center text-white/80">{product.category}</TableCell>
                     <TableCell className="text-center text-white/80">{product.size}</TableCell>
-                    <TableCell className="text-center text-yellow-300">{product.units30}</TableCell>
+                    <TableCell className="text-center text-yellow-300">{product.unitsPeriod}</TableCell>
                     <TableCell className="text-center">
                       <Badge className={stockBadgeClass(product.stock, product.reorder)}>{product.stock} units</Badge>
                     </TableCell>
@@ -740,7 +786,7 @@ export function PredictiveAnalytics() {
               <div key={product.id} className="rounded-xl border border-green-500/20 bg-green-500/10 p-3">
                 <div className="flex justify-between gap-3">
                   <p className="font-semibold text-white">{product.name}</p>
-                  <Badge className="bg-green-600 text-white">{product.units30} sold</Badge>
+                  <Badge className="bg-green-600 text-white">{product.unitsPeriod} sold</Badge>
                 </div>
                 <p className="mt-1 text-xs text-white/55">Keep stocked. Forecast depends on continued demand.</p>
               </div>
@@ -761,7 +807,7 @@ export function PredictiveAnalytics() {
                   <p className="font-semibold text-white">{product.name}</p>
                   <Badge className={movementBadgeClass(product.movement)}>{product.movement}</Badge>
                 </div>
-                <p className="mt-1 text-xs text-white/55">{product.stock} units left, {product.units30} sold in 30 days.</p>
+                <p className="mt-1 text-xs text-white/55">{product.stock} units left, {product.unitsPeriod} sold in the {analytics.productPeriodLabel.toLowerCase()} view.</p>
               </div>
             )) : <p className="text-sm text-white/55">No slow movers detected.</p>}
           </CardContent>
