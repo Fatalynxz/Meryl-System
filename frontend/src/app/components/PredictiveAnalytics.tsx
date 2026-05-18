@@ -504,6 +504,7 @@ export function PredictiveAnalytics() {
     const forecastHistory = buildPeriodBuckets(salesForecastPeriod, getPeriodStart(salesForecastPeriod));
     const recentForecastBase = forecastHistory.filter((row) => row.revenue > 0 || row.units > 0).slice(-6);
     const forecastBase = recentForecastBase.length ? recentForecastBase : forecastHistory.slice(-3);
+    const hasReliableForecastHistory = forecastBase.length >= 2;
     const averageForecastRevenue = forecastBase.length
       ? forecastBase.reduce((sum, row) => sum + row.revenue, 0) / forecastBase.length
       : 0;
@@ -533,13 +534,17 @@ export function PredictiveAnalytics() {
         projectedUnits: Math.max(0, Math.round(averageForecastUnits * multiplier)),
       };
     });
+    const visibleForecastHistory = forecastHistory.slice(-5);
+    const lastVisibleActualIndex = visibleForecastHistory.length - 1;
+    const lastActualRevenue = visibleForecastHistory[lastVisibleActualIndex]?.revenue ?? 0;
+    const lastActualUnits = visibleForecastHistory[lastVisibleActualIndex]?.units ?? 0;
     const salesForecastChart = [
-      ...forecastHistory.slice(-5).map((row) => ({
+      ...visibleForecastHistory.map((row, index) => ({
         date: row.label,
         actualRevenue: Math.round(row.revenue),
-        projectedRevenue: null,
+        projectedRevenue: index === lastVisibleActualIndex ? Math.round(lastActualRevenue) : null,
         actualUnits: row.units,
-        projectedUnits: null,
+        projectedUnits: index === lastVisibleActualIndex ? lastActualUnits : null,
       })),
       ...forecastRows.map((row) => ({
         date: row.date,
@@ -551,7 +556,13 @@ export function PredictiveAnalytics() {
     ];
     const forecastTotalRevenue = forecastRows.reduce((sum, row) => sum + row.projectedRevenue, 0);
     const forecastTotalUnits = forecastRows.reduce((sum, row) => sum + row.projectedUnits, 0);
-    const forecastConfidence = Math.min(90, Math.max(45, 50 + forecastBase.length * 7));
+    const forecastPeriodCount = forecastRows.length;
+    const forecastConfidence = hasReliableForecastHistory
+      ? Math.min(90, Math.max(55, 52 + forecastBase.length * 7))
+      : 35;
+    const forecastNote = hasReliableForecastHistory
+      ? "Based on recent completed sales movement."
+      : "Limited history for this period. Treat this as a rough estimate.";
     const salesForecastPeriodLabel = revenueTrendOptions.find((option) => option.id === salesForecastPeriod)?.label ?? "Monthly";
 
     const categoryChart = Array.from(categoryStats.values())
@@ -644,7 +655,10 @@ export function PredictiveAnalytics() {
       salesForecastChart,
       forecastTotalRevenue,
       forecastTotalUnits,
+      forecastPeriodCount,
       forecastConfidence,
+      forecastNote,
+      hasReliableForecastHistory,
       salesForecastPeriodLabel,
       categoryChart,
       segmentRows,
@@ -822,8 +836,8 @@ export function PredictiveAnalytics() {
                   Sales Forecast
                 </CardTitle>
                 <p className="mt-1 max-w-2xl text-sm text-white/55">
-                  Projected revenue based on recent completed sales in the {analytics.salesForecastPeriodLabel.toLowerCase()} view.
-                  Yellow shows actual sales, while the white dashed line shows the forecast.
+                  Recent completed sales with a simple forward projection for the next {analytics.forecastPeriodCount} {analytics.salesForecastPeriodLabel.toLowerCase()} periods.
+                  Use this as a planning guide, not a guaranteed result.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -853,7 +867,7 @@ export function PredictiveAnalytics() {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analytics.salesForecastChart} margin={{ top: 12, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2f2f38" />
-                    <XAxis dataKey="date" stroke="#a3a3a3" fontSize={12} />
+                    <XAxis dataKey="date" stroke="#a3a3a3" fontSize={12} interval={0} />
                     <YAxis stroke="#a3a3a3" fontSize={12} />
                     <Tooltip
                       contentStyle={{ backgroundColor: "#18181f", border: "1px solid #3a3a45", borderRadius: "12px", color: "#fff" }}
@@ -884,6 +898,11 @@ export function PredictiveAnalytics() {
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-white/55">
                   <span className="flex items-center gap-2"><span className="h-2 w-8 rounded-full bg-yellow-400" /> Actual sales</span>
                   <span className="flex items-center gap-2"><span className="w-8 border-t-2 border-dashed border-white" /> Forecast</span>
+                  {!analytics.hasReliableForecastHistory && (
+                    <span className="rounded-full border border-yellow-400/25 bg-yellow-400/10 px-3 py-1 text-yellow-200">
+                      Limited history
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -891,7 +910,7 @@ export function PredictiveAnalytics() {
                 <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">Projected Revenue</p>
                   <p className="mt-2 text-3xl font-bold text-white">{money(analytics.forecastTotalRevenue)}</p>
-                  <p className="mt-1 text-xs text-white/55">Next {analytics.salesForecastChart.filter((row: any) => row.projectedRevenue !== null).length} {analytics.salesForecastPeriodLabel.toLowerCase()} periods</p>
+                  <p className="mt-1 text-xs text-white/55">Next {analytics.forecastPeriodCount} {analytics.salesForecastPeriodLabel.toLowerCase()} periods</p>
                 </div>
                 <div className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Projected Units</p>
@@ -901,7 +920,7 @@ export function PredictiveAnalytics() {
                 <div className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Confidence</p>
                   <p className="mt-2 text-2xl font-bold text-white">{analytics.forecastConfidence}%</p>
-                  <p className="mt-1 text-xs text-white/55">Improves as more completed sales are recorded</p>
+                  <p className="mt-1 text-xs text-white/55">{analytics.forecastNote}</p>
                 </div>
               </div>
             </div>
