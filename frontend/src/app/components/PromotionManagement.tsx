@@ -224,6 +224,7 @@ export function PromotionManagement() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [lastNotificationBatch, setLastNotificationBatch] = useState<Notification[]>([]);
+  const [lastNotificationPromo, setLastNotificationPromo] = useState<Partial<Promotion>>({});
   const [isSavingPromotion, setIsSavingPromotion] = useState(false);
   const [isUpdatingPromotion, setIsUpdatingPromotion] = useState(false);
 
@@ -521,6 +522,11 @@ export function PromotionManagement() {
 
       setNotifications([...notifications, ...recipients]);
       setLastNotificationBatch(recipients);
+      setLastNotificationPromo({
+        promo_name: formData.promo_name,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+      });
       setIsAddDialogOpen(false);
       setFormData({});
       if (deliverySummary.enabled) {
@@ -993,8 +999,9 @@ export function PromotionManagement() {
             <div className="p-4 bg-[#1f2029] border border-[#30323d] rounded-lg">
               <p className="text-white text-sm">Promotion Details:</p>
               <div className="mt-2 space-y-1 text-sm text-gray-300">
-                <p><span className="text-yellow-300">Start Date:</span> {formData.start_date || lastNotificationBatch[0]?.date_sent}</p>
-                <p><span className="text-yellow-300">End Date:</span> {formData.end_date}</p>
+                <p><span className="text-yellow-300">Promotion:</span> {lastNotificationPromo.promo_name || 'Promotion'}</p>
+                <p><span className="text-yellow-300">Start Date:</span> {lastNotificationPromo.start_date || formData.start_date || lastNotificationBatch[0]?.date_sent || 'N/A'}</p>
+                <p><span className="text-yellow-300">End Date:</span> {lastNotificationPromo.end_date || formData.end_date || 'N/A'}</p>
                 <p className="text-xs text-gray-400 mt-2">Successful recipients received this promotion via Gmail.</p>
               </div>
             </div>

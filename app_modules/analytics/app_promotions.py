@@ -338,20 +338,12 @@ def _build_promotion_email(
             variant_text = f"<div style='color:#9ca3af;font-size:12px'>{escape(variant)}</div>" if variant else ""
             price = escape(_product_price(product))
             reason = escape(_top_pick_reason(product, kind))
-            initials = escape(product_name[:2].upper())
             pick_cards.append(
                 "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
                 "style='border:1px solid #2b2d38;border-radius:16px;background:#15161d;"
                 "margin:0 0 12px;border-collapse:separate;overflow:hidden'>"
                 "<tr>"
-                "<td width='78' valign='top' style='padding:16px 0 16px 16px'>"
-                "<table role='presentation' width='58' height='58' cellpadding='0' cellspacing='0' "
-                "style='background:#ffcc00;border-radius:14px'>"
-                "<tr><td align='center' valign='middle' style='color:#111217;font-weight:900;"
-                f"font-size:18px;line-height:58px'>{initials}</td></tr>"
-                "</table>"
-                "</td>"
-                "<td valign='top' style='padding:16px 16px 16px 12px'>"
+                "<td valign='top' style='padding:18px'>"
                 f"<div style='color:#ffcc00;font-size:11px;font-weight:800;text-transform:uppercase;"
                 f"letter-spacing:.5px;margin-bottom:3px'>{brand}</div>"
                 f"<div style='font-size:20px;font-weight:900;line-height:1.2;margin-bottom:4px;color:#ffffff'>{product_name}</div>"
