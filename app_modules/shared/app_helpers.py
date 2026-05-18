@@ -52,7 +52,7 @@ def normalize_promotion_type(discount_type):
     alias_groups = {
         "percentage": {"percentage", "percentage_discount", "flash_sale", "seasonal_sale"},
         "fixed": {"fixed", "fixed_amount", "clearance_sale", "markdown_sale"},
-        "bogo": {"bogo", "buy_one_get_one", "bundle_deal"},
+        "bogo": {"bogo", "__type_bogo__", "buy_one_get_one", "bundle_deal"},
     }
     for base_type, aliases in alias_groups.items():
         if normalized in aliases:
@@ -166,21 +166,26 @@ def db_product_status(value):
 def db_promotion_type(value):
     normalized = normalize_promotion_type(value)
     mapping = {
-        "percentage": "Percentage",
-        "fixed": "Fixed Amount",
-        "bogo": "BOGO",
+        "percentage": "percentage",
+        "fixed": "fixed",
+        # The live schema allows only percentage/fixed. BOGO is represented
+        # as a 0% promotion and interpreted by the UI/POS using the promo name marker.
+        "bogo": "percentage",
     }
-    return mapping.get(normalized, "Percentage")
+    return mapping.get(normalized, "percentage")
 
 
 def db_promotion_status(value):
     normalized = str(value or "").strip().lower()
     mapping = {
-        "active": "Active",
-        "scheduled": "Scheduled",
-        "inactive": "Inactive",
+        "active": "active",
+        # The live schema has no scheduled value. Scheduled promos are stored
+        # inactive until their start date makes them valid for POS rules.
+        "scheduled": "inactive",
+        "inactive": "inactive",
+        "expired": "expired",
     }
-    return mapping.get(normalized, "Active")
+    return mapping.get(normalized, "active")
 
 
 def normalize_staff_role(role):
