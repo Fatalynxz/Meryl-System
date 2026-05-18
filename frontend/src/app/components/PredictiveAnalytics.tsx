@@ -169,6 +169,8 @@ export function PredictiveAnalytics() {
     const brandStats = new Map<string, any>();
     const sizeStats = new Map<string, any>();
     const customerSegments = new Map<string, any>();
+    const genderSegments = new Map<string, any>();
+    const ageSegments = new Map<string, any>();
     const dailySales = new Map<string, { date: Date; revenue: number; units: number }>();
 
     products.forEach((product: any) => {
@@ -216,6 +218,31 @@ export function PredictiveAnalytics() {
       segment.orders += 1;
       segment.revenue += getSaleAmount(sale);
 
+      const genderSegment = genderSegments.get(gender) ?? {
+        label: gender,
+        customers: new Set<string>(),
+        orders: 0,
+        units: 0,
+        revenue: 0,
+        topCategories: new Map<string, number>(),
+      };
+      const ageSegment = ageSegments.get(ageRange) ?? {
+        label: ageRange,
+        customers: new Set<string>(),
+        orders: 0,
+        units: 0,
+        revenue: 0,
+        topCategories: new Map<string, number>(),
+      };
+      if (customer?.customer_id) {
+        genderSegment.customers.add(String(customer.customer_id));
+        ageSegment.customers.add(String(customer.customer_id));
+      }
+      genderSegment.orders += 1;
+      genderSegment.revenue += getSaleAmount(sale);
+      ageSegment.orders += 1;
+      ageSegment.revenue += getSaleAmount(sale);
+
       const dayKey = date.toISOString().slice(0, 10);
       const day = dailySales.get(dayKey) ?? { date, revenue: 0, units: 0 };
       day.revenue += getSaleAmount(sale);
@@ -232,6 +259,10 @@ export function PredictiveAnalytics() {
         day.units += qty;
         segment.units += qty;
         segment.topCategories.set(category, (segment.topCategories.get(category) ?? 0) + qty);
+        genderSegment.units += qty;
+        ageSegment.units += qty;
+        genderSegment.topCategories.set(category, (genderSegment.topCategories.get(category) ?? 0) + qty);
+        ageSegment.topCategories.set(category, (ageSegment.topCategories.get(category) ?? 0) + qty);
 
         if (id) {
           const prev = productStats.get(id) ?? {
@@ -278,6 +309,8 @@ export function PredictiveAnalytics() {
 
       dailySales.set(dayKey, day);
       customerSegments.set(segmentKey, segment);
+      genderSegments.set(gender, genderSegment);
+      ageSegments.set(ageRange, ageSegment);
     });
 
     const productRows = Array.from(productStats.values());
@@ -355,6 +388,21 @@ export function PredictiveAnalytics() {
       })
       .sort((a, b) => b.revenue - a.revenue);
 
+    const formatCustomerSegment = (segment: any) => {
+      const topCategory = Array.from(segment.topCategories.entries()).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] ?? "N/A";
+      return {
+        label: segment.label,
+        customers: segment.customers.size,
+        orders: segment.orders,
+        units: segment.units,
+        revenue: segment.revenue,
+        topCategory,
+      };
+    };
+
+    const genderRows = Array.from(genderSegments.values()).map(formatCustomerSegment).sort((a, b) => b.revenue - a.revenue);
+    const ageRows = Array.from(ageSegments.values()).map(formatCustomerSegment).sort((a, b) => b.revenue - a.revenue);
+
     const topBrands = Array.from(brandStats.values()).sort((a, b) => b.units - a.units).slice(0, 5);
     const topSizes = Array.from(sizeStats.values()).sort((a, b) => b.units - a.units).slice(0, 5);
     const topCategories = Array.from(categoryStats.values()).sort((a, b) => b.units - a.units).slice(0, 5);
@@ -385,6 +433,8 @@ export function PredictiveAnalytics() {
       trendChart,
       categoryChart,
       segmentRows,
+      genderRows,
+      ageRows,
       topBrands,
       topSizes,
       topCategories,
@@ -406,7 +456,7 @@ export function PredictiveAnalytics() {
   const filterTabs = [
     { id: "overview" as const, label: "Overview", icon: BarChart3, count: null },
     { id: "product" as const, label: "Product Analytics", icon: Package, count: analytics.productMovement.length },
-    { id: "customer" as const, label: "Customer Analytics", icon: Users, count: analytics.segmentRows.length },
+    { id: "customer" as const, label: "Customer Analytics", icon: Users, count: analytics.genderRows.length + analytics.ageRows.length },
     { id: "sales" as const, label: "Sales Analytics", icon: TrendingUp, count: analytics.trendChart.length },
   ];
 
@@ -462,8 +512,8 @@ export function PredictiveAnalytics() {
         />
         <MetricCard
           title="Customer Segments"
-          value={String(analytics.segmentRows.length)}
-          note="Grouped by gender and age range"
+          value={String(analytics.genderRows.length + analytics.ageRows.length)}
+          note="Separate gender and age range groups"
           icon={Users}
         />
       </div>}
@@ -627,7 +677,8 @@ export function PredictiveAnalytics() {
         </Card>
       </div>}
 
-      {(showProduct || showCustomer) && <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.2fr]">
+      {showProduct && (
+      <div className="grid grid-cols-1 gap-6">
         {showProduct && (
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
@@ -655,21 +706,68 @@ export function PredictiveAnalytics() {
           </CardContent>
         </Card>
         )}
+      </div>
+      )}
 
-        {showCustomer && (
+      {showCustomer && (
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
-              <Users className="h-5 w-5 text-yellow-400" /> Customer Analytics
+              <Users className="h-5 w-5 text-yellow-400" /> Gender Analytics
             </CardTitle>
-            <p className="text-sm text-white/55">Grouped by gender and age range. Unknown means the customer profile does not have that field yet.</p>
+            <p className="text-sm text-white/55">Customer demand grouped by gender. Unknown means the customer profile does not have that field yet.</p>
           </CardHeader>
           <CardContent>
+            <div className="mb-3 flex justify-end">
+              <Badge className="bg-yellow-400 text-red-950">{analytics.genderRows.length} groups</Badge>
+            </div>
             <div className="overflow-hidden rounded-2xl border border-[#2b2b36]">
               <Table>
                 <TableHeader className="bg-[#1f1f28]">
                   <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
                     <TableHead className="text-center text-white">Gender</TableHead>
+                    <TableHead className="text-center text-white">Customers</TableHead>
+                    <TableHead className="text-center text-white">Orders</TableHead>
+                    <TableHead className="text-center text-white">Revenue</TableHead>
+                    <TableHead className="text-center text-white">Top Category</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analytics.genderRows.length ? analytics.genderRows.map((segment) => (
+                    <TableRow key={segment.label} className="border-[#2b2b36] hover:bg-white/[0.03]">
+                      <TableCell className="text-center font-semibold text-white">{segment.label}</TableCell>
+                      <TableCell className="text-center text-white/80">{segment.customers}</TableCell>
+                      <TableCell className="text-center text-white/80">{segment.orders}</TableCell>
+                      <TableCell className="text-center text-yellow-300">{money(segment.revenue)}</TableCell>
+                      <TableCell className="text-center text-white/80">{segment.topCategory}</TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-white/50">No gender analytics yet.</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-[#16161d] border-[#2b2b36]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Users className="h-5 w-5 text-yellow-400" /> Age Range Analytics
+            </CardTitle>
+            <p className="text-sm text-white/55">Customer demand grouped by age range. Unknown Age means the profile does not have birthdate or age yet.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-3 flex justify-end">
+              <Badge className="bg-yellow-400 text-red-950">{analytics.ageRows.length} groups</Badge>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-[#2b2b36]">
+              <Table>
+                <TableHeader className="bg-[#1f1f28]">
+                  <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
                     <TableHead className="text-center text-white">Age Range</TableHead>
                     <TableHead className="text-center text-white">Customers</TableHead>
                     <TableHead className="text-center text-white">Orders</TableHead>
@@ -678,19 +776,17 @@ export function PredictiveAnalytics() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {analytics.segmentRows.slice(0, 8).map((segment) => (
-                    <TableRow key={segment.segment} className="border-[#2b2b36] hover:bg-white/[0.03]">
-                      <TableCell className="text-center font-semibold text-white">{segment.gender}</TableCell>
-                      <TableCell className="text-center text-white/80">{segment.ageRange}</TableCell>
+                  {analytics.ageRows.length ? analytics.ageRows.map((segment) => (
+                    <TableRow key={segment.label} className="border-[#2b2b36] hover:bg-white/[0.03]">
+                      <TableCell className="text-center font-semibold text-white">{segment.label}</TableCell>
                       <TableCell className="text-center text-white/80">{segment.customers}</TableCell>
                       <TableCell className="text-center text-white/80">{segment.orders}</TableCell>
                       <TableCell className="text-center text-yellow-300">{money(segment.revenue)}</TableCell>
                       <TableCell className="text-center text-white/80">{segment.topCategory}</TableCell>
                     </TableRow>
-                  ))}
-                  {!analytics.segmentRows.length && (
+                  )) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center text-white/50">No customer sales data yet.</TableCell>
+                      <TableCell colSpan={5} className="py-8 text-center text-white/50">No age range analytics yet.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -698,8 +794,8 @@ export function PredictiveAnalytics() {
             </div>
           </CardContent>
         </Card>
-        )}
-      </div>}
+      </div>
+      )}
 
       {(showOverview || analyticsView === "product") && <Card className="bg-[#16161d] border-[#2b2b36]">
         <CardHeader>
