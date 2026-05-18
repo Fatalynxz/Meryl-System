@@ -8,6 +8,8 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -187,6 +189,7 @@ function MetricCard({ title, value, note, icon: Icon }: { title: string; value: 
 export function PredictiveAnalytics() {
   const [analyticsView, setAnalyticsView] = useState<"overview" | "product" | "customer" | "sales">("overview");
   const [revenueTrendPeriod, setRevenueTrendPeriod] = useState<RevenueTrendPeriod>("daily");
+  const [salesForecastPeriod, setSalesForecastPeriod] = useState<RevenueTrendPeriod>("monthly");
   const [productAnalyticsPeriod, setProductAnalyticsPeriod] = useState<RevenueTrendPeriod>("monthly");
   const [topRankingPeriod, setTopRankingPeriod] = useState<RevenueTrendPeriod>("monthly");
   const [topRankingMetric, setTopRankingMetric] = useState<RankingMetric>("units");
@@ -423,55 +426,133 @@ export function PredictiveAnalytics() {
     const predictedNextMonth = Math.round((revenue30 / activeSalesDays) * 30);
     const projectedUnits = Math.round((last30Days.reduce((sum, row) => sum + row.units, 0) / activeSalesDays) * 30);
 
-    const trendStart = new Date(now);
-    if (revenueTrendPeriod === "daily") trendStart.setDate(now.getDate() - 30);
-    if (revenueTrendPeriod === "weekly") trendStart.setDate(now.getDate() - 84);
-    if (revenueTrendPeriod === "monthly") trendStart.setMonth(now.getMonth() - 11);
-    if (revenueTrendPeriod === "quarterly") trendStart.setMonth(now.getMonth() - 21);
-    if (revenueTrendPeriod === "annually") trendStart.setFullYear(now.getFullYear() - 4);
-    trendStart.setHours(0, 0, 0, 0);
+    const getPeriodStart = (period: RevenueTrendPeriod) => {
+      const start = new Date(now);
+      if (period === "daily") start.setDate(now.getDate() - 30);
+      if (period === "weekly") start.setDate(now.getDate() - 84);
+      if (period === "monthly") start.setMonth(now.getMonth() - 11);
+      if (period === "quarterly") start.setMonth(now.getMonth() - 21);
+      if (period === "annually") start.setFullYear(now.getFullYear() - 4);
+      start.setHours(0, 0, 0, 0);
+      return start;
+    };
 
-    const trendBuckets = new Map<string, { key: string; date: Date; label: string; revenue: number; units: number }>();
-    dailyRows
-      .filter((row) => row.date >= trendStart)
-      .forEach((row) => {
+    const labelForPeriodDate = (date: Date, period: RevenueTrendPeriod) => {
+      if (period === "weekly") {
+        const weekEnd = addDays(date, 6);
+        return `${formatShortDate(date)}-${formatShortDate(weekEnd)}`;
+      }
+      if (period === "monthly") return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      if (period === "quarterly") return `Q${getQuarter(date)} ${date.getFullYear()}`;
+      if (period === "annually") return String(date.getFullYear());
+      return formatShortDate(date);
+    };
+
+    const addPeriod = (date: Date, period: RevenueTrendPeriod, amount = 1) => {
+      const copy = new Date(date);
+      if (period === "daily") copy.setDate(copy.getDate() + amount);
+      if (period === "weekly") copy.setDate(copy.getDate() + amount * 7);
+      if (period === "monthly") copy.setMonth(copy.getMonth() + amount);
+      if (period === "quarterly") copy.setMonth(copy.getMonth() + amount * 3);
+      if (period === "annually") copy.setFullYear(copy.getFullYear() + amount);
+      return copy;
+    };
+
+    const buildPeriodBuckets = (period: RevenueTrendPeriod, start: Date) => {
+      const buckets = new Map<string, { key: string; date: Date; label: string; revenue: number; units: number }>();
+      dailyRows
+        .filter((row) => row.date >= start)
+        .forEach((row) => {
         let key = row.date.toISOString().slice(0, 10);
         let label = formatShortDate(row.date);
         let bucketDate = new Date(row.date);
 
-        if (revenueTrendPeriod === "weekly") {
+        if (period === "weekly") {
           bucketDate = startOfWeek(row.date);
-          const weekEnd = addDays(bucketDate, 6);
           key = bucketDate.toISOString().slice(0, 10);
-          label = `${formatShortDate(bucketDate)}-${formatShortDate(weekEnd)}`;
-        } else if (revenueTrendPeriod === "monthly") {
+          label = labelForPeriodDate(bucketDate, period);
+        } else if (period === "monthly") {
           bucketDate = new Date(row.date.getFullYear(), row.date.getMonth(), 1);
           key = `${row.date.getFullYear()}-${String(row.date.getMonth() + 1).padStart(2, "0")}`;
-          label = row.date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-        } else if (revenueTrendPeriod === "quarterly") {
+          label = labelForPeriodDate(bucketDate, period);
+        } else if (period === "quarterly") {
           const quarter = getQuarter(row.date);
           bucketDate = new Date(row.date.getFullYear(), (quarter - 1) * 3, 1);
           key = `${row.date.getFullYear()}-Q${quarter}`;
-          label = `Q${quarter} ${row.date.getFullYear()}`;
-        } else if (revenueTrendPeriod === "annually") {
+          label = labelForPeriodDate(bucketDate, period);
+        } else if (period === "annually") {
           bucketDate = new Date(row.date.getFullYear(), 0, 1);
           key = String(row.date.getFullYear());
-          label = String(row.date.getFullYear());
+          label = labelForPeriodDate(bucketDate, period);
         }
 
-        const bucket = trendBuckets.get(key) ?? { key, date: bucketDate, label, revenue: 0, units: 0 };
+        const bucket = buckets.get(key) ?? { key, date: bucketDate, label, revenue: 0, units: 0 };
         bucket.revenue += row.revenue;
         bucket.units += row.units;
-        trendBuckets.set(key, bucket);
+        buckets.set(key, bucket);
       });
+      return Array.from(buckets.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
+    };
 
-    const trendChart = Array.from(trendBuckets.values())
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
+    const trendChart = buildPeriodBuckets(revenueTrendPeriod, getPeriodStart(revenueTrendPeriod))
       .map((row) => ({
         date: row.label,
         revenue: Math.round(row.revenue),
         units: row.units,
       }));
+
+    const forecastHistory = buildPeriodBuckets(salesForecastPeriod, getPeriodStart(salesForecastPeriod));
+    const recentForecastBase = forecastHistory.filter((row) => row.revenue > 0 || row.units > 0).slice(-6);
+    const forecastBase = recentForecastBase.length ? recentForecastBase : forecastHistory.slice(-3);
+    const averageForecastRevenue = forecastBase.length
+      ? forecastBase.reduce((sum, row) => sum + row.revenue, 0) / forecastBase.length
+      : 0;
+    const averageForecastUnits = forecastBase.length
+      ? forecastBase.reduce((sum, row) => sum + row.units, 0) / forecastBase.length
+      : 0;
+    const firstForecastRevenue = forecastBase[0]?.revenue ?? 0;
+    const lastForecastRevenue = forecastBase[forecastBase.length - 1]?.revenue ?? 0;
+    const rawForecastGrowth = forecastBase.length > 1 && firstForecastRevenue > 0
+      ? (lastForecastRevenue - firstForecastRevenue) / firstForecastRevenue / forecastBase.length
+      : 0;
+    const forecastGrowth = Math.max(-0.2, Math.min(0.25, rawForecastGrowth));
+    const forecastCountByPeriod: Record<RevenueTrendPeriod, number> = {
+      daily: 7,
+      weekly: 4,
+      monthly: 6,
+      quarterly: 4,
+      annually: 3,
+    };
+    const lastForecastDate = forecastHistory[forecastHistory.length - 1]?.date ?? now;
+    const forecastRows = Array.from({ length: forecastCountByPeriod[salesForecastPeriod] }, (_, index) => {
+      const date = addPeriod(lastForecastDate, salesForecastPeriod, index + 1);
+      const multiplier = Math.max(0, 1 + forecastGrowth * (index + 1));
+      return {
+        date: labelForPeriodDate(date, salesForecastPeriod),
+        projectedRevenue: Math.round(averageForecastRevenue * multiplier),
+        projectedUnits: Math.max(0, Math.round(averageForecastUnits * multiplier)),
+      };
+    });
+    const salesForecastChart = [
+      ...forecastHistory.slice(-5).map((row) => ({
+        date: row.label,
+        actualRevenue: Math.round(row.revenue),
+        projectedRevenue: null,
+        actualUnits: row.units,
+        projectedUnits: null,
+      })),
+      ...forecastRows.map((row) => ({
+        date: row.date,
+        actualRevenue: null,
+        projectedRevenue: row.projectedRevenue,
+        actualUnits: null,
+        projectedUnits: row.projectedUnits,
+      })),
+    ];
+    const forecastTotalRevenue = forecastRows.reduce((sum, row) => sum + row.projectedRevenue, 0);
+    const forecastTotalUnits = forecastRows.reduce((sum, row) => sum + row.projectedUnits, 0);
+    const forecastConfidence = Math.min(90, Math.max(45, 50 + forecastBase.length * 7));
+    const salesForecastPeriodLabel = revenueTrendOptions.find((option) => option.id === salesForecastPeriod)?.label ?? "Monthly";
 
     const categoryChart = Array.from(categoryStats.values())
       .sort((a, b) => b.units - a.units)
@@ -560,6 +641,11 @@ export function PredictiveAnalytics() {
       predictedNextMonth,
       projectedUnits,
       trendChart,
+      salesForecastChart,
+      forecastTotalRevenue,
+      forecastTotalUnits,
+      forecastConfidence,
+      salesForecastPeriodLabel,
       categoryChart,
       segmentRows,
       genderRows,
@@ -573,7 +659,7 @@ export function PredictiveAnalytics() {
       productPeriodLabel,
       topRankingPeriodLabel,
     };
-  }, [customers, productAnalyticsPeriod, products, revenueTrendPeriod, sales, topRankingMetric, topRankingPeriod]);
+  }, [customers, productAnalyticsPeriod, products, revenueTrendPeriod, sales, salesForecastPeriod, topRankingMetric, topRankingPeriod]);
 
   if (salesQuery.isLoading || productsQuery.isLoading || customersQuery.isLoading) {
     return <div className="text-sm text-white/60">Loading analytics...</div>;
@@ -649,7 +735,8 @@ export function PredictiveAnalytics() {
         />
       </div>}
 
-      {showSales && <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
+      {showSales && <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -721,6 +808,102 @@ export function PredictiveAnalytics() {
                   <span className="font-semibold text-yellow-300">{category.units}</span>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+        </div>
+
+        <Card className="bg-[#16161d] border-[#2b2b36]">
+          <CardHeader>
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <TrendingUp className="h-5 w-5 text-yellow-400" />
+                  Sales Forecast
+                </CardTitle>
+                <p className="mt-1 max-w-2xl text-sm text-white/55">
+                  Projected revenue based on recent completed sales in the {analytics.salesForecastPeriodLabel.toLowerCase()} view.
+                  Yellow shows actual sales, while the white dashed line shows the forecast.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {revenueTrendOptions.map((option) => {
+                  const active = salesForecastPeriod === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setSalesForecastPeriod(option.id)}
+                      className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                        active
+                          ? "bg-yellow-400 text-red-950"
+                          : "border border-[#2b2b36] bg-white/[0.03] text-white/70 hover:border-yellow-400/50 hover:text-yellow-200"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_280px]">
+              <div className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={analytics.salesForecastChart} margin={{ top: 12, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2f2f38" />
+                    <XAxis dataKey="date" stroke="#a3a3a3" fontSize={12} />
+                    <YAxis stroke="#a3a3a3" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#18181f", border: "1px solid #3a3a45", borderRadius: "12px", color: "#fff" }}
+                      formatter={(value: any, name: string) => [
+                        money(Number(value ?? 0)),
+                        name === "actualRevenue" ? "Actual Revenue" : "Forecast Revenue",
+                      ]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="actualRevenue"
+                      stroke="#facc15"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: "#facc15", stroke: "#111118", strokeWidth: 2 }}
+                      connectNulls={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="projectedRevenue"
+                      stroke="#ffffff"
+                      strokeDasharray="7 6"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: "#ffffff", stroke: "#111118", strokeWidth: 2 }}
+                      connectNulls={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-white/55">
+                  <span className="flex items-center gap-2"><span className="h-2 w-8 rounded-full bg-yellow-400" /> Actual sales</span>
+                  <span className="flex items-center gap-2"><span className="w-8 border-t-2 border-dashed border-white" /> Forecast</span>
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+                <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">Projected Revenue</p>
+                  <p className="mt-2 text-3xl font-bold text-white">{money(analytics.forecastTotalRevenue)}</p>
+                  <p className="mt-1 text-xs text-white/55">Next {analytics.salesForecastChart.filter((row: any) => row.projectedRevenue !== null).length} {analytics.salesForecastPeriodLabel.toLowerCase()} periods</p>
+                </div>
+                <div className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Projected Units</p>
+                  <p className="mt-2 text-2xl font-bold text-white">{analytics.forecastTotalUnits.toLocaleString("en-PH")}</p>
+                  <p className="mt-1 text-xs text-emerald-300">Estimated items to prepare</p>
+                </div>
+                <div className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Confidence</p>
+                  <p className="mt-2 text-2xl font-bold text-white">{analytics.forecastConfidence}%</p>
+                  <p className="mt-1 text-xs text-white/55">Improves as more completed sales are recorded</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
