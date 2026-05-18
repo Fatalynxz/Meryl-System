@@ -169,18 +169,16 @@ function stockBadgeClass(stock: number, reorder: number) {
 
 function MetricCard({ title, value, note, icon: Icon }: { title: string; value: string; note: string; icon: any }) {
   return (
-    <Card className="bg-[#16161d] border-[#2b2b36]">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm text-white/75">{title}</p>
-            <p className="mt-2 text-3xl font-bold text-white">{value}</p>
-            <p className="mt-2 text-xs text-emerald-300">{note}</p>
-          </div>
-          <div className="rounded-2xl bg-yellow-400/10 p-3">
-            <Icon className="h-8 w-8 text-yellow-400" />
+    <Card className="border-[#2b2b36] bg-[#16161d]">
+      <CardContent className="p-5">
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <p className="text-sm font-medium text-white/70">{title}</p>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-yellow-400/10 ring-1 ring-yellow-400/10">
+            <Icon className="h-6 w-6 text-yellow-400" />
           </div>
         </div>
+        <p className="whitespace-nowrap text-3xl font-bold leading-none tracking-tight text-white">{value}</p>
+        <p className="mt-3 min-h-[2rem] text-sm leading-snug text-emerald-300">{note}</p>
       </CardContent>
     </Card>
   );
@@ -634,7 +632,7 @@ export function PredictiveAnalytics() {
         <MetricCard
           title="Inventory Turnover"
           value={`${analytics.inventoryTurnover.toFixed(2)}x`}
-          note="Based on last 90 days sold vs average stock"
+          note="90-day sales vs average stock"
           icon={Package}
         />
         <MetricCard
@@ -646,7 +644,7 @@ export function PredictiveAnalytics() {
         <MetricCard
           title="Customer Segments"
           value={String(analytics.genderRows.length + analytics.ageRows.length)}
-          note="Separate gender and age range groups"
+          note="Gender + age range groups"
           icon={Users}
         />
       </div>}
