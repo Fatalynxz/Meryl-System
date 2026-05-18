@@ -858,21 +858,23 @@ export function PredictiveAnalytics() {
       <div className="grid grid-cols-1 gap-6">
         {showProduct && (
         <Card className="bg-[#16161d] border-[#2b2b36]">
-          <CardHeader>
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-              <div>
-                <Badge className="mb-3 bg-yellow-400/10 text-yellow-300">Buying Preference Rankings</Badge>
+          <CardHeader className="space-y-5">
+            <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-start">
+              <div className="max-w-3xl">
+                <Badge className="mb-3 bg-yellow-400/10 px-3 py-1 text-yellow-300">Buying Preference Rankings</Badge>
                 <CardTitle className="text-white">Top Brand, Size, and Category</CardTitle>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
-                  See what customers buy most. Use this for restocking decisions, size planning, and deciding which categories deserve promotions.
+                <p className="mt-2 text-sm leading-relaxed text-white/55">
+                  Quick restocking guide based on what customers actually buy: brands, sizes, and categories ranked by units or revenue.
                 </p>
               </div>
-              <div className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/35">Period</span>
+
+              <div className="w-full rounded-2xl border border-[#2b2b36] bg-[#111118] p-3 xl:w-[470px]">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">Period</span>
                   <Badge className="bg-yellow-400 text-red-950">{analytics.topRankingPeriodLabel}</Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                   {revenueTrendOptions.map((option) => {
                     const active = topRankingPeriod === option.id;
                     return (
@@ -880,9 +882,9 @@ export function PredictiveAnalytics() {
                         key={option.id}
                         type="button"
                         onClick={() => setTopRankingPeriod(option.id)}
-                        className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                        className={`shrink-0 rounded-xl px-4 py-2 text-xs font-semibold transition ${
                           active
-                            ? "bg-yellow-400 text-red-950"
+                            ? "bg-yellow-400 text-red-950 shadow-[0_0_18px_rgba(255,214,10,0.18)]"
                             : "border border-[#2b2b36] bg-white/[0.03] text-white/70 hover:border-yellow-400/50 hover:text-yellow-200"
                         }`}
                       >
@@ -891,70 +893,69 @@ export function PredictiveAnalytics() {
                     );
                   })}
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/35">Rank by</span>
-                  <div className="flex overflow-hidden rounded-xl border border-[#2b2b36] bg-white/[0.03] p-1">
-                  {[
-                    { id: "units", label: "Units" },
-                    { id: "revenue", label: "Revenue" },
-                  ].map((option) => {
-                    const active = topRankingMetric === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTopRankingMetric(option.id as RankingMetric)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                          active ? "bg-yellow-400 text-red-950" : "text-white/65 hover:text-yellow-200"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
+
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">Rank by</span>
+                  <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-[#2b2b36] bg-white/[0.03] p-1 sm:w-44">
+                    {[
+                      { id: "units", label: "Units" },
+                      { id: "revenue", label: "Revenue" },
+                    ].map((option) => {
+                      const active = topRankingMetric === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setTopRankingMetric(option.id as RankingMetric)}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                            active ? "bg-yellow-400 text-red-950" : "text-white/65 hover:text-yellow-200"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {[
               { title: "Top Brands", subtitle: "Which brands customers choose most", rows: analytics.topBrands },
               { title: "Top Sizes", subtitle: "Sizes to prioritize when restocking", rows: analytics.topSizes },
               { title: "Top Categories", subtitle: "Product groups with strongest demand", rows: analytics.topCategories },
             ].map((group) => (
               <div key={group.title} className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
-                <div className="mb-4">
+                <div className="mb-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-white">{group.title}</p>
-                    <Badge className="bg-white/10 text-white/70">{group.rows.length} ranked</Badge>
+                    <Badge className="bg-white/10 text-xs text-white/70">{group.rows.length} ranked</Badge>
                   </div>
                   <p className="mt-1 text-xs text-white/45">{group.subtitle}</p>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {group.rows.length ? group.rows.map((row: any, index: number) => (
                     <div key={row.name} className="rounded-xl border border-[#2b2b36] bg-[#181820] p-3 transition hover:border-yellow-400/40 hover:bg-[#1c1c24]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-sm font-bold text-red-950">
+                      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-sm font-bold text-red-950">
                             {index + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-white">{row.name}</p>
-                            <p className="text-xs text-white/40">{row.share}% share of this ranking</p>
-                          </div>
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-white">{row.name}</p>
+                          <p className="text-xs text-white/40">{row.share}% share</p>
                         </div>
                         <div className="shrink-0 text-right">
                           <p className="text-sm font-semibold text-yellow-300">
                             {topRankingMetric === "revenue" ? money(row.revenue) : `${row.units} units`}
                           </p>
-                          <p className="text-[11px] uppercase tracking-wide text-white/35">{topRankingMetric === "revenue" ? "Revenue" : "Sold"}</p>
                         </div>
                       </div>
-                      <div className="mt-3">
+                      <div className="mt-2 grid grid-cols-[1fr_36px] items-center gap-2">
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
                           <div className="h-full rounded-full bg-yellow-400" style={{ width: `${row.share}%` }} />
                         </div>
+                        <span className="text-right text-xs text-white/45">{row.share}%</span>
                       </div>
                     </div>
                   )) : <span className="text-sm text-white/45">No data yet.</span>}
