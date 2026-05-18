@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import datetime
 import base64
 from email.message import EmailMessage
+from html import escape
 import json
 import urllib.parse
 import urllib.request
@@ -147,6 +148,263 @@ def _gmail_error_reason(error_body, fallback):
     return fallback
 
 
+def _clean_promo_name(promo_name):
+    name = str(promo_name or "Promotion").strip()
+    for token in ("__TYPE_BOGO__", "__TYPE_BUNDLE__"):
+        name = name.replace(token, "")
+    return name.strip(" -") or "Promotion"
+
+
+def _campaign_kind(discount_type, promo_name):
+    raw = f"{discount_type or ''} {promo_name or ''}".lower()
+    if "__type_bogo__" in raw or "bogo" in raw or "buy one" in raw:
+        return "bogo"
+    if "__type_bundle__" in raw or "bundle" in raw:
+        return "bundle"
+    if "fixed" in raw or "amount" in raw:
+        return "fixed"
+    return "percentage"
+
+
+def _money(value):
+    try:
+        amount = float(value or 0)
+    except (TypeError, ValueError):
+        amount = 0
+    if amount.is_integer():
+        return f"PHP {int(amount):,}"
+    return f"PHP {amount:,.2f}"
+
+
+def _discount_label(kind, discount_value):
+    try:
+        amount = float(discount_value or 0)
+    except (TypeError, ValueError):
+        amount = 0
+
+    if kind == "bogo":
+        return "Buy 1 Get 1"
+    if kind == "bundle":
+        return "Bundle Deal"
+    if kind == "fixed":
+        return f"{_money(amount)} OFF"
+    if amount.is_integer():
+        return f"{int(amount)}% OFF"
+    return f"{amount:g}% OFF"
+
+
+def _promo_code(kind, discount_value):
+    try:
+        amount = int(float(discount_value or 0))
+    except (TypeError, ValueError):
+        amount = 0
+    if kind == "bogo":
+        return "BOGO"
+    if kind == "bundle":
+        return "BUNDLE"
+    if kind == "fixed":
+        return f"SAVE{amount}" if amount else "SAVE"
+    return f"STEP{amount}" if amount else "STEP"
+
+
+def _product_price(product):
+    for key in ("srp", "selling_price", "price", "unit_price"):
+        if product.get(key) not in (None, ""):
+            return _money(product.get(key))
+    return "Visit store for price"
+
+
+def _product_matches_target(product, target_text):
+    target = str(target_text or "").strip().lower()
+    if not target or target in ("all", "all products"):
+        return True
+    searchable = " ".join(
+        str(product.get(key) or "")
+        for key in (
+            "product_name",
+            "brand",
+            "category_name",
+            "category",
+            "color",
+            "gender",
+            "size",
+            "sku",
+            "product_id",
+        )
+    ).lower()
+    return any(part.strip() and part.strip() in searchable for part in target.replace("|", ",").split(","))
+
+
+def _top_pick_reason(product, kind):
+    category = str(product.get("category_name") or product.get("category") or "footwear").strip()
+    if kind == "bogo":
+        return "Great for pairing with a second style while this offer is active."
+    if kind == "bundle":
+        return "Easy to mix into a value set for everyday rotation."
+    if kind == "fixed":
+        return "A practical pick when you want comfort with extra savings."
+    if "running" in category.lower():
+        return "Lightweight comfort with support for daily walks and commutes."
+    if "casual" in category.lower():
+        return "An easy everyday pair that works with relaxed outfits."
+    return "A customer-ready style selected from our current collection."
+
+
+def _build_promotion_email(
+    *,
+    customer_name,
+    promo_name,
+    discount_type,
+    discount_value,
+    start_date,
+    end_date,
+    target_products,
+    product_rows,
+):
+    kind = _campaign_kind(discount_type, promo_name)
+    clean_name = _clean_promo_name(promo_name)
+    discount = _discount_label(kind, discount_value)
+    code = _promo_code(kind, discount_value)
+
+    templates = {
+        "percentage": {
+            "subject": f"Step up your game: {discount} your next pair",
+            "preview": "Don't walk, run. These styles are moving fast.",
+            "headline": "Ready to upgrade your rotation?",
+            "body": (
+                "Whether you are hitting the pavement or dressing up for a night out, "
+                f"we have the perfect pair waiting for you. For a limited time, enjoy {discount} "
+                "on selected regular-priced footwear."
+            ),
+            "cta": "Shop the discounted collection",
+        },
+        "fixed": {
+            "subject": f"A little treat from Meryl Shoes: {discount}",
+            "preview": "Save more on your next pair before this offer ends.",
+            "headline": "Your next pair just got easier to grab.",
+            "body": (
+                f"We set aside a {discount} offer for selected styles, so you can refresh "
+                "your footwear rotation without stretching the budget."
+            ),
+            "cta": "Claim your savings",
+        },
+        "bogo": {
+            "subject": "Buy one, get one: your next pair is waiting",
+            "preview": "Pair up your favorites while this promo is active.",
+            "headline": "Two pairs, one smarter deal.",
+            "body": (
+                "Pick one pair for daily wear and another for backup, gifting, or a new look. "
+                "This Buy 1 Get 1 promotion is available only while qualifying stocks last."
+            ),
+            "cta": "View BOGO picks",
+        },
+        "bundle": {
+            "subject": "Bundle and save on your next shoe haul",
+            "preview": "Build your rotation with a smarter deal.",
+            "headline": "Build a set that works harder for you.",
+            "body": (
+                "Bundle-ready styles help you cover more days, outfits, and activities in one purchase. "
+                "Choose qualifying items and enjoy the campaign offer at checkout."
+            ),
+            "cta": "Build your bundle",
+        },
+    }
+    template = templates.get(kind, templates["percentage"])
+
+    matching_products = [
+        product for product in product_rows if _product_matches_target(product, target_products)
+    ] or list(product_rows)
+    top_picks = matching_products[:2]
+
+    if not top_picks:
+        top_picks_html = (
+            "<div style='border:1px solid #2b2d38;border-radius:16px;padding:16px;background:#15161d'>"
+            "Visit Meryl Shoes to see the styles included in this campaign."
+            "</div>"
+        )
+    else:
+        pick_cards = []
+        for index, product in enumerate(top_picks, start=1):
+            product_name = escape(str(product.get("product_name") or product.get("name") or f"Product {index}"))
+            brand = escape(str(product.get("brand") or "Meryl Shoes"))
+            variant = " / ".join(
+                part
+                for part in (
+                    str(product.get("color") or "").strip(),
+                    str(product.get("size") or "").strip(),
+                )
+                if part
+            )
+            variant_text = f"<div style='color:#9ca3af;font-size:12px'>{escape(variant)}</div>" if variant else ""
+            price = escape(_product_price(product))
+            reason = escape(_top_pick_reason(product, kind))
+            initials = escape(product_name[:2].upper())
+            pick_cards.append(
+                "<div style='display:flex;gap:14px;border:1px solid #2b2d38;border-radius:16px;"
+                "padding:16px;background:#15161d;margin-bottom:12px'>"
+                "<div style='width:64px;height:64px;border-radius:14px;background:#ffcc00;color:#111217;"
+                "display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px'>"
+                f"{initials}</div>"
+                "<div style='flex:1'>"
+                f"<div style='color:#ffcc00;font-size:12px;font-weight:700;text-transform:uppercase'>{brand}</div>"
+                f"<div style='font-size:18px;font-weight:800;margin:2px 0'>{product_name}</div>"
+                f"{variant_text}"
+                f"<div style='font-weight:800;margin:8px 0'>{price}</div>"
+                f"<div style='color:#d1d5db;font-size:13px;line-height:1.45'>Why you will love it: {reason}</div>"
+                "</div>"
+                "</div>"
+            )
+        top_picks_html = "".join(pick_cards)
+
+    safe_customer = escape(str(customer_name or "there").strip() or "there")
+    safe_campaign = escape(clean_name)
+    safe_discount = escape(discount)
+    safe_code = escape(code)
+    safe_start = escape(start_date or "Today")
+    safe_end = escape(end_date or "Limited time")
+    safe_preview = escape(template["preview"])
+
+    html = (
+        "<div style='display:none;max-height:0;overflow:hidden;opacity:0;color:transparent'>"
+        f"{safe_preview}"
+        "</div>"
+        "<div style='font-family:Arial,sans-serif;background:#0b0c10;color:#ffffff;padding:28px'>"
+        "<div style='max-width:640px;margin:auto;background:#15161d;border:1px solid #2b2d38;"
+        "border-radius:22px;overflow:hidden'>"
+        "<div style='background:linear-gradient(135deg,#e51b2a,#8b111b);padding:28px'>"
+        "<div style='color:#ffcc00;font-size:12px;font-weight:800;letter-spacing:1.4px;"
+        "text-transform:uppercase'>Meryl Shoes VIP Offer</div>"
+        f"<h1 style='font-size:32px;line-height:1.15;margin:14px 0 10px'>{escape(template['headline'])}</h1>"
+        f"<p style='margin:0;color:#f3f4f6;line-height:1.55'>{escape(template['body'])}</p>"
+        "</div>"
+        "<div style='padding:26px'>"
+        f"<p style='font-size:16px;line-height:1.55;margin-top:0'>Hi {safe_customer},</p>"
+        f"<p style='font-size:16px;line-height:1.55'>Campaign: <strong>{safe_campaign}</strong></p>"
+        "<div style='background:#ffcc00;color:#111217;border-radius:16px;padding:18px;margin:20px 0;"
+        "text-align:center'>"
+        f"<div style='font-size:15px;font-weight:700'>Use code</div>"
+        f"<div style='font-size:34px;font-weight:900;letter-spacing:2px'>{safe_code}</div>"
+        f"<div style='font-size:14px'>Offer: {safe_discount}</div>"
+        "</div>"
+        "<div style='display:flex;gap:12px;margin:18px 0;flex-wrap:wrap'>"
+        f"<span style='border:1px solid #2b2d38;border-radius:999px;padding:8px 12px;color:#d1d5db'>Starts: {safe_start}</span>"
+        f"<span style='border:1px solid #2b2d38;border-radius:999px;padding:8px 12px;color:#d1d5db'>Ends: {safe_end}</span>"
+        "</div>"
+        f"<a style='display:inline-block;background:#ffcc00;color:#111217;text-decoration:none;"
+        f"font-weight:800;border-radius:14px;padding:14px 18px;margin:4px 0 24px'>{escape(template['cta'])}</a>"
+        "<h2 style='font-size:20px;margin:0 0 14px;color:#ffffff'>Top Picks For You</h2>"
+        f"{top_picks_html}"
+        "<p style='color:#9ca3af;font-size:13px;line-height:1.5;margin-top:20px'>"
+        "This promotional message was sent by Meryl Shoes. Visit the store to confirm availability, "
+        "included products, and final checkout pricing."
+        "</p>"
+        "<p style='color:#ffcc00;font-weight:800;margin-bottom:0'>Meryl Shoes</p>"
+        "</div></div></div>"
+    )
+
+    return {"subject": template["subject"], "html": html}
+
+
 def send_promotion_notifications_via_gmail(
     promo_id,
     *,
@@ -198,6 +456,8 @@ def send_promotion_notifications_via_gmail(
     discount_value = promo.get("discount_value")
     start_date = str(promo.get("start_date") or "").strip()[:10]
     end_date = str(promo.get("end_date") or "").strip()[:10]
+    target_products = str(promo.get("target_products") or promo.get("target_product") or "All Products").strip()
+    product_rows = fetch_rows("product")
 
     notification_rows = (
         supabase.table("notification")
@@ -290,20 +550,15 @@ def send_promotion_notifications_via_gmail(
             continue
 
         customer_name = str(customer.get("customer_name") or customer.get("name") or "there").strip()
-        html_content = (
-            "<div style='font-family:Arial,sans-serif;background:#111217;color:#fff;padding:24px'>"
-            "<div style='max-width:560px;margin:auto;background:#191a22;border:1px solid #2b2d38;border-radius:18px;padding:24px'>"
-            "<h2 style='color:#ffcc00;margin:0 0 12px'>Meryl Shoes Promotion</h2>"
-            f"<p>Hi {customer_name},</p>"
-            f"<p><strong>{promo_name}</strong> is now available for you.</p>"
-            "<ul>"
-            f"<li><strong>Type:</strong> {discount_type or 'Promotion'}</li>"
-            f"<li><strong>Value:</strong> {discount_value}</li>"
-            f"<li><strong>Valid:</strong> {start_date} to {end_date}</li>"
-            "</ul>"
-            "<p>Visit Meryl Shoes to enjoy this offer while supplies last.</p>"
-            "<p style='color:#ffcc00;font-weight:bold'>Meryl Shoes Enterprise System</p>"
-            "</div></div>"
+        email_campaign = _build_promotion_email(
+            customer_name=customer_name,
+            promo_name=promo_name,
+            discount_type=discount_type,
+            discount_value=discount_value,
+            start_date=start_date,
+            end_date=end_date,
+            target_products=target_products,
+            product_rows=product_rows,
         )
 
         status = "sent"
@@ -313,8 +568,8 @@ def send_promotion_notifications_via_gmail(
                 sender_email=sender_email,
                 sender_name=sender_name or "Meryl Shoes",
                 recipient_email=email,
-                subject=f"New Promotion: {promo_name}",
-                html_content=html_content,
+                subject=email_campaign["subject"],
+                html_content=email_campaign["html"],
             )
             print(f"GMAIL: Email sent to {email}")
             sent += 1
