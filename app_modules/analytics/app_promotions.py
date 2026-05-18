@@ -208,10 +208,10 @@ def _promo_code(kind, discount_value):
 
 
 def _product_price(product):
-    for key in ("srp", "selling_price", "price", "unit_price"):
+    for key in ("srp", "selling_price", "selling_price_php", "price", "unit_price", "base_price", "cost_price"):
         if product.get(key) not in (None, ""):
             return _money(product.get(key))
-    return "Visit store for price"
+    return "Ask in store"
 
 
 def _product_matches_target(product, target_text):
@@ -340,19 +340,27 @@ def _build_promotion_email(
             reason = escape(_top_pick_reason(product, kind))
             initials = escape(product_name[:2].upper())
             pick_cards.append(
-                "<div style='display:flex;gap:14px;border:1px solid #2b2d38;border-radius:16px;"
-                "padding:16px;background:#15161d;margin-bottom:12px'>"
-                "<div style='width:64px;height:64px;border-radius:14px;background:#ffcc00;color:#111217;"
-                "display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px'>"
-                f"{initials}</div>"
-                "<div style='flex:1'>"
-                f"<div style='color:#ffcc00;font-size:12px;font-weight:700;text-transform:uppercase'>{brand}</div>"
-                f"<div style='font-size:18px;font-weight:800;margin:2px 0'>{product_name}</div>"
+                "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' "
+                "style='border:1px solid #2b2d38;border-radius:16px;background:#15161d;"
+                "margin:0 0 12px;border-collapse:separate;overflow:hidden'>"
+                "<tr>"
+                "<td width='78' valign='top' style='padding:16px 0 16px 16px'>"
+                "<table role='presentation' width='58' height='58' cellpadding='0' cellspacing='0' "
+                "style='background:#ffcc00;border-radius:14px'>"
+                "<tr><td align='center' valign='middle' style='color:#111217;font-weight:900;"
+                f"font-size:18px;line-height:58px'>{initials}</td></tr>"
+                "</table>"
+                "</td>"
+                "<td valign='top' style='padding:16px 16px 16px 12px'>"
+                f"<div style='color:#ffcc00;font-size:11px;font-weight:800;text-transform:uppercase;"
+                f"letter-spacing:.5px;margin-bottom:3px'>{brand}</div>"
+                f"<div style='font-size:20px;font-weight:900;line-height:1.2;margin-bottom:4px;color:#ffffff'>{product_name}</div>"
                 f"{variant_text}"
-                f"<div style='font-weight:800;margin:8px 0'>{price}</div>"
-                f"<div style='color:#d1d5db;font-size:13px;line-height:1.45'>Why you will love it: {reason}</div>"
-                "</div>"
-                "</div>"
+                f"<div style='font-weight:900;margin:10px 0;color:#ffffff'>{price}</div>"
+                f"<div style='color:#d1d5db;font-size:13px;line-height:1.5'>Why you will love it: {reason}</div>"
+                "</td>"
+                "</tr>"
+                "</table>"
             )
         top_picks_html = "".join(pick_cards)
 
