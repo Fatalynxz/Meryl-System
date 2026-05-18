@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router';
 import { Dashboard } from './Dashboard';
 import { LayoutDashboard, Package, ShoppingCart, Users, CreditCard, TrendingUp, Tag, BarChart3, LogOut, UserCog, RotateCcw, Search, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
 import { Button } from './ui/button';
-import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
 import { useAuth } from '../../lib/auth-context';
+import { BrandLogo } from './BrandLogo';
 
 const loadPointOfSale = () => import('./PointOfSale');
 const loadProductManagement = () => import('./ProductManagement');
@@ -177,9 +177,7 @@ export function AdminLayout() {
       {/* Sidebar */}
       <aside className="w-64 bg-[#16161C] flex flex-col rounded-2xl border border-white/5 overflow-hidden">
         <div className="px-5 pt-5 pb-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E5202A] to-[#FFD60A] flex items-center justify-center shadow-lg shadow-red-900/30">
-            <img src={logo} alt="Meryl" className="h-6 w-6 object-contain" />
-          </div>
+          <BrandLogo size="md" />
           <div>
             <h1 className="text-white text-base leading-none">Meryl Shoes</h1>
             <p className="text-[11px] text-white/40 mt-1">Admin Console</p>

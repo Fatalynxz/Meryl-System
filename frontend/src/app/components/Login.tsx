@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import { LogIn, User, Lock, Shield, ShoppingBag, Package, Sparkles } from 'lucide-react';
-import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
 import { useAuth } from '../../lib/auth-context';
+import { BrandLogo } from './BrandLogo';
 
 type PortalRole = 'admin' | 'sales' | 'inventory';
 type DemoUser = { username: string; password: string };
@@ -77,9 +77,7 @@ export function Login() {
           <div className="absolute right-20 bottom-0 w-48 h-48 rounded-full bg-[#FFD60A]/10 blur-2xl" />
 
           <div className="relative flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center">
-              <img src={logo} alt="Meryl" className="h-7 w-7 object-contain" />
-            </div>
+            <BrandLogo size="lg" className="ring-white/25" />
             <div>
               <div className="text-white">Meryl Shoes</div>
               <div className="text-[11px] text-white/70">Management Suite</div>
@@ -105,9 +103,7 @@ export function Login() {
               <div className="text-[11px] uppercase tracking-widest text-[#FFD60A]">Sign in</div>
               <h2 className="mt-1 text-white text-2xl tracking-tight">Login Portal</h2>
             </div>
-            <div className="lg:hidden w-10 h-10 rounded-xl bg-gradient-to-br from-[#E5202A] to-[#FFD60A] flex items-center justify-center">
-              <img src={logo} alt="Meryl" className="h-6 w-6 object-contain" />
-            </div>
+            <BrandLogo size="sm" className="lg:hidden" />
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
