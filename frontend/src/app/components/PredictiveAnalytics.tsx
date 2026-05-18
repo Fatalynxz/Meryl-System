@@ -350,7 +350,7 @@ export function PredictiveAnalytics() {
         const categoryPrev = categoryStats.get(category) ?? { name: category, units: 0, revenue: 0 };
         const brandPrev = brandStats.get(brand) ?? { name: brand, units: 0, revenue: 0 };
         const sizePrev = sizeStats.get(size) ?? { name: size, units: 0, revenue: 0 };
-        if (in90) {
+        if (inProductPeriod) {
           categoryPrev.units += qty;
           categoryPrev.revenue += revenue;
           brandPrev.units += qty;
@@ -839,7 +839,9 @@ export function PredictiveAnalytics() {
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
             <CardTitle className="text-white">Top Brand, Size, and Category</CardTitle>
-            <p className="text-sm text-white/55">Descriptive analytics for buying decisions.</p>
+            <p className="text-sm text-white/55">
+              Descriptive analytics for buying decisions based on the selected {analytics.productPeriodLabel.toLowerCase()} product period.
+            </p>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-1">
             {[
