@@ -859,15 +859,20 @@ export function PredictiveAnalytics() {
         {showProduct && (
         <Card className="bg-[#16161d] border-[#2b2b36]">
           <CardHeader>
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
               <div>
+                <Badge className="mb-3 bg-yellow-400/10 text-yellow-300">Buying Preference Rankings</Badge>
                 <CardTitle className="text-white">Top Brand, Size, and Category</CardTitle>
-                <p className="mt-1 text-sm text-white/55">
-                  Ranking buying preferences by {topRankingMetric === "revenue" ? "revenue" : "units sold"} for the selected {analytics.topRankingPeriodLabel.toLowerCase()} period.
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
+                  See what customers buy most. Use this for restocking decisions, size planning, and deciding which categories deserve promotions.
                 </p>
               </div>
-              <div className="flex flex-col gap-2 xl:items-end">
-                <div className="flex flex-wrap gap-2">
+              <div className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/35">Period</span>
+                  <Badge className="bg-yellow-400 text-red-950">{analytics.topRankingPeriodLabel}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                   {revenueTrendOptions.map((option) => {
                     const active = topRankingPeriod === option.id;
                     return (
@@ -886,7 +891,9 @@ export function PredictiveAnalytics() {
                     );
                   })}
                 </div>
-                <div className="flex w-fit overflow-hidden rounded-xl border border-[#2b2b36] bg-white/[0.03] p-1">
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/35">Rank by</span>
+                  <div className="flex overflow-hidden rounded-xl border border-[#2b2b36] bg-white/[0.03] p-1">
                   {[
                     { id: "units", label: "Units" },
                     { id: "revenue", label: "Revenue" },
@@ -905,40 +912,49 @@ export function PredictiveAnalytics() {
                       </button>
                     );
                   })}
+                  </div>
                 </div>
               </div>
             </div>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             {[
-              { title: "Brands", rows: analytics.topBrands },
-              { title: "Sizes", rows: analytics.topSizes },
-              { title: "Categories", rows: analytics.topCategories },
+              { title: "Top Brands", subtitle: "Which brands customers choose most", rows: analytics.topBrands },
+              { title: "Top Sizes", subtitle: "Sizes to prioritize when restocking", rows: analytics.topSizes },
+              { title: "Top Categories", subtitle: "Product groups with strongest demand", rows: analytics.topCategories },
             ].map((group) => (
-              <div key={group.title} className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-yellow-300">{group.title}</p>
-                  <Badge className="bg-white/10 text-white/70">{group.rows.length} ranked</Badge>
+              <div key={group.title} className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
+                <div className="mb-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-white">{group.title}</p>
+                    <Badge className="bg-white/10 text-white/70">{group.rows.length} ranked</Badge>
+                  </div>
+                  <p className="mt-1 text-xs text-white/45">{group.subtitle}</p>
                 </div>
                 <div className="space-y-3">
                   {group.rows.length ? group.rows.map((row: any, index: number) => (
-                    <div key={row.name} className="rounded-xl border border-[#2b2b36] bg-[#111118] p-3">
-                      <div className="flex items-center justify-between gap-3">
+                    <div key={row.name} className="rounded-xl border border-[#2b2b36] bg-[#181820] p-3 transition hover:border-yellow-400/40 hover:bg-[#1c1c24]">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-xs font-bold text-red-950">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-400 text-sm font-bold text-red-950">
                             {index + 1}
                           </span>
-                          <span className="truncate font-semibold text-white">{row.name}</span>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-white">{row.name}</p>
+                            <p className="text-xs text-white/40">{row.share}% share of this ranking</p>
+                          </div>
                         </div>
-                        <span className="shrink-0 text-sm font-semibold text-yellow-300">
-                          {topRankingMetric === "revenue" ? money(row.revenue) : `${row.units} units`}
-                        </span>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-semibold text-yellow-300">
+                            {topRankingMetric === "revenue" ? money(row.revenue) : `${row.units} units`}
+                          </p>
+                          <p className="text-[11px] uppercase tracking-wide text-white/35">{topRankingMetric === "revenue" ? "Revenue" : "Sold"}</p>
+                        </div>
                       </div>
-                      <div className="mt-3 flex items-center gap-2">
+                      <div className="mt-3">
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
                           <div className="h-full rounded-full bg-yellow-400" style={{ width: `${row.share}%` }} />
                         </div>
-                        <span className="w-10 text-right text-xs font-semibold text-white/60">{row.share}%</span>
                       </div>
                     </div>
                   )) : <span className="text-sm text-white/45">No data yet.</span>}
