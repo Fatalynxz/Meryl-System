@@ -458,6 +458,22 @@ export function PredictiveAnalytics() {
       return copy;
     };
 
+    const getPeriodEnd = (date: Date, period: RevenueTrendPeriod) => {
+      if (period === "daily") return new Date(date);
+      if (period === "weekly") return addDays(date, 6);
+      if (period === "monthly") return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      if (period === "quarterly") return new Date(date.getFullYear(), date.getMonth() + 3, 0);
+      return new Date(date.getFullYear(), 11, 31);
+    };
+
+    const countDaysInclusive = (start: Date, end: Date) => {
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(0, 0, 0, 0);
+      return Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
+    };
+
     const buildPeriodBuckets = (period: RevenueTrendPeriod, start: Date) => {
       const buckets = new Map<string, { key: string; date: Date; label: string; revenue: number; units: number }>();
       dailyRows
@@ -504,19 +520,31 @@ export function PredictiveAnalytics() {
     const forecastHistory = buildPeriodBuckets(salesForecastPeriod, getPeriodStart(salesForecastPeriod));
     const recentForecastBase = forecastHistory.filter((row) => row.revenue > 0 || row.units > 0).slice(-6);
     const forecastBase = recentForecastBase.length ? recentForecastBase : forecastHistory.slice(-3);
-    const hasReliableForecastHistory = forecastBase.length >= 2;
-    const averageForecastRevenue = forecastBase.length
-      ? forecastBase.reduce((sum, row) => sum + row.revenue, 0) / forecastBase.length
+    const dailyModelStart = dailyRows[0]?.date && dailyRows[0].date > last90 ? new Date(dailyRows[0].date) : new Date(last90);
+    dailyModelStart.setHours(0, 0, 0, 0);
+    const dailyModelDays = countDaysInclusive(dailyModelStart, now);
+    const dailyModelRows = Array.from({ length: dailyModelDays }, (_, index) => {
+      const date = addDays(dailyModelStart, index);
+      const key = date.toISOString().slice(0, 10);
+      const existing = dailySales.get(key);
+      return {
+        date,
+        index,
+        revenue: existing?.revenue ?? 0,
+        units: existing?.units ?? 0,
+      };
+    });
+    const dailyModelBase = dailyModelRows.length ? dailyModelRows : [{ date: now, index: 0, revenue: 0, units: 0 }];
+    const averageDailyRevenue = dailyModelBase.reduce((sum, row) => sum + row.revenue, 0) / Math.max(1, dailyModelBase.length);
+    const averageDailyUnits = dailyModelBase.reduce((sum, row) => sum + row.units, 0) / Math.max(1, dailyModelBase.length);
+    const firstHalf = dailyModelBase.slice(0, Math.max(1, Math.floor(dailyModelBase.length / 2)));
+    const secondHalf = dailyModelBase.slice(Math.max(1, Math.floor(dailyModelBase.length / 2)));
+    const firstHalfRevenue = firstHalf.reduce((sum, row) => sum + row.revenue, 0) / Math.max(1, firstHalf.length);
+    const secondHalfRevenue = secondHalf.reduce((sum, row) => sum + row.revenue, 0) / Math.max(1, secondHalf.length);
+    const dailyTrendRate = firstHalfRevenue > 0
+      ? Math.max(-0.25, Math.min(0.25, (secondHalfRevenue - firstHalfRevenue) / firstHalfRevenue))
       : 0;
-    const averageForecastUnits = forecastBase.length
-      ? forecastBase.reduce((sum, row) => sum + row.units, 0) / forecastBase.length
-      : 0;
-    const firstForecastRevenue = forecastBase[0]?.revenue ?? 0;
-    const lastForecastRevenue = forecastBase[forecastBase.length - 1]?.revenue ?? 0;
-    const rawForecastGrowth = forecastBase.length > 1 && firstForecastRevenue > 0
-      ? (lastForecastRevenue - firstForecastRevenue) / firstForecastRevenue / forecastBase.length
-      : 0;
-    const forecastGrowth = Math.max(-0.2, Math.min(0.25, rawForecastGrowth));
+    const hasReliableForecastHistory = dailyModelBase.filter((row) => row.revenue > 0 || row.units > 0).length >= 3 || forecastBase.length >= 2;
     const forecastCountByPeriod: Record<RevenueTrendPeriod, number> = {
       daily: 7,
       weekly: 4,
@@ -527,11 +555,13 @@ export function PredictiveAnalytics() {
     const lastForecastDate = forecastHistory[forecastHistory.length - 1]?.date ?? now;
     const forecastRows = Array.from({ length: forecastCountByPeriod[salesForecastPeriod] }, (_, index) => {
       const date = addPeriod(lastForecastDate, salesForecastPeriod, index + 1);
-      const multiplier = Math.max(0, 1 + forecastGrowth * (index + 1));
+      const periodEnd = getPeriodEnd(date, salesForecastPeriod);
+      const daysInPeriod = countDaysInclusive(date, periodEnd);
+      const multiplier = Math.max(0.1, 1 + dailyTrendRate * ((index + 1) / 2));
       return {
         date: labelForPeriodDate(date, salesForecastPeriod),
-        projectedRevenue: Math.round(averageForecastRevenue * multiplier),
-        projectedUnits: Math.max(0, Math.round(averageForecastUnits * multiplier)),
+        projectedRevenue: Math.round(averageDailyRevenue * daysInPeriod * multiplier),
+        projectedUnits: Math.max(0, Math.round(averageDailyUnits * daysInPeriod * multiplier)),
       };
     });
     const visibleForecastHistory = forecastHistory.slice(-5);
