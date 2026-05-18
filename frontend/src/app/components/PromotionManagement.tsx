@@ -169,6 +169,17 @@ function parseTargetProducts(text: string | undefined) {
   };
 }
 
+function normalizeRecommendationTarget(value: string | undefined) {
+  return String(value ?? 'All Products')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function recommendationSignature(type: string | undefined, target: string | undefined) {
+  return `${String(type ?? '').toLowerCase()}::${normalizeRecommendationTarget(target)}`;
+}
+
 export function PromotionManagement() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
@@ -392,6 +403,24 @@ export function PromotionManagement() {
     return recs.slice(0, 4);
   }, [productsQuery.data, salesQuery.data]);
 
+  const activeRecommendationSignatures = useMemo(() => {
+    const covered = new Set<string>();
+    promotions
+      .filter((promo) => promo.status !== 'Ended')
+      .forEach((promo) => {
+        covered.add(recommendationSignature(promo.discount_type, promo.targetProducts));
+      });
+    return covered;
+  }, [promotions]);
+
+  const visibleProductRecommendations = useMemo(
+    () =>
+      productRecommendations.filter(
+        (rec) => !activeRecommendationSignatures.has(recommendationSignature(rec.discount_type, rec.targetProducts)),
+      ),
+    [activeRecommendationSignatures, productRecommendations],
+  );
+
   const applyRecommendation = (rec: PromotionRecommendation) => {
     const start = new Date();
     const end = new Date();
@@ -527,6 +556,7 @@ export function PromotionManagement() {
         start_date: formData.start_date,
         end_date: formData.end_date,
       });
+      await promotionsQuery.refetch();
       setIsAddDialogOpen(false);
       setFormData({});
       if (deliverySummary.enabled) {
@@ -750,7 +780,7 @@ export function PromotionManagement() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {productRecommendations.map((rec) => (
+            {visibleProductRecommendations.map((rec) => (
               <div key={rec.id} className="rounded-lg border border-red-800 bg-red-800/40 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -779,6 +809,12 @@ export function PromotionManagement() {
                 </div>
               </div>
             ))}
+            {!visibleProductRecommendations.length && (
+              <div className="md:col-span-2 rounded-lg border border-yellow-400/20 bg-yellow-400/10 p-4 text-sm text-yellow-100">
+                All current analytics recommendations are already covered by active or scheduled promotions.
+                Delete, end, or expire a matching promotion and the recommendation will appear again if the sales data still supports it.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
