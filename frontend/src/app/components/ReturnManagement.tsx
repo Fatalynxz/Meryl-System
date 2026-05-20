@@ -739,23 +739,6 @@ export function ReturnManagement() {
                 <div className="grid max-h-[70vh] gap-5 overflow-y-auto overflow-x-hidden p-5 scrollbar-hide">
                   <div className="space-y-2">
                     <Label className="text-yellow-300">Step 1: Original Sale *</Label>
-                    <Select
-                      value={formData.sales_id}
-                      onValueChange={(value) =>
-                        selectSaleForReturn(value)
-                      }
-                    >
-                      <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                        <SelectValue placeholder="Select sales ID" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-red-700 border-red-800 text-yellow-200 max-h-64">
-                        {salesOptions.map((sale) => (
-                          <SelectItem key={sale.sales_id} value={sale.sales_id}>
-                            {sale.display_sales_id} - {sale.customerName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                     <div className="space-y-3 rounded-xl border border-red-800 p-4">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
@@ -813,15 +796,17 @@ export function ReturnManagement() {
                         onValueChange={(value) =>
                           setFormData({ ...formData, mode_of_payment: value as ExchangeForm["mode_of_payment"] })
                         }
+                        disabled={customerPays <= 0}
                       >
                         <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                          <SelectValue placeholder="Select mode of payment" />
+                          <SelectValue placeholder={customerPays > 0 ? "Select mode of payment" : "Not needed for this replacement"} />
                         </SelectTrigger>
                         <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                           <SelectItem value="cash">Cash</SelectItem>
                           <SelectItem value="gcash">GCash</SelectItem>
                         </SelectContent>
                       </Select>
+                      {customerPays <= 0 && <p className="text-xs text-yellow-300">No payment required unless replacement value is higher.</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -843,47 +828,18 @@ export function ReturnManagement() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-yellow-300">Returned Item *</Label>
-                      <Select
-                        value={formData.returned_product_id}
-                        onValueChange={(value) =>
-                          selectReturnedProduct(value)
-                        }
-                        disabled={!selectedSale}
-                      >
-                        <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                          <SelectValue placeholder="Select sold item" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-                          {(selectedSale?.details ?? []).map((detail) => (
-                            <SelectItem key={detail.product_id} value={detail.product_id}>
-                              {detail.productName} - {formatCurrency(detail.price)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-xl border border-red-800 p-3">
+                    <div>
+                      <p className="text-xs text-yellow-300">Selected Sale</p>
+                      <p className="text-sm text-yellow-200">{selectedSale?.display_sales_id ?? "Not selected"}</p>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-yellow-300">Replacement Item {requiresReplacement ? "*" : ""}</Label>
-                      <Select
-                        value={formData.replacement_product_id}
-                        onValueChange={(value) => setFormData({ ...formData, replacement_product_id: value })}
-                        disabled={!requiresReplacement}
-                      >
-                        <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                          <SelectValue placeholder={requiresReplacement ? "Select replacement" : "No replacement needed"} />
-                        </SelectTrigger>
-                        <SelectContent className="bg-red-700 border-red-800 text-yellow-200 max-h-72">
-                          {eligibleReplacementProducts.map((product) => (
-                            <SelectItem key={product.product_id} value={product.product_id}>
-                              {product.name} - {product.size} - {formatCurrency(product.price)} ({product.stock} stock)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div>
+                      <p className="text-xs text-yellow-300">Returned Item</p>
+                      <p className="text-sm text-yellow-200">{selectedOriginalItem?.productName ?? "Not selected"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-yellow-300">Replacement Item</p>
+                      <p className="text-sm text-yellow-200">{replacementProduct?.name ?? "Not selected"}</p>
                     </div>
                   </div>
 
