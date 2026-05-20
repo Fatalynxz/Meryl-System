@@ -600,7 +600,7 @@ export function ReturnManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Refunds Issued</p>
+                <p className="text-sm text-yellow-200">Store Credits Issued</p>
                 <p className="text-2xl text-yellow-300">{formatCurrency(0)}</p>
               </div>
               <RotateCcw className="h-8 w-8 text-yellow-400" />
@@ -653,16 +653,18 @@ export function ReturnManagement() {
               <DialogTrigger asChild>
                 <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
                   <Plus className="w-4 h-4 mr-2" />
-                  Record Replacement
+                  Process Replacement
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[94vw] !max-w-[1050px] max-h-[88vh] overflow-hidden p-0 shadow-2xl">
-                <div className="border-b border-red-800 p-5">
+                <div className="border-b border-red-800 p-5 bg-red-800/50">
                   <DialogHeader>
                     <DialogTitle className="text-yellow-300 flex items-center gap-2">
-                      <RotateCcw className="w-5 h-5" />
-                      Record Return / Replacement
+                      <ArrowRightLeft className="w-5 h-5" />
+                      Process Item Replacement
                     </DialogTitle>
+                    <p className="text-xs text-yellow-300 mt-2 font-medium">⚠️ Replacement Only - No cash refunds allowed</p>
+                    <p className="text-xs text-yellow-200 mt-1">If replacement is higher: customer pays the difference. If lower: store credit issued.</p>
                   </DialogHeader>
                 </div>
                 <div className="grid max-h-[70vh] gap-5 overflow-y-auto overflow-x-hidden p-5 scrollbar-hide">
@@ -736,7 +738,7 @@ export function ReturnManagement() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-yellow-300">Return Action *</Label>
+                      <Label className="text-yellow-300">Replacement Type *</Label>
                       <Select
                         value={formData.return_action}
                         onValueChange={(value) =>
@@ -749,15 +751,16 @@ export function ReturnManagement() {
                         }
                       >
                         <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                          <SelectValue placeholder="Select return action" />
+                          <SelectValue placeholder="Select replacement type" />
                         </SelectTrigger>
                         <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-                          <SelectItem value="Replacement">Replacement</SelectItem>
-                          <SelectItem value="Partial Return">Partial Return</SelectItem>
-                          <SelectItem value="Full Return">Full Return</SelectItem>
-                          <SelectItem value="Adjustment">Adjustment</SelectItem>
+                          <SelectItem value="Replacement">Replace with Different Item</SelectItem>
+                          <SelectItem value="Adjustment">Adjustment / Price Adjustment</SelectItem>
+                          <SelectItem value="Partial Return">Partial Return (Defective)</SelectItem>
+                          <SelectItem value="Full Return">Full Return (Defective)</SelectItem>
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-yellow-300 mt-1">💡 Replacement = Item swap. Adjustment = Manager override.</p>
                     </div>
 
                     <div className="space-y-2">
@@ -950,10 +953,13 @@ export function ReturnManagement() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-red-800 bg-red-800/40 p-3">
-                    <p className="text-yellow-300 font-medium">{exchangeSummary}</p>
-                    <p className="text-yellow-200 text-sm">
-                      Business rule: original sales stay for audit. Higher replacements require additional payment; lower replacements record the difference as refund/store credit.
+                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-400/10 p-4">
+                    <p className="text-yellow-300 font-bold text-lg">{exchangeSummary}</p>
+                    <p className="text-yellow-200 text-sm mt-2">
+                      💡 <strong>NO REFUND POLICY:</strong> {priceDifference > 0 ? `Customer must pay ₽${priceDifference.toFixed(2)} additional to complete replacement.` : priceDifference < 0 ? `Store credit of ₽${Math.abs(priceDifference).toFixed(2)} will be issued to customer.` : "No additional payment required - even exchange."}
+                    </p>
+                    <p className="text-yellow-200 text-xs mt-2 opacity-80">
+                      Original sales record will be preserved for audit trail. Sales history will update to reflect replacement and any adjustments.
                     </p>
                   </div>
 
@@ -971,9 +977,9 @@ export function ReturnManagement() {
                   <Button
                     onClick={handleAddReturn}
                     disabled={isSaving}
-                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
+                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60 font-bold"
                   >
-                    {isSaving ? "Recording..." : "Record Return"}
+                    {isSaving ? "Processing..." : "✓ Complete Replacement"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -1001,7 +1007,7 @@ export function ReturnManagement() {
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Product Returned</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Type</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Refund / Credit</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Store Credit</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Additional Pay</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales Status</TableHead>
