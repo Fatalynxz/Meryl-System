@@ -1,18 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
-import { LogIn, User, Lock, Shield, ShoppingBag, Package, Sparkles } from 'lucide-react';
+import { LogIn, User, Lock } from 'lucide-react';
 import { useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
 
-type PortalRole = 'admin' | 'sales' | 'inventory';
-type DemoUser = { username: string; password: string };
-
-const demoUsers: Record<PortalRole, DemoUser> = {
-  admin: { username: 'admin', password: 'admin123' },
-  sales: { username: 'sales', password: 'sales123' },
-  inventory: { username: 'inventory', password: 'inv123' },
-};
 
 export function Login() {
   const navigate = useNavigate();
@@ -20,7 +12,6 @@ export function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [selectedRole, setSelectedRole] = useState<PortalRole | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const routeByRoleName = (roleName: string) => {
@@ -51,18 +42,6 @@ export function Login() {
     }
   };
 
-  const quickLogin = (role: PortalRole) => {
-    const demo = demoUsers[role];
-    setSelectedRole(role);
-    setUsername(demo.username);
-    setPassword(demo.password);
-  };
-
-  const roleOptions = [
-    { id: 'admin' as const, label: 'Administrator', desc: 'Full system access', icon: Shield },
-    { id: 'sales' as const, label: 'Sales Staff', desc: 'POS · Sales · Customers', icon: ShoppingBag },
-    { id: 'inventory' as const, label: 'Inventory Staff', desc: 'Stock · Products · Returns', icon: Package },
-  ];
 
   return (
     <div className="min-h-screen bg-[#0E0E12] text-white flex items-center justify-center p-4 relative overflow-hidden">
@@ -153,47 +132,6 @@ export function Login() {
             </Button>
           </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/5" />
-            <span className="text-[10px] uppercase tracking-wider text-white/30 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-[#FFD60A]" /> Choose portal access
-            </span>
-            <div className="flex-1 h-px bg-white/5" />
-          </div>
-
-          <div className="rounded-2xl border border-white/5 bg-[#101016]/60 p-3 space-y-2">
-            {roleOptions.map((r) => {
-              const Icon = r.icon;
-              const active = selectedRole === r.id;
-              return (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => quickLogin(r.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                    active
-                      ? 'bg-[#FFD60A] border-[#FFD60A] text-[#1A1A22] shadow-lg shadow-yellow-500/10'
-                      : 'bg-[#1D1D25] border-white/5 text-white/80 hover:border-[#FFD60A]/30 hover:bg-[#24242E] hover:text-white'
-                  }`}
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                    active ? 'bg-[#1A1A22]/10' : 'bg-[#E5202A]/10'
-                  }`}>
-                    <Icon className={`w-4 h-4 ${active ? 'text-[#1A1A22]' : 'text-[#FF6B72]'}`} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm leading-tight">{r.label}</div>
-                    <div className={`text-[11px] ${active ? 'text-[#1A1A22]/70' : 'text-white/40'}`}>{r.desc}</div>
-                  </div>
-                  <div className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded-full ${
-                    active ? 'bg-[#1A1A22]/10 text-[#1A1A22]' : 'bg-white/5 text-white/40'
-                  }`}>
-                    {active ? 'Selected' : 'Select'}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
         </div>
       </div>
     </div>

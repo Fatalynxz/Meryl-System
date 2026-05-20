@@ -88,7 +88,7 @@ export function CustomerManagement() {
     [uiCustomers, searchTerm],
   );
 
-  const activeCustomers = uiCustomers.filter((c) => (c.status ?? "Active") === "Active").length;
+  const activeCustomers = uiCustomers.filter((c) => (c.status ?? "Active").toLowerCase() === "active").length;
   const topCustomer =
     uiCustomers.length > 0
       ? [...uiCustomers].sort((a, b) => b.totalPurchases - a.totalPurchases)[0]
@@ -229,7 +229,7 @@ export function CustomerManagement() {
                     <TableCell className="text-yellow-300 text-center whitespace-nowrap">{customer.totalPurchases}</TableCell>
                     <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{customer.lastPurchaseDate}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
-                      <Badge className={(customer.status ?? "Active") === "Active" ? "bg-green-600 text-white" : "bg-gray-600 text-white"}>
+                      <Badge className={(customer.status ?? "Active").toLowerCase() === "active" ? "bg-green-600 text-white" : "bg-gray-600 text-white"}>
                         {customer.status ?? "Active"}
                       </Badge>
                     </TableCell>
