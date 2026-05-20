@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Calendar, Eye, Search, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
-import { useSales } from "../../lib/hooks";
+import { useReturns, useSales } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 
@@ -42,14 +42,37 @@ export function SalesManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const salesQuery = useSales();
+  const returnsQuery = useReturns();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [viewingSale, setViewingSale] = useState<any | null>(null);
   const [updatingSaleId, setUpdatingSaleId] = useState<string | null>(null);
 
   const sales = (salesQuery.data as any[]) ?? [];
+  const returns = (returnsQuery.data as any[]) ?? [];
   const normalizedRole = String(user?.role_name ?? "").trim().toLowerCase();
   const isAdmin = normalizedRole.includes("admin");
+
+  const replacementBySale = useMemo(() => {
+    const map = new Map<string, { count: number; additional: number; credits: number; lastActivity: string | null }>();
+    for (const replacement of returns) {
+      const salesId = String(replacement.sales_id ?? "");
+      if (!salesId) continue;
+      const prev = map.get(salesId) ?? { count: 0, additional: 0, credits: 0, lastActivity: null };
+      const additional = Number(replacement.additional_payment ?? replacement.total_replacement_payments ?? 0);
+      const credits = Number(replacement.total_refund ?? replacement.total_credits_issued ?? 0);
+      const activityDate = String(replacement.last_activity_date ?? replacement.return_date ?? replacement.created_at ?? "");
+      const prevTs = prev.lastActivity ? new Date(prev.lastActivity).getTime() : 0;
+      const nextTs = activityDate ? new Date(activityDate).getTime() : 0;
+      map.set(salesId, {
+        count: prev.count + 1,
+        additional: prev.additional + additional,
+        credits: prev.credits + credits,
+        lastActivity: nextTs > prevTs ? activityDate : prev.lastActivity,
+      });
+    }
+    return map;
+  }, [returns]);
 
   const uiSales = useMemo(
     () => {
@@ -72,6 +95,7 @@ export function SalesManagement() {
         const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
         const details = Array.isArray((sale as any).sales_details) ? (sale as any).sales_details : [];
         const salesId = String(sale.sales_id ?? "");
+        const replacementInfo = replacementBySale.get(salesId) ?? { count: 0, additional: 0, credits: 0, lastActivity: null };
         return {
           sales_id: salesId,
           display_sales_id: salesIdSequence.get(salesId) ?? "SALES-000",
@@ -84,6 +108,10 @@ export function SalesManagement() {
           cashierUsername: cashier?.username ?? "",
           customerName: customer?.name ?? "Walk-in Customer",
           status: getStatus(payment?.payment_status),
+          replacementCount: replacementInfo.count,
+          replacementPayments: replacementInfo.additional,
+          replacementCredits: replacementInfo.credits,
+          lastActivityDate: formatDate(replacementInfo.lastActivity ?? sale.updated_at ?? sale.transaction_date),
           saleDetails: details.map((d: any) => ({
             sales_detail_id: d.sales_detail_id,
             product_id: d.product_id,
@@ -96,7 +124,7 @@ export function SalesManagement() {
         };
       });
     },
-    [sales],
+    [replacementBySale, sales],
   );
 
   const visibleSales = useMemo(
@@ -206,6 +234,8 @@ export function SalesManagement() {
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Product</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Amount</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Added</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Credit</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Payment</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Date</TableHead>
@@ -233,7 +263,9 @@ export function SalesManagement() {
                     <TableCell className="text-yellow-200 text-center whitespace-nowrap">
                       {sale.saleDetails.reduce((sum: number, detail: any) => sum + detail.quantity, 0)}
                     </TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">₱{sale.total_amount}</TableCell>
+                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {sale.total_amount}</TableCell>
+                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {Number(sale.replacementPayments ?? 0).toFixed(2)}</TableCell>
+                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {Number(sale.replacementCredits ?? 0).toFixed(2)}</TableCell>
                     <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.payment_method}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
                       {isAdmin ? (
@@ -265,7 +297,7 @@ export function SalesManagement() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.transaction_date}</TableCell>
+                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.lastActivityDate}</TableCell>
                     <TableCell className="text-center whitespace-nowrap">
                       <Dialog open={viewingSale?.sales_id === sale.sales_id} onOpenChange={(open) => !open && setViewingSale(null)}>
                         <DialogTrigger asChild>
@@ -300,7 +332,11 @@ export function SalesManagement() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div><p className="text-sm text-yellow-200">Payment Method</p><p className="text-yellow-300">{sale.payment_method}</p></div>
-                              <div><p className="text-sm text-yellow-200">Total Amount</p><p className="text-yellow-300">₱{sale.total_amount}</p></div>
+                              <div><p className="text-sm text-yellow-200">Total Amount</p><p className="text-yellow-300">PHP {sale.total_amount}</p></div>
+                              <div><p className="text-sm text-yellow-200">Replacements</p><p className="text-yellow-300">{sale.replacementCount}</p></div>
+                              <div><p className="text-sm text-yellow-200">Added Payments</p><p className="text-yellow-300">PHP {Number(sale.replacementPayments ?? 0).toFixed(2)}</p></div>
+                              <div><p className="text-sm text-yellow-200">Credits Issued</p><p className="text-yellow-300">PHP {Number(sale.replacementCredits ?? 0).toFixed(2)}</p></div>
+                              <div><p className="text-sm text-yellow-200">Last Activity</p><p className="text-yellow-300">{sale.lastActivityDate}</p></div>
                             </div>
                             <div><p className="text-sm text-yellow-200">Status</p><p className="text-yellow-300">{sale.status}</p></div>
                           </div>
@@ -317,4 +353,6 @@ export function SalesManagement() {
     </div>
   );
 }
+
+
 

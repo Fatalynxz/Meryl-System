@@ -50,6 +50,7 @@ type ExchangeForm = {
   replacement_product_id: string;
   quantity: number;
   reason: string;
+  mode_of_payment: "gcash" | "cash";
   return_action: "Replacement" | "Partial Return" | "Full Return" | "Adjustment";
   inventory_action: "Defective / Not Sellable" | "Return to Stock";
 };
@@ -60,6 +61,7 @@ const defaultForm: ExchangeForm = {
   replacement_product_id: "",
   quantity: 1,
   reason: "",
+  mode_of_payment: "cash",
   return_action: "Replacement",
   inventory_action: "Defective / Not Sellable",
 };
@@ -197,7 +199,7 @@ export function ReturnManagement() {
               const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
               const qty = Number(detail.quantity ?? 0);
               const returnedQty = Number(detail.returned_quantity ?? 0);
-              return {
+            return {
                 sales_detail_id: String(detail.sales_detail_id ?? ""),
                 product_id: String(detail.product_id ?? ""),
                 productName: product?.product_name ?? productMap.get(String(detail.product_id ?? ""))?.name ?? "N/A",
@@ -208,6 +210,7 @@ export function ReturnManagement() {
                 subtotal: Number(detail.subtotal ?? 0),
               };
             }),
+            customer_id: String(sale.customer_id ?? ""),
           };
         }),
     [isAdmin, productMap, sales, salesDisplayMap, user?.user_id],
@@ -229,7 +232,7 @@ export function ReturnManagement() {
       : priceDifference > 0
       ? `Customer adds ${formatCurrency(customerPays)}`
       : priceDifference < 0
-        ? `Refund or store credit: ${formatCurrency(Math.abs(priceDifference))}`
+        ? `Store credit issued: ${formatCurrency(Math.abs(priceDifference))}`
         : "Even exchange";
   const eligibleReplacementProducts = useMemo(
     () => products,
@@ -432,6 +435,10 @@ export function ReturnManagement() {
       toast.error("Please select the original sale and returned item");
       return;
     }
+    if (formData.return_action !== "Replacement") {
+      toast.error("Replacement-only policy: choose Replacement to continue");
+      return;
+    }
     if (requiresReplacement && !replacementProduct) {
       toast.error("Please select the replacement item");
       return;
@@ -458,9 +465,9 @@ export function ReturnManagement() {
       .every((detail: any) => Number(detail.returnable_quantity ?? detail.quantity ?? 0) <= 0);
     const isFullTransactionReturn = isFullyReturnedItem && allOtherItemsReturned;
     const additionalPayment = Math.max(0, priceDifference);
-    const refundAmount = formData.return_action === "Replacement" ? Math.max(0, -priceDifference) : originalTotal;
-    const adjustmentAmount = additionalPayment - refundAmount;
-    const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + adjustmentAmount);
+    const creditIssued = Math.max(0, -priceDifference);
+    const adjustmentAmount = additionalPayment;
+    const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + additionalPayment);
     const salesStatus = isFullTransactionReturn
       ? formData.return_action === "Full Return"
         ? "Fully Returned"
@@ -473,6 +480,7 @@ export function ReturnManagement() {
       `Returned: ${selectedOriginalItem.productName}`,
       replacementProduct ? `Replacement: ${replacementProduct.name}` : "Replacement: N/A",
       `Rule: ${exchangeSummary}`,
+      `Mode of payment: ${additionalPayment > 0 ? formData.mode_of_payment : "N/A"}`,
       `Inventory action: ${formData.inventory_action}`,
       `Reason: ${formData.reason.trim()}`,
     ].join(" | ");
@@ -483,13 +491,22 @@ export function ReturnManagement() {
         {
           return_id: returnId,
           sales_id: selectedSale.sales_id,
+          original_sales_id: selectedSale.sales_id,
           user_id: user?.user_id ?? selectedSale.user_id,
           return_date: new Date().toISOString(),
           return_type: formData.return_action,
           return_status: "Completed",
-          total_refund: refundAmount,
+          total_refund: creditIssued,
           additional_payment: additionalPayment,
           adjustment_amount: adjustmentAmount,
+          mode_of_payment: additionalPayment > 0 ? formData.mode_of_payment : null,
+          payment_date: additionalPayment > 0 ? new Date().toISOString() : null,
+          fulfilled_date: new Date().toISOString(),
+          replacement_count: 1,
+          total_replacement_payments: additionalPayment,
+          total_credits_issued: creditIssued,
+          net_amount: adjustedTotal,
+          last_activity_date: new Date().toISOString(),
           remarks: replacementNote,
         },
         {
@@ -497,7 +514,7 @@ export function ReturnManagement() {
           sales_id: selectedSale.sales_id,
           user_id: user?.user_id ?? selectedSale.user_id,
           return_date: new Date().toISOString(),
-          total_refund: refundAmount,
+          total_refund: creditIssued,
         },
       ]);
 
@@ -508,10 +525,17 @@ export function ReturnManagement() {
           product_id: selectedOriginalItem.product_id,
           quantity_returned: quantity,
           reason: replacementNote,
-          refund_amount: refundAmount,
+          refund_amount: creditIssued,
           replacement_product_id: replacementProduct?.product_id ?? null,
           replacement_quantity: replacementProduct ? quantity : 0,
           price_difference: priceDifference,
+          returned_product_id: selectedOriginalItem.product_id,
+          returned_quantity: quantity,
+          returned_price_unit: Number(selectedOriginalItem?.price ?? 0),
+          new_product_id: replacementProduct?.product_id ?? null,
+          new_quantity: replacementProduct ? quantity : 0,
+          new_price_unit: Number(replacementProduct?.price ?? 0),
+          net_difference: priceDifference,
           inventory_action: formData.inventory_action,
         },
         {
@@ -520,7 +544,7 @@ export function ReturnManagement() {
           product_id: selectedOriginalItem.product_id,
           quantity_returned: quantity,
           reason: replacementNote,
-          refund_amount: refundAmount,
+          refund_amount: creditIssued,
         },
       ]);
 
@@ -553,6 +577,52 @@ export function ReturnManagement() {
 
       await recordAdditionalPayment(selectedSale.sales_id, additionalPayment);
 
+      if (creditIssued > 0 && selectedSale.customer_id) {
+        const customerId = String(selectedSale.customer_id);
+        const { data: existingCredit, error: creditFetchError } = await supabase
+          .from("customer_credits")
+          .select("customer_credit_id, total_issued, total_used, available_credit")
+          .eq("customer_id", customerId)
+          .maybeSingle();
+        if (creditFetchError) throw creditFetchError;
+
+        if (existingCredit?.customer_credit_id) {
+          const nextTotalIssued = Number(existingCredit.total_issued ?? 0) + creditIssued;
+          const nextAvailableCredit = Number(existingCredit.available_credit ?? 0) + creditIssued;
+          const { error: updateCreditError } = await supabase
+            .from("customer_credits")
+            .update({
+              total_issued: nextTotalIssued,
+              available_credit: nextAvailableCredit,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("customer_credit_id", existingCredit.customer_credit_id);
+          if (updateCreditError) throw updateCreditError;
+        } else {
+          const { error: insertCreditError } = await supabase.from("customer_credits").insert({
+            customer_credit_id: buildClientId(),
+            customer_id: customerId,
+            total_issued: creditIssued,
+            total_used: 0,
+            available_credit: creditIssued,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          if (insertCreditError) throw insertCreditError;
+        }
+
+        const { error: creditTxnError } = await supabase.from("customer_credit_transactions").insert({
+          customer_credit_txn_id: buildClientId(),
+          customer_id: customerId,
+          return_id: returnId,
+          txn_type: "issue",
+          amount: creditIssued,
+          notes: `Replacement credit issued for ${selectedSale.sales_id}`,
+          created_at: new Date().toISOString(),
+        });
+        if (creditTxnError) throw creditTxnError;
+      }
+
       if (formData.inventory_action === "Return to Stock") {
         await updateInventoryStock(selectedOriginalItem.product_id, quantity);
         await createInventoryLog(selectedOriginalItem.product_id, quantity, "Return", returnId);
@@ -568,6 +638,7 @@ export function ReturnManagement() {
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       await queryClient.invalidateQueries({ queryKey: ["sales"] });
       await queryClient.invalidateQueries({ queryKey: ["payments"] });
+      await queryClient.invalidateQueries({ queryKey: ["customers"] });
       setIsAddDialogOpen(false);
       setFormData(defaultForm);
       toast.success(`${formData.return_action} recorded. Sales transaction preserved and adjusted.`);
