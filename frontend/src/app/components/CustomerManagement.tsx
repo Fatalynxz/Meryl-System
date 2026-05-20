@@ -211,6 +211,7 @@ export function CustomerManagement() {
             </div>
           </CardContent>
         </Card>
+      </div>
 
       <Card className="bg-red-700 border-red-800">
         <CardHeader>
