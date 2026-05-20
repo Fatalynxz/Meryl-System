@@ -790,8 +790,8 @@ export function ReturnManagement() {
                   Process Replacement
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[94vw] !max-w-[1050px] max-h-[88vh] overflow-hidden p-0 shadow-2xl">
-                <div className="border-b border-red-800 p-5 bg-red-800/50">
+              <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 !w-[94vw] !max-w-[1050px] max-h-[88vh] overflow-hidden p-0 shadow-2xl">
+                <div className="border-b border-zinc-800 p-5 bg-zinc-900">
                   <DialogHeader>
                     <DialogTitle className="text-yellow-300 flex items-center gap-2">
                       <ArrowRightLeft className="w-5 h-5" />
@@ -1088,8 +1088,8 @@ export function ReturnManagement() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-red-800 bg-red-600/40 p-3">
-                    <p className="text-yellow-200 text-sm">
+                  <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+                    <p className="text-zinc-200 text-sm">
                       Added payment total: {formatCurrency(totalAdditionalPayment)} | Store credit total: {formatCurrency(totalCreditIssued)}
                     </p>
                   </div>
