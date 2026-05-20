@@ -734,8 +734,6 @@ export function ReturnManagement() {
                       <ArrowRightLeft className="w-5 h-5" />
                       Process Item Replacement
                     </DialogTitle>
-                    <p className="text-xs text-yellow-300 mt-2 font-medium">⚠️ Replacement Only - No cash refunds allowed</p>
-                    <p className="text-xs text-yellow-200 mt-1">If replacement is higher: customer pays the difference. If lower: store credit issued.</p>
                   </DialogHeader>
                 </div>
                 <div className="grid max-h-[70vh] gap-5 overflow-y-auto overflow-x-hidden p-5 scrollbar-hide">
@@ -809,11 +807,21 @@ export function ReturnManagement() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-yellow-300">Replacement Type</Label>
-                      <div className="rounded-lg border border-red-800 bg-red-600 px-3 py-2 text-yellow-200">
-                        Replacement (fixed policy)
-                      </div>
-                      <p className="text-xs text-yellow-300 mt-1">No refund flow. Higher value requires added payment; lower value issues store credit.</p>
+                      <Label className="text-yellow-300">Mode of Payment</Label>
+                      <Select
+                        value={formData.mode_of_payment}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, mode_of_payment: value as ExchangeForm["mode_of_payment"] })
+                        }
+                      >
+                        <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                          <SelectValue placeholder="Select mode of payment" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="gcash">GCash</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
@@ -1006,14 +1014,8 @@ export function ReturnManagement() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-400/10 p-4">
-                    <p className="text-yellow-300 font-bold text-lg">{exchangeSummary}</p>
-                    <p className="text-yellow-200 text-sm mt-2">
-                      💡 <strong>NO REFUND POLICY:</strong> {priceDifference > 0 ? `Customer must pay ₽${priceDifference.toFixed(2)} additional to complete replacement.` : priceDifference < 0 ? `Store credit of ₽${Math.abs(priceDifference).toFixed(2)} will be issued to customer.` : "No additional payment required - even exchange."}
-                    </p>
-                    <p className="text-yellow-200 text-xs mt-2 opacity-80">
-                      Original sales record will be preserved for audit trail. Sales history will update to reflect replacement and any adjustments.
-                    </p>
+                  <div className="rounded-lg border border-red-800 bg-red-600/40 p-3">
+                    <p className="text-yellow-200 text-sm">{exchangeSummary}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -1173,4 +1175,5 @@ export function ReturnManagement() {
     </div>
   );
 }
+
 
