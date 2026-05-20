@@ -55,6 +55,20 @@ type ExchangeForm = {
   inventory_action: "Defective / Not Sellable" | "Return to Stock";
 };
 
+type ReplacementLine = {
+  line_id: string;
+  sales_detail_id: string;
+  returned_product_id: string;
+  returned_product_name: string;
+  replacement_product_id: string;
+  replacement_product_name: string;
+  quantity: number;
+  returned_price_unit: number;
+  replacement_price_unit: number;
+  price_difference: number;
+  inventory_action: "Defective / Not Sellable" | "Return to Stock";
+};
+
 const defaultForm: ExchangeForm = {
   sales_id: "",
   returned_product_id: "",
@@ -128,6 +142,7 @@ export function ReturnManagement() {
   const [salePickerSearch, setSalePickerSearch] = useState("");
   const [returnedItemSearch, setReturnedItemSearch] = useState("");
   const [replacementSearch, setReplacementSearch] = useState("");
+  const [replacementLines, setReplacementLines] = useState<ReplacementLine[]>([]);
 
   const sales = (salesQuery.data as any[]) ?? [];
   const productRows = (productsQuery.data as any[]) ?? [];
@@ -226,14 +241,8 @@ export function ReturnManagement() {
   const replacementTotal = Number(replacementProduct?.price ?? 0) * quantity;
   const priceDifference = replacementTotal - originalTotal;
   const customerPays = Math.max(0, priceDifference);
-  const exchangeSummary =
-    !requiresReplacement
-      ? `${formData.return_action}: ${formatCurrency(originalTotal)} will be adjusted`
-      : priceDifference > 0
-      ? `Customer adds ${formatCurrency(customerPays)}`
-      : priceDifference < 0
-        ? `Store credit issued: ${formatCurrency(Math.abs(priceDifference))}`
-        : "Even exchange";
+  const totalAdditionalPayment = replacementLines.reduce((sum, line) => sum + Math.max(0, line.price_difference), 0);
+  const totalCreditIssued = replacementLines.reduce((sum, line) => sum + Math.max(0, -line.price_difference), 0);
   const eligibleReplacementProducts = useMemo(
     () => products,
     [products],
@@ -283,6 +292,9 @@ export function ReturnManagement() {
   }, [eligibleReplacementProducts, replacementSearch]);
 
   const selectSaleForReturn = (saleId: string) => {
+    if (saleId !== formData.sales_id) {
+      setReplacementLines([]);
+    }
     setFormData({
       ...formData,
       sales_id: saleId,
@@ -299,6 +311,54 @@ export function ReturnManagement() {
       replacement_product_id: "",
       quantity: 1,
     });
+  };
+
+  const addReplacementLine = () => {
+    if (!selectedSale || !selectedOriginalItem || !replacementProduct) {
+      toast.error("Select sale, returned item, and replacement item first");
+      return;
+    }
+    if (quantity > maxReturnQty) {
+      toast.error(`Only ${maxReturnQty} unit(s) can be returned from this item`);
+      return;
+    }
+    if (replacementProduct.stock < quantity) {
+      toast.error(`Only ${replacementProduct.stock} replacement unit(s) available`);
+      return;
+    }
+    const existing = replacementLines.find((line) => line.sales_detail_id === selectedOriginalItem.sales_detail_id);
+    if (existing) {
+      toast.error("This sold item is already in the replacement list");
+      return;
+    }
+
+    setReplacementLines((prev) => [
+      ...prev,
+      {
+        line_id: buildClientId(),
+        sales_detail_id: selectedOriginalItem.sales_detail_id,
+        returned_product_id: selectedOriginalItem.product_id,
+        returned_product_name: selectedOriginalItem.productName,
+        replacement_product_id: replacementProduct.product_id,
+        replacement_product_name: replacementProduct.name,
+        quantity,
+        returned_price_unit: Number(selectedOriginalItem.price ?? 0),
+        replacement_price_unit: Number(replacementProduct.price ?? 0),
+        price_difference,
+        inventory_action: formData.inventory_action,
+      },
+    ]);
+
+    setFormData((prev) => ({
+      ...prev,
+      returned_product_id: "",
+      replacement_product_id: "",
+      quantity: 1,
+    }));
+  };
+
+  const removeReplacementLine = (lineId: string) => {
+    setReplacementLines((prev) => prev.filter((line) => line.line_id !== lineId));
   };
 
   const displayReturns = useMemo<ReturnRow[]>(() => {
@@ -431,153 +491,165 @@ export function ReturnManagement() {
   };
 
   const handleAddReturn = async () => {
-    if (!selectedSale || !selectedOriginalItem) {
-      toast.error("Please select the original sale and returned item");
+    if (!selectedSale) {
+      toast.error("Please select the original sale");
       return;
     }
-    if (formData.return_action !== "Replacement") {
-      toast.error("Replacement-only policy: choose Replacement to continue");
-      return;
-    }
-    if (requiresReplacement && !replacementProduct) {
-      toast.error("Please select the replacement item");
+    if (replacementLines.length === 0) {
+      toast.error("Add at least one replacement line");
       return;
     }
     if (!formData.reason.trim()) {
       toast.error("Please add a return reason");
       return;
     }
-    if (quantity > maxReturnQty) {
-      toast.error(`Only ${maxReturnQty} unit(s) can be returned from this sale item`);
-      return;
-    }
-    if (requiresReplacement && replacementProduct && replacementProduct.stock < quantity) {
-      toast.error(`Only ${replacementProduct.stock} replacement unit(s) available`);
-      return;
-    }
-
-    const returnId = buildClientId();
-    const selectedSalesDetailId = selectedOriginalItem.sales_detail_id;
-    const nextReturnedQty = Number(selectedOriginalItem.returned_quantity ?? 0) + quantity;
-    const isFullyReturnedItem = nextReturnedQty >= Number(selectedOriginalItem.quantity ?? 0);
-    const allOtherItemsReturned = (selectedSale.details ?? [])
-      .filter((detail: any) => detail.sales_detail_id !== selectedSalesDetailId)
-      .every((detail: any) => Number(detail.returnable_quantity ?? detail.quantity ?? 0) <= 0);
-    const isFullTransactionReturn = isFullyReturnedItem && allOtherItemsReturned;
-    const additionalPayment = Math.max(0, priceDifference);
-    const creditIssued = Math.max(0, -priceDifference);
-    const adjustmentAmount = additionalPayment;
-    const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + additionalPayment);
-    const salesStatus = isFullTransactionReturn
-      ? formData.return_action === "Full Return"
-        ? "Fully Returned"
-        : "Adjusted"
-      : formData.return_action === "Replacement" || formData.return_action === "Adjustment"
-        ? "Adjusted"
-        : "Partially Returned";
-    const replacementNote = [
-      `${formData.return_action}`,
-      `Returned: ${selectedOriginalItem.productName}`,
-      replacementProduct ? `Replacement: ${replacementProduct.name}` : "Replacement: N/A",
-      `Rule: ${exchangeSummary}`,
-      `Mode of payment: ${additionalPayment > 0 ? formData.mode_of_payment : "N/A"}`,
-      `Inventory action: ${formData.inventory_action}`,
-      `Reason: ${formData.reason.trim()}`,
-    ].join(" | ");
 
     try {
       setIsSaving(true);
-      await tryInsertRow("returns", [
-        {
-          return_id: returnId,
-          sales_id: selectedSale.sales_id,
-          original_sales_id: selectedSale.sales_id,
-          user_id: user?.user_id ?? selectedSale.user_id,
-          return_date: new Date().toISOString(),
-          return_type: formData.return_action,
-          return_status: "Completed",
-          total_refund: creditIssued,
-          additional_payment: additionalPayment,
-          adjustment_amount: adjustmentAmount,
-          mode_of_payment: additionalPayment > 0 ? formData.mode_of_payment : null,
-          payment_date: additionalPayment > 0 ? new Date().toISOString() : null,
-          fulfilled_date: new Date().toISOString(),
-          replacement_count: 1,
-          total_replacement_payments: additionalPayment,
-          total_credits_issued: creditIssued,
-          net_amount: adjustedTotal,
-          last_activity_date: new Date().toISOString(),
-          remarks: replacementNote,
-        },
-        {
-          return_id: returnId,
-          sales_id: selectedSale.sales_id,
-          user_id: user?.user_id ?? selectedSale.user_id,
-          return_date: new Date().toISOString(),
-          total_refund: creditIssued,
-        },
-      ]);
+      const saleDetailById = new Map((selectedSale.details ?? []).map((detail: any) => [detail.sales_detail_id, detail]));
+      const returnedQtyIncrementByDetail = new Map<string, number>();
+      const replacementStockUsed = new Map<string, number>();
 
-      await tryInsertRow("return_details", [
-        {
-          return_detail_id: buildClientId(),
-          return_id: returnId,
-          product_id: selectedOriginalItem.product_id,
-          quantity_returned: quantity,
-          reason: replacementNote,
-          refund_amount: creditIssued,
-          replacement_product_id: replacementProduct?.product_id ?? null,
-          replacement_quantity: replacementProduct ? quantity : 0,
-          price_difference: priceDifference,
-          returned_product_id: selectedOriginalItem.product_id,
-          returned_quantity: quantity,
-          returned_price_unit: Number(selectedOriginalItem?.price ?? 0),
-          new_product_id: replacementProduct?.product_id ?? null,
-          new_quantity: replacementProduct ? quantity : 0,
-          new_price_unit: Number(replacementProduct?.price ?? 0),
-          net_difference: priceDifference,
-          inventory_action: formData.inventory_action,
-        },
-        {
-          return_detail_id: buildClientId(),
-          return_id: returnId,
-          product_id: selectedOriginalItem.product_id,
-          quantity_returned: quantity,
-          reason: replacementNote,
-          refund_amount: creditIssued,
-        },
-      ]);
+      for (const line of replacementLines) {
+        const saleDetail = saleDetailById.get(line.sales_detail_id);
+        if (!saleDetail) {
+          throw new Error(`Unable to find sale detail for ${line.returned_product_name}`);
+        }
+        const alreadyQueued = returnedQtyIncrementByDetail.get(line.sales_detail_id) ?? 0;
+        const maxQty = Number(saleDetail.returnable_quantity ?? saleDetail.quantity ?? 0);
+        if (line.quantity + alreadyQueued > maxQty) {
+          throw new Error(`Return quantity exceeded for ${line.returned_product_name}`);
+        }
+        returnedQtyIncrementByDetail.set(line.sales_detail_id, alreadyQueued + line.quantity);
 
-      try {
-        await tryUpdateById("sales_details", "sales_detail_id", selectedSalesDetailId, [
+        const usedStock = replacementStockUsed.get(line.replacement_product_id) ?? 0;
+        const replacementInfo = productMap.get(line.replacement_product_id);
+        const availableStock = Number(replacementInfo?.stock ?? 0);
+        if (usedStock + line.quantity > availableStock) {
+          throw new Error(`Not enough stock for ${line.replacement_product_name}`);
+        }
+        replacementStockUsed.set(line.replacement_product_id, usedStock + line.quantity);
+      }
+
+      for (const line of replacementLines) {
+        const returnId = buildClientId();
+        const saleDetail = saleDetailById.get(line.sales_detail_id);
+        if (!saleDetail) continue;
+
+        const additionalPayment = Math.max(0, line.price_difference);
+        const creditIssued = Math.max(0, -line.price_difference);
+        const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + additionalPayment);
+        const replacementNote = [
+          "Replacement",
+          `Returned: ${line.returned_product_name}`,
+          `Replacement: ${line.replacement_product_name}`,
+          `Rule: ${line.price_difference > 0 ? `Customer adds ${formatCurrency(additionalPayment)}` : line.price_difference < 0 ? `Store credit issued ${formatCurrency(creditIssued)}` : "Even exchange"}`,
+          `Mode of payment: ${additionalPayment > 0 ? formData.mode_of_payment : "N/A"}`,
+          `Inventory action: ${line.inventory_action}`,
+          `Reason: ${formData.reason.trim()}`,
+        ].join(" | ");
+
+        await tryInsertRow("returns", [
           {
-            returned_quantity: nextReturnedQty,
-            replacement_product_id: replacementProduct?.product_id ?? null,
-            item_status: isFullyReturnedItem ? (replacementProduct ? "Replaced" : "Returned") : "Partially Returned",
+            return_id: returnId,
+            sales_id: selectedSale.sales_id,
+            original_sales_id: selectedSale.sales_id,
+            user_id: user?.user_id ?? selectedSale.user_id,
+            return_date: new Date().toISOString(),
+            return_type: "Replacement",
+            return_status: "Completed",
+            total_refund: creditIssued,
+            additional_payment: additionalPayment,
+            adjustment_amount: additionalPayment,
+            mode_of_payment: additionalPayment > 0 ? formData.mode_of_payment : null,
+            payment_date: additionalPayment > 0 ? new Date().toISOString() : null,
+            fulfilled_date: new Date().toISOString(),
+            replacement_count: 1,
+            total_replacement_payments: additionalPayment,
+            total_credits_issued: creditIssued,
+            net_amount: adjustedTotal,
+            last_activity_date: new Date().toISOString(),
+            remarks: replacementNote,
+          },
+          {
+            return_id: returnId,
+            sales_id: selectedSale.sales_id,
+            user_id: user?.user_id ?? selectedSale.user_id,
+            return_date: new Date().toISOString(),
+            total_refund: creditIssued,
           },
         ]);
-      } catch {
-        // Older schemas may not have return-tracking columns on sales_details yet.
+
+        await tryInsertRow("return_details", [
+          {
+            return_detail_id: buildClientId(),
+            return_id: returnId,
+            product_id: line.returned_product_id,
+            quantity_returned: line.quantity,
+            reason: replacementNote,
+            refund_amount: creditIssued,
+            replacement_product_id: line.replacement_product_id,
+            replacement_quantity: line.quantity,
+            price_difference: line.price_difference,
+            returned_product_id: line.returned_product_id,
+            returned_quantity: line.quantity,
+            returned_price_unit: line.returned_price_unit,
+            new_product_id: line.replacement_product_id,
+            new_quantity: line.quantity,
+            new_price_unit: line.replacement_price_unit,
+            net_difference: line.price_difference,
+            inventory_action: line.inventory_action,
+          },
+          {
+            return_detail_id: buildClientId(),
+            return_id: returnId,
+            product_id: line.returned_product_id,
+            quantity_returned: line.quantity,
+            reason: replacementNote,
+            refund_amount: creditIssued,
+          },
+        ]);
+
+        const nextReturnedQty = Number(saleDetail.returned_quantity ?? 0) + line.quantity;
+        const isFullyReturnedItem = nextReturnedQty >= Number(saleDetail.quantity ?? 0);
+        try {
+          await tryUpdateById("sales_details", "sales_detail_id", line.sales_detail_id, [
+            {
+              returned_quantity: nextReturnedQty,
+              replacement_product_id: line.replacement_product_id,
+              item_status: isFullyReturnedItem ? "Replaced" : "Partially Returned",
+            },
+          ]);
+        } catch {
+          // Older schemas may not have return-tracking columns on sales_details yet.
+        }
+
+        if (line.inventory_action === "Return to Stock") {
+          await updateInventoryStock(line.returned_product_id, line.quantity);
+          await createInventoryLog(line.returned_product_id, line.quantity, "Return", returnId);
+        }
+        await updateInventoryStock(line.replacement_product_id, -line.quantity);
+        await createInventoryLog(line.replacement_product_id, -line.quantity, "Replacement", returnId);
       }
 
       await tryUpdateById("sales_transaction", "sales_id", selectedSale.sales_id, [
         {
           original_total_amount: Number(selectedSale.total_amount ?? 0),
-          adjusted_total_amount: adjustedTotal,
-          total_amount: adjustedTotal,
-          sales_status: salesStatus,
+          adjusted_total_amount: Math.max(0, Number(selectedSale.total_amount ?? 0) + totalAdditionalPayment),
+          total_amount: Math.max(0, Number(selectedSale.total_amount ?? 0) + totalAdditionalPayment),
+          sales_status: "Adjusted",
           return_status: "Completed",
           updated_at: new Date().toISOString(),
         },
         {
-          total_amount: adjustedTotal,
+          total_amount: Math.max(0, Number(selectedSale.total_amount ?? 0) + totalAdditionalPayment),
           updated_at: new Date().toISOString(),
         },
       ]);
 
-      await recordAdditionalPayment(selectedSale.sales_id, additionalPayment);
+      await recordAdditionalPayment(selectedSale.sales_id, totalAdditionalPayment);
 
-      if (creditIssued > 0 && selectedSale.customer_id) {
+      if (totalCreditIssued > 0 && selectedSale.customer_id) {
         const customerId = String(selectedSale.customer_id);
         const { data: existingCredit, error: creditFetchError } = await supabase
           .from("customer_credits")
@@ -587,8 +659,8 @@ export function ReturnManagement() {
         if (creditFetchError) throw creditFetchError;
 
         if (existingCredit?.customer_credit_id) {
-          const nextTotalIssued = Number(existingCredit.total_issued ?? 0) + creditIssued;
-          const nextAvailableCredit = Number(existingCredit.available_credit ?? 0) + creditIssued;
+          const nextTotalIssued = Number(existingCredit.total_issued ?? 0) + totalCreditIssued;
+          const nextAvailableCredit = Number(existingCredit.available_credit ?? 0) + totalCreditIssued;
           const { error: updateCreditError } = await supabase
             .from("customer_credits")
             .update({
@@ -602,9 +674,9 @@ export function ReturnManagement() {
           const { error: insertCreditError } = await supabase.from("customer_credits").insert({
             customer_credit_id: buildClientId(),
             customer_id: customerId,
-            total_issued: creditIssued,
+            total_issued: totalCreditIssued,
             total_used: 0,
-            available_credit: creditIssued,
+            available_credit: totalCreditIssued,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
@@ -614,23 +686,13 @@ export function ReturnManagement() {
         const { error: creditTxnError } = await supabase.from("customer_credit_transactions").insert({
           customer_credit_txn_id: buildClientId(),
           customer_id: customerId,
-          return_id: returnId,
+          return_id: null,
           txn_type: "issue",
-          amount: creditIssued,
-          notes: `Replacement credit issued for ${selectedSale.sales_id}`,
+          amount: totalCreditIssued,
+          notes: `Replacement credit batch issued for ${selectedSale.sales_id}`,
           created_at: new Date().toISOString(),
         });
         if (creditTxnError) throw creditTxnError;
-      }
-
-      if (formData.inventory_action === "Return to Stock") {
-        await updateInventoryStock(selectedOriginalItem.product_id, quantity);
-        await createInventoryLog(selectedOriginalItem.product_id, quantity, "Return", returnId);
-      }
-
-      if (replacementProduct) {
-        await updateInventoryStock(replacementProduct.product_id, -quantity);
-        await createInventoryLog(replacementProduct.product_id, -quantity, "Replacement", returnId);
       }
 
       await queryClient.invalidateQueries({ queryKey: ["returns"] });
@@ -641,7 +703,8 @@ export function ReturnManagement() {
       await queryClient.invalidateQueries({ queryKey: ["customers"] });
       setIsAddDialogOpen(false);
       setFormData(defaultForm);
-      toast.success(`${formData.return_action} recorded. Sales transaction preserved and adjusted.`);
+      setReplacementLines([]);
+      toast.success(`${replacementLines.length} replacement item(s) recorded successfully.`);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to record replacement return");
     } finally {
@@ -796,17 +859,17 @@ export function ReturnManagement() {
                         onValueChange={(value) =>
                           setFormData({ ...formData, mode_of_payment: value as ExchangeForm["mode_of_payment"] })
                         }
-                        disabled={customerPays <= 0}
+                        disabled={customerPays <= 0 && totalAdditionalPayment <= 0}
                       >
                         <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                          <SelectValue placeholder={customerPays > 0 ? "Select mode of payment" : "Not needed for this replacement"} />
+                          <SelectValue placeholder={customerPays > 0 || totalAdditionalPayment > 0 ? "Select mode of payment" : "Not needed for this replacement"} />
                         </SelectTrigger>
                         <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                           <SelectItem value="cash">Cash</SelectItem>
                           <SelectItem value="gcash">GCash</SelectItem>
                         </SelectContent>
                       </Select>
-                      {customerPays <= 0 && <p className="text-xs text-yellow-300">No payment required unless replacement value is higher.</p>}
+                      {customerPays <= 0 && totalAdditionalPayment <= 0 && <p className="text-xs text-yellow-300">No payment required unless replacement value is higher.</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -841,6 +904,17 @@ export function ReturnManagement() {
                       <p className="text-xs text-yellow-300">Replacement Item</p>
                       <p className="text-sm text-yellow-200">{replacementProduct?.name ?? "Not selected"}</p>
                     </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={addReplacementLine}
+                      disabled={!selectedOriginalItem || !replacementProduct}
+                      className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                    >
+                      Add Item to Replacement List
+                    </Button>
                   </div>
 
                   {selectedSale && (
@@ -948,6 +1022,50 @@ export function ReturnManagement() {
                     </div>
                   )}
 
+                  <div className="space-y-2 rounded-xl border border-red-800 p-3">
+                    <Label className="text-yellow-300">Replacement List ({replacementLines.length})</Label>
+                    <div className="border border-red-800 rounded-lg overflow-x-auto">
+                      <Table className="w-full text-sm">
+                        <TableHeader>
+                          <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                            <TableHead className="text-yellow-300 text-center">Returned</TableHead>
+                            <TableHead className="text-yellow-300 text-center">Replacement</TableHead>
+                            <TableHead className="text-yellow-300 text-center">Qty</TableHead>
+                            <TableHead className="text-yellow-300 text-center">Difference</TableHead>
+                            <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {replacementLines.length === 0 ? (
+                            <TableRow className="border-red-800">
+                              <TableCell colSpan={5} className="text-center text-yellow-200 py-3">No items added yet</TableCell>
+                            </TableRow>
+                          ) : (
+                            replacementLines.map((line) => (
+                              <TableRow key={line.line_id} className="border-red-800">
+                                <TableCell className="text-yellow-200 text-center">{line.returned_product_name}</TableCell>
+                                <TableCell className="text-yellow-200 text-center">{line.replacement_product_name}</TableCell>
+                                <TableCell className="text-yellow-200 text-center">{line.quantity}</TableCell>
+                                <TableCell className="text-yellow-300 text-center">{formatCurrency(line.price_difference)}</TableCell>
+                                <TableCell className="text-center">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-yellow-300 hover:text-yellow-200 hover:bg-red-700"
+                                    onClick={() => removeReplacementLine(line.line_id)}
+                                  >
+                                    Remove
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-yellow-300">Step 4: Quantity</Label>
@@ -971,7 +1089,9 @@ export function ReturnManagement() {
                   </div>
 
                   <div className="rounded-lg border border-red-800 bg-red-600/40 p-3">
-                    <p className="text-yellow-200 text-sm">{exchangeSummary}</p>
+                    <p className="text-yellow-200 text-sm">
+                      Added payment total: {formatCurrency(totalAdditionalPayment)} | Store credit total: {formatCurrency(totalCreditIssued)}
+                    </p>
                   </div>
 
                   <div className="space-y-2">
