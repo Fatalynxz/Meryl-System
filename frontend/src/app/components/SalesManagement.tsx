@@ -225,18 +225,13 @@ export function SalesManagement() {
           </div>
 
           <div className="border border-red-800 rounded-lg overflow-x-auto">
-            <Table className="w-full min-w-[1180px]">
+            <Table className="w-full min-w-[860px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales ID</TableHead>
                   {isAdmin && <TableHead className="text-yellow-300 whitespace-nowrap text-center">Cashier</TableHead>}
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Product</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Amount</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Added</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Credit</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Payment</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Date</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
@@ -255,18 +250,7 @@ export function SalesManagement() {
                       </TableCell>
                     )}
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.customerName}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap max-w-[240px] truncate text-center">
-                      {sale.saleDetails.length > 0
-                        ? sale.saleDetails.map((d: any) => d.productName).join(", ")
-                        : "N/A"}
-                    </TableCell>
-                    <TableCell className="text-yellow-200 text-center whitespace-nowrap">
-                      {sale.saleDetails.reduce((sum: number, detail: any) => sum + detail.quantity, 0)}
-                    </TableCell>
                     <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {sale.total_amount}</TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {Number(sale.replacementPayments ?? 0).toFixed(2)}</TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {Number(sale.replacementCredits ?? 0).toFixed(2)}</TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.payment_method}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
                       {isAdmin ? (
                         <Select
