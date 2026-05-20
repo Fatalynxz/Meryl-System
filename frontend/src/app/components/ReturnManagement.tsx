@@ -740,7 +740,7 @@ export function ReturnManagement() {
                 </div>
                 <div className="grid max-h-[70vh] gap-5 overflow-y-auto overflow-x-hidden p-5 scrollbar-hide">
                   <div className="space-y-2">
-                    <Label className="text-yellow-300">Original Sale *</Label>
+                    <Label className="text-yellow-300">Step 1: Original Sale *</Label>
                     <Select
                       value={formData.sales_id}
                       onValueChange={(value) =>
@@ -809,29 +809,11 @@ export function ReturnManagement() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-yellow-300">Replacement Type *</Label>
-                      <Select
-                        value={formData.return_action}
-                        onValueChange={(value) =>
-                          setFormData({
-                            ...formData,
-                            return_action: value as ExchangeForm["return_action"],
-                            replacement_product_id:
-                              value === "Replacement" || value === "Adjustment" ? formData.replacement_product_id : "",
-                          })
-                        }
-                      >
-                        <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                          <SelectValue placeholder="Select replacement type" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-                          <SelectItem value="Replacement">Replace with Different Item</SelectItem>
-                          <SelectItem value="Adjustment">Adjustment / Price Adjustment</SelectItem>
-                          <SelectItem value="Partial Return">Partial Return (Defective)</SelectItem>
-                          <SelectItem value="Full Return">Full Return (Defective)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-yellow-300 mt-1">💡 Replacement = Item swap. Adjustment = Manager override.</p>
+                      <Label className="text-yellow-300">Replacement Type</Label>
+                      <div className="rounded-lg border border-red-800 bg-red-600 px-3 py-2 text-yellow-200">
+                        Replacement (fixed policy)
+                      </div>
+                      <p className="text-xs text-yellow-300 mt-1">No refund flow. Higher value requires added payment; lower value issues store credit.</p>
                     </div>
 
                     <div className="space-y-2">
@@ -900,7 +882,7 @@ export function ReturnManagement() {
                   {selectedSale && (
                     <div className="space-y-3 rounded-xl border border-red-800 p-4">
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <Label className="text-yellow-300">Purchased Products Grid</Label>
+                        <Label className="text-yellow-300">Step 2: Select Returned Product</Label>
                         <div className="relative md:w-80">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                           <Input
@@ -952,7 +934,7 @@ export function ReturnManagement() {
                   {requiresReplacement && (
                     <div className="space-y-3 rounded-xl border border-red-800 p-4">
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <Label className="text-yellow-300">Replacement Product Grid</Label>
+                        <Label className="text-yellow-300">Step 3: Select Replacement Product</Label>
                         <div className="relative md:w-80">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                           <Input
@@ -1004,7 +986,7 @@ export function ReturnManagement() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-yellow-300">Quantity</Label>
+                      <Label className="text-yellow-300">Step 4: Quantity</Label>
                       <Input
                         type="number"
                         min={1}
@@ -1191,3 +1173,4 @@ export function ReturnManagement() {
     </div>
   );
 }
+
