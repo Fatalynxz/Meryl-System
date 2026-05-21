@@ -739,19 +739,20 @@ export function PromotionManagement() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={promotionPerformanceChart} margin={{ top: 8, right: 12, left: 4, bottom: 78 }}>
+                <BarChart layout="vertical" data={promotionPerformanceChart} margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#2f3342" />
                   <XAxis
+                    type="number"
+                    stroke="#fef08a"
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis
+                    type="category"
                     dataKey="shortName"
                     stroke="#fef08a"
-                    interval={0}
-                    angle={-18}
-                    textAnchor="end"
-                    tickMargin={12}
                     tick={{ fontSize: 11 }}
-                    height={96}
+                    width={170}
                   />
-                  <YAxis stroke="#fef08a" tick={{ fontSize: 11 }} />
                   <Tooltip
                     labelFormatter={(_, payload) => String(payload?.[0]?.payload?.name ?? "")}
                     formatter={(value: any, name: any) => {
