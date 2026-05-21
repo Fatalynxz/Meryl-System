@@ -739,18 +739,19 @@ export function PromotionManagement() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={promotionPerformanceChart} margin={{ top: 8, right: 12, left: 4, bottom: 70 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
+                <BarChart data={promotionPerformanceChart} margin={{ top: 8, right: 12, left: 4, bottom: 78 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2f3342" />
                   <XAxis
                     dataKey="shortName"
                     stroke="#fef08a"
                     interval={0}
-                    angle={-25}
+                    angle={-18}
                     textAnchor="end"
-                    tickMargin={10}
-                    height={90}
+                    tickMargin={12}
+                    tick={{ fontSize: 11 }}
+                    height={96}
                   />
-                  <YAxis stroke="#fef08a" />
+                  <YAxis stroke="#fef08a" tick={{ fontSize: 11 }} />
                   <Tooltip
                     labelFormatter={(_, payload) => String(payload?.[0]?.payload?.name ?? "")}
                     formatter={(value: any, name: any) => {
@@ -758,11 +759,19 @@ export function PromotionManagement() {
                       if (String(name).toLowerCase().includes("roi")) return [`${Number(value || 0).toFixed(2)}%`, "ROI"];
                       return [value, name];
                     }}
-                    contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
+                    cursor={{ fill: "rgba(250, 204, 21, 0.08)" }}
+                    contentStyle={{
+                      backgroundColor: "#10131b",
+                      border: "1px solid #2f3342",
+                      color: "#fef08a",
+                      borderRadius: "10px",
+                    }}
+                    labelStyle={{ color: "#fff7b1", fontWeight: 600 }}
+                    itemStyle={{ color: "#fef08a" }}
                   />
-                  <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Bar key="revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue" />
-                  <Bar key="roi-bar" dataKey="roi" fill="#facc15" name="ROI" />
+                  <Legend wrapperStyle={{ color: '#fef08a', paddingTop: 8 }} iconType="square" />
+                  <Bar key="revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue" radius={[4, 4, 0, 0]} />
+                  <Bar key="roi-bar" dataKey="roi" fill="#facc15" name="ROI" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
