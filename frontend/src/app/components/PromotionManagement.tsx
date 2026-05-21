@@ -10,7 +10,6 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useCustomers, useProducts, usePromotions, usePromotionsMutations, useSales } from '../../lib/hooks';
 
 type Promotion = {
@@ -453,57 +452,6 @@ export function PromotionManagement() {
     return rows;
   }, [promotions]);
 
-  const promotionPerformanceChart = useMemo(
-    () =>
-      promotionPerformance.map((item) => ({
-        ...item,
-        shortName: item.name.length > 22 ? `${item.name.slice(0, 22)}...` : item.name,
-      })),
-    [promotionPerformance],
-  );
-
-  const categoryImpact = useMemo(() => {
-    const colorPalette = ['#fef08a', '#facc15', '#fde047', '#fef9c3', '#fcd34d', '#f59e0b'];
-    const productsById = new Map<string, string>();
-    for (const p of productRows) {
-      const pid = String(p.product_id ?? '').trim();
-      if (!pid) continue;
-      const categoryName = String(p.category?.[0]?.category_name ?? p.category?.category_name ?? 'General').trim() || 'General';
-      productsById.set(pid, categoryName);
-    }
-
-    const categoryQty = new Map<string, number>();
-    const salesRows = (salesQuery.data as any[]) ?? [];
-    for (const sale of salesRows) {
-      const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
-      const paymentStatus = String(payment?.payment_status ?? '').toLowerCase();
-      if (!['completed', 'paid', 'successful', 'success'].includes(paymentStatus)) continue;
-
-      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
-      for (const d of details) {
-        const pid = String(d.product_id ?? '').trim();
-        if (!pid) continue;
-        const categoryName = productsById.get(pid) || 'General';
-        const qty = Number(d.quantity ?? 0);
-        categoryQty.set(categoryName, (categoryQty.get(categoryName) ?? 0) + qty);
-      }
-    }
-
-    const total = Array.from(categoryQty.values()).reduce((sum, qty) => sum + qty, 0);
-    const items = Array.from(categoryQty.entries())
-      .map(([name, qty], index) => ({
-        id: `ci${index + 1}`,
-        name,
-        value: total > 0 ? Number(((qty / total) * 100).toFixed(1)) : 0,
-        color: colorPalette[index % colorPalette.length],
-      }))
-      .filter((item) => item.value > 0)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 6);
-
-    return items.length > 0 ? items : [{ id: 'ci0', name: 'No Sales Yet', value: 100, color: '#fef9c3' }];
-  }, [productRows, salesQuery.data]);
-
   const handleAddPromotion = async () => {
     if (!formData.promo_name || !formData.targetProducts || !formData.start_date || !formData.end_date) {
       toast.error('Please fill in all required fields');
@@ -722,89 +670,6 @@ export function PromotionManagement() {
               </div>
               <ShoppingCart className="h-8 w-8 text-yellow-400" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Promotion Performance Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="bg-red-700 border-red-800">
-          <CardHeader>
-            <CardTitle className="text-yellow-300">Promotion Performance Comparison</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {promotionPerformanceChart.length === 0 ? (
-              <div className="h-[280px] flex items-center justify-center text-yellow-200">
-                No promotion performance data yet.
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart layout="vertical" data={promotionPerformanceChart} margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2f3342" />
-                  <XAxis
-                    type="number"
-                    stroke="#fef08a"
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="shortName"
-                    stroke="#fef08a"
-                    tick={{ fontSize: 11 }}
-                    width={170}
-                  />
-                  <Tooltip
-                    labelFormatter={(_, payload) => String(payload?.[0]?.payload?.name ?? "")}
-                    formatter={(value: any, name: any) => {
-                      if (String(name).toLowerCase().includes("revenue")) return [`PHP ${Number(value || 0).toFixed(2)}`, "Revenue"];
-                      if (String(name).toLowerCase().includes("roi")) return [`${Number(value || 0).toFixed(2)}%`, "ROI"];
-                      return [value, name];
-                    }}
-                    cursor={{ fill: "rgba(250, 204, 21, 0.08)" }}
-                    contentStyle={{
-                      backgroundColor: "#10131b",
-                      border: "1px solid #2f3342",
-                      color: "#fef08a",
-                      borderRadius: "10px",
-                    }}
-                    labelStyle={{ color: "#fff7b1", fontWeight: 600 }}
-                    itemStyle={{ color: "#fef08a" }}
-                  />
-                  <Legend wrapperStyle={{ color: '#fef08a', paddingTop: 8 }} iconType="square" />
-                  <Bar key="revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue" radius={[4, 4, 0, 0]} />
-                  <Bar key="roi-bar" dataKey="roi" fill="#facc15" name="ROI" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-red-700 border-red-800">
-          <CardHeader>
-            <CardTitle className="text-yellow-300">Category Impact Distribution</CardTitle>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={categoryImpact}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {categoryImpact.map((entry) => (
-                    <Cell key={entry.id} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
