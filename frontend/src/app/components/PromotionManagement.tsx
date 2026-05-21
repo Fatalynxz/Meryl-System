@@ -453,6 +453,15 @@ export function PromotionManagement() {
     return rows;
   }, [promotions]);
 
+  const promotionPerformanceChart = useMemo(
+    () =>
+      promotionPerformance.map((item) => ({
+        ...item,
+        shortName: item.name.length > 22 ? `${item.name.slice(0, 22)}...` : item.name,
+      })),
+    [promotionPerformance],
+  );
+
   const categoryImpact = useMemo(() => {
     const colorPalette = ['#fef08a', '#facc15', '#fde047', '#fef9c3', '#fcd34d', '#f59e0b'];
     const productsById = new Map<string, string>();
@@ -724,19 +733,39 @@ export function PromotionManagement() {
             <CardTitle className="text-yellow-300">Promotion Performance Comparison</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={promotionPerformance}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
-                <XAxis dataKey="name" stroke="#fef08a" angle={-15} textAnchor="end" height={80} />
-                <YAxis stroke="#fef08a" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
-                />
-                <Legend wrapperStyle={{ color: '#fef08a' }} />
-                <Bar key="revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue (₱)" />
-                <Bar key="roi-bar" dataKey="roi" fill="#facc15" name="ROI (%)" />
-              </BarChart>
-            </ResponsiveContainer>
+            {promotionPerformanceChart.length === 0 ? (
+              <div className="h-[280px] flex items-center justify-center text-yellow-200">
+                No promotion performance data yet.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={promotionPerformanceChart} margin={{ top: 8, right: 12, left: 4, bottom: 70 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#991b1b" />
+                  <XAxis
+                    dataKey="shortName"
+                    stroke="#fef08a"
+                    interval={0}
+                    angle={-25}
+                    textAnchor="end"
+                    tickMargin={10}
+                    height={90}
+                  />
+                  <YAxis stroke="#fef08a" />
+                  <Tooltip
+                    labelFormatter={(_, payload) => String(payload?.[0]?.payload?.name ?? "")}
+                    formatter={(value: any, name: any) => {
+                      if (String(name).toLowerCase().includes("revenue")) return [`PHP ${Number(value || 0).toFixed(2)}`, "Revenue"];
+                      if (String(name).toLowerCase().includes("roi")) return [`${Number(value || 0).toFixed(2)}%`, "ROI"];
+                      return [value, name];
+                    }}
+                    contentStyle={{ backgroundColor: '#991b1b', border: '1px solid #7f1d1d', color: '#fef08a' }}
+                  />
+                  <Legend wrapperStyle={{ color: '#fef08a' }} />
+                  <Bar key="revenue-bar" dataKey="revenue" fill="#fef08a" name="Revenue" />
+                  <Bar key="roi-bar" dataKey="roi" fill="#facc15" name="ROI" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -1318,3 +1347,4 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
     </div>
   );
 }
+

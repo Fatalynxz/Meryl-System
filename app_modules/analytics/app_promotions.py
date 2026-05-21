@@ -8,6 +8,22 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
+_GMAIL_RUNTIME_STATE = {
+    "connected": True,
+    "last_error": "",
+    "updated_at": None,
+}
+
+
+def _set_gmail_runtime_state(*, connected, last_error=""):
+    _GMAIL_RUNTIME_STATE["connected"] = bool(connected)
+    _GMAIL_RUNTIME_STATE["last_error"] = str(last_error or "").strip()
+    _GMAIL_RUNTIME_STATE["updated_at"] = datetime.now().isoformat()
+
+
+def get_gmail_runtime_state():
+    return dict(_GMAIL_RUNTIME_STATE)
+
 
 def sync_promotion_notifications(
     promo_id,
@@ -498,9 +514,13 @@ def send_promotion_notifications_via_gmail(
             client_secret=client_secret,
             refresh_token=refresh_token,
         )
+        _set_gmail_runtime_state(connected=True, last_error="")
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8") if e.fp else ""
         reason = _gmail_error_reason(error_body, f"gmail_token_http_{e.code}")
+        lowered_reason = reason.lower()
+        if "invalid_grant" in lowered_reason or "expired" in lowered_reason or "revoked" in lowered_reason:
+            _set_gmail_runtime_state(connected=False, last_error=reason)
         print(f"GMAIL TOKEN HTTP ERROR {e.code}: {error_body}")
         return {
             "enabled": False,
@@ -511,6 +531,7 @@ def send_promotion_notifications_via_gmail(
         }
     except Exception as e:
         reason = f"{type(e).__name__}: {e}"
+        _set_gmail_runtime_state(connected=False, last_error=reason)
         print(f"GMAIL TOKEN ERROR: {type(e).__name__}: {e}")
         return {
             "enabled": False,
@@ -577,6 +598,9 @@ def send_promotion_notifications_via_gmail(
             status = "failed"
             error_body = e.read().decode("utf-8") if e.fp else ""
             reason = _gmail_error_reason(error_body, f"gmail_http_{e.code}")
+            lowered_reason = reason.lower()
+            if "invalid_grant" in lowered_reason or "expired" in lowered_reason or "revoked" in lowered_reason:
+                _set_gmail_runtime_state(connected=False, last_error=reason)
             print(f"GMAIL HTTP ERROR {e.code} for {email}: {error_body}")
             failed += 1
         except urllib.error.URLError as e:

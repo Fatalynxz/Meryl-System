@@ -94,6 +94,7 @@ from app_modules.analytics.app_promotions import (
     build_active_promotion_lookup as promotion_build_active_lookup,
     build_promotions_context as promotion_build_context,
     compute_promo_discount as promotion_compute_discount,
+    get_gmail_runtime_state as promotion_get_gmail_runtime_state,
     send_promotion_notifications_via_gmail as promotion_send_notifications_via_gmail,
     sync_promotion_notifications as promotion_sync_notifications,
     sync_promotion_products as promotion_sync_products,
@@ -1919,6 +1920,9 @@ def build_gmail_health_payload():
         issues.append("notification table is missing")
     if not promotion_table_ready:
         issues.append("promotion table is missing")
+    gmail_runtime = promotion_get_gmail_runtime_state()
+    if not gmail_runtime.get("connected", True) and gmail_runtime.get("last_error"):
+        issues.append(f"gmail_runtime: {gmail_runtime.get('last_error')}")
 
     return {
         "ok": len(issues) == 0,
@@ -1929,6 +1933,9 @@ def build_gmail_health_payload():
             "client_id_configured": bool(client_id),
             "client_secret_configured": bool(client_secret),
             "refresh_token_configured": bool(refresh_token),
+            "runtime_connected": bool(gmail_runtime.get("connected", True)),
+            "runtime_last_error": gmail_runtime.get("last_error") or None,
+            "runtime_updated_at": gmail_runtime.get("updated_at"),
         },
         "database": {
             "notification_table_ready": notification_table_ready,
