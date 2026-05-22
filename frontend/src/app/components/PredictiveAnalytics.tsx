@@ -687,6 +687,7 @@ export function PredictiveAnalytics() {
       }, 0),
       1,
     );
+    const today = new Date().toISOString().slice(0, 10);
 
     const promotionPerformance = promotions
       .map((promo: any, index: number) => {
@@ -694,6 +695,16 @@ export function PredictiveAnalytics() {
         const productIds = new Set(promoProducts.map((row: any) => String(row.product_id ?? row.product?.product_id ?? "")));
         const start = toDate(promo.start_date);
         const end = toDate(promo.end_date);
+        const startDate = String(promo.start_date ?? "").slice(0, 10);
+        const endDate = String(promo.end_date ?? "").slice(0, 10);
+        const rawStatus = String(promo.status ?? promo.promo_status ?? "").toLowerCase();
+
+        const derivedStatus =
+          rawStatus.includes("expired") || (endDate && endDate < today)
+            ? "Ended"
+            : rawStatus.includes("active") || (startDate && startDate <= today && endDate && endDate >= today)
+              ? "Active"
+              : "Scheduled";
 
         let revenue = 0;
         let units = 0;
@@ -714,7 +725,7 @@ export function PredictiveAnalytics() {
         return {
           id: String(promo.promo_id ?? `promo-${index}`),
           name: String(promo.promo_name ?? "Promotion"),
-          status: String(promo.status ?? "Scheduled"),
+          status: derivedStatus,
           start: start ? formatShortDate(start) : "N/A",
           end: end ? formatShortDate(end) : "N/A",
           revenue,
