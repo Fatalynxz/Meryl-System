@@ -764,8 +764,8 @@ export function PromotionManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-            <Table className="w-full min-w-[1080px]">
+          <div className="border border-red-800 rounded-lg overflow-x-auto">
+            <Table className="w-full min-w-[920px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Promotion Name</TableHead>
@@ -780,10 +780,10 @@ export function PromotionManagement() {
               <TableBody>
                 {promotions.map((promotion) => (
                   <TableRow key={promotion.promo_id} className="border-red-800">
-                    <TableCell className="min-w-[220px] text-center align-middle">
+                    <TableCell className="min-w-[200px] text-center align-middle">
                       <div>
-                        <p className="text-yellow-200 whitespace-nowrap">{promotion.promo_name}</p>
-                        <p className="text-yellow-300 text-xs whitespace-nowrap">{promotion.targetProducts}</p>
+                        <p className="text-yellow-200 break-words leading-tight">{promotion.promo_name}</p>
+                        <p className="mt-1 text-yellow-300 text-xs break-words leading-tight">{promotion.targetProducts}</p>
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-center align-middle">
@@ -796,8 +796,11 @@ export function PromotionManagement() {
                        promotion.discount_type === 'Fixed Amount' ? `₱${promotion.discount_value}` :
                        promotion.discount_type === 'BOGO' ? 'Buy 1 Get 1' : 'Bundle'}
                     </TableCell>
-                    <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center align-middle">
-                      {promotion.start_date} to {promotion.end_date}
+                    <TableCell className="text-yellow-200 text-sm text-center align-middle">
+                      <div className="leading-tight">
+                        <p>{promotion.start_date}</p>
+                        <p className="text-yellow-300/80">to {promotion.end_date}</p>
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-center align-middle">
                       <Badge className={
@@ -808,9 +811,9 @@ export function PromotionManagement() {
                         {promotion.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="min-w-[240px] text-center align-middle">
+                    <TableCell className="min-w-[220px] text-center align-middle">
                       <div className="space-y-1">
-                        <div className="flex justify-center gap-6 text-xs text-yellow-200">
+                        <div className="flex flex-wrap justify-center gap-3 text-xs text-yellow-200">
                           <span className="whitespace-nowrap">Sales: ₱{promotion.salesGenerated}</span>
                           <span className="whitespace-nowrap">{promotion.unitsAffected} units</span>
                         </div>
