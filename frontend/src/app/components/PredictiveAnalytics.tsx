@@ -795,6 +795,7 @@ export function PredictiveAnalytics() {
   const showCustomer = analyticsView === "overview" || analyticsView === "customer";
   const showSales = analyticsView === "overview" || analyticsView === "sales";
   const showPromotion = analyticsView === "overview" || analyticsView === "promotion";
+  const hasActivePromotionPerformance = analytics.activePromotionChart.some((promo) => promo.revenue > 0 || promo.units > 0);
 
   const filterTabs = [
     { id: "overview" as const, label: "Overview", icon: BarChart3, count: null },
@@ -1073,15 +1074,27 @@ export function PredictiveAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="mb-5 rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-white">Active Promotions Comparison</p>
-                <p className="text-xs text-white/55">Revenue and units per campaign</p>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">Active Promotions Comparison</p>
+                  <p className="text-xs text-white/55">Revenue and units per campaign</p>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="inline-flex items-center gap-1.5 text-white/75">
+                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+                    Revenue
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-white/75">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    Units
+                  </span>
+                </div>
               </div>
-              {analytics.activePromotionChart.length ? (
+              {analytics.activePromotionChart.length && hasActivePromotionPerformance ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={analytics.activePromotionChart} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2f2f38" />
-                    <XAxis dataKey="name" stroke="#a3a3a3" fontSize={12} interval={0} angle={-12} textAnchor="end" height={52} />
+                  <BarChart data={analytics.activePromotionChart} margin={{ top: 8, right: 8, left: 8, bottom: 8 }} barGap={8}>
+                    <CartesianGrid strokeDasharray="2 4" stroke="#2f2f38" />
+                    <XAxis dataKey="name" stroke="#a3a3a3" fontSize={12} interval={0} angle={0} textAnchor="middle" height={42} />
                     <YAxis yAxisId="left" stroke="#a3a3a3" fontSize={12} />
                     <YAxis yAxisId="right" orientation="right" stroke="#a3a3a3" fontSize={12} />
                     <Tooltip
@@ -1092,13 +1105,15 @@ export function PredictiveAnalytics() {
                       ]}
                       labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? "Promotion"}
                     />
-                    <Bar yAxisId="left" dataKey="revenue" fill="#facc15" radius={[6, 6, 0, 0]} name="revenue" />
-                    <Bar yAxisId="right" dataKey="units" fill="#22c55e" radius={[6, 6, 0, 0]} name="units" />
+                    <Bar yAxisId="left" dataKey="revenue" fill="#facc15" radius={[6, 6, 0, 0]} name="revenue" barSize={22} />
+                    <Bar yAxisId="right" dataKey="units" fill="#22c55e" radius={[6, 6, 0, 0]} name="units" barSize={22} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="rounded-xl border border-dashed border-[#2b2b36] bg-white/[0.02] p-5 text-center text-sm text-white/60">
-                  No active promotions yet. Activate a campaign to view comparison graph.
+                  {analytics.activePromotionChart.length
+                    ? "Active promotions are detected, but no sales performance has been recorded yet."
+                    : "No active promotions yet. Activate a campaign to view comparison graph."}
                 </div>
               )}
             </div>
