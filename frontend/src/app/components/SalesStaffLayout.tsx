@@ -4,7 +4,7 @@ import { PointOfSale } from './PointOfSale';
 import { SalesManagement } from './SalesManagement';
 import { CustomerManagement } from './CustomerManagement';
 import { ReturnManagement } from './ReturnManagement';
-import { ShoppingCart, Users, CreditCard, LogOut, Search, Sparkles, RotateCcw } from 'lucide-react';
+import { ShoppingCart, Users, CreditCard, LogOut, Sparkles, RotateCcw } from 'lucide-react';
 import { Button } from './ui/button';
 import { NotificationCenter } from './NotificationCenter';
 import { useAuth } from '../../lib/auth-context';
@@ -23,7 +23,7 @@ export function SalesStaffLayout() {
   const navItems = [
     { id: 'pos', label: 'Point of Sale', icon: CreditCard },
     { id: 'sales', label: 'Sales History', icon: ShoppingCart },
-    { id: 'returns', label: 'Returns', icon: RotateCcw },
+    { id: 'returns', label: 'Replacement', icon: RotateCcw },
     { id: 'customers', label: 'Customers', icon: Users },
   ];
 
@@ -90,10 +90,6 @@ export function SalesStaffLayout() {
             <h2 className="text-white mt-0.5">{activeLabel}</h2>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-2 bg-[#1D1D25] rounded-xl px-3 py-2 w-72 border border-white/5">
-              <Search className="w-4 h-4 text-white/40" />
-              <input placeholder="Search..." className="bg-transparent outline-none text-sm text-white placeholder:text-white/30 flex-1" />
-            </div>
             <NotificationCenter />
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#E5202A] to-[#FFD60A] flex items-center justify-center text-xs">
               {(user?.name || 'S').charAt(0).toUpperCase()}

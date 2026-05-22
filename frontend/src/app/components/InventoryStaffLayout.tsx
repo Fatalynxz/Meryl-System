@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ProductManagement } from './ProductManagement';
-import { Package, LogOut, Search, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
+import { Package, LogOut, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
 import { Button } from './ui/button';
 import { NotificationCenter } from './NotificationCenter';
 import { useAuth } from '../../lib/auth-context';
@@ -89,10 +89,6 @@ export function InventoryStaffLayout() {
             <h2 className="text-white mt-0.5">{activeLabel}</h2>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-2 bg-[#1D1D25] rounded-xl px-3 py-2 w-72 border border-white/5">
-              <Search className="w-4 h-4 text-white/40" />
-              <input placeholder="Search..." className="bg-transparent outline-none text-sm text-white placeholder:text-white/30 flex-1" />
-            </div>
             <NotificationCenter />
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#E5202A] to-[#FFD60A] flex items-center justify-center text-xs">
               {(user?.name || 'I').charAt(0).toUpperCase()}
