@@ -48,6 +48,11 @@ function shortMoney(value: number) {
   return money(value);
 }
 
+function shortLabel(value: string, max = 18) {
+  if (!value) return "N/A";
+  return value.length > max ? `${value.slice(0, max)}...` : value;
+}
+
 function toDate(value: unknown) {
   if (!value) return null;
   const date = new Date(String(value));
@@ -720,6 +725,16 @@ export function PredictiveAnalytics() {
       .sort((a, b) => b.revenue - a.revenue);
 
     const activePromotionCount = promotionPerformance.filter((promo) => promo.status.toLowerCase() === "active").length;
+    const activePromotionChart = promotionPerformance
+      .filter((promo) => promo.status.toLowerCase() === "active")
+      .slice(0, 8)
+      .map((promo) => ({
+        name: shortLabel(promo.name),
+        fullName: promo.name,
+        revenue: Math.round(promo.revenue),
+        units: promo.units,
+        contribution: promo.contribution,
+      }));
     const promoRevenue = promotionPerformance.reduce((sum, promo) => sum + promo.revenue, 0);
     const promoUnits = promotionPerformance.reduce((sum, promo) => sum + promo.units, 0);
 
@@ -754,6 +769,7 @@ export function PredictiveAnalytics() {
       topRankingPeriodLabel,
       promotionPerformance,
       activePromotionCount,
+      activePromotionChart,
       promoRevenue,
       promoUnits,
     };
@@ -1045,6 +1061,37 @@ export function PredictiveAnalytics() {
             <p className="text-sm text-white/55">Top campaigns ranked by estimated revenue contribution.</p>
           </CardHeader>
           <CardContent>
+            <div className="mb-5 rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-white">Active Promotions Comparison</p>
+                <p className="text-xs text-white/55">Revenue and units per campaign</p>
+              </div>
+              {analytics.activePromotionChart.length ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={analytics.activePromotionChart} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2f2f38" />
+                    <XAxis dataKey="name" stroke="#a3a3a3" fontSize={12} interval={0} angle={-12} textAnchor="end" height={52} />
+                    <YAxis yAxisId="left" stroke="#a3a3a3" fontSize={12} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#a3a3a3" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: "#18181f", border: "1px solid #3a3a45", borderRadius: "12px", color: "#fff" }}
+                      formatter={(value: any, name: string) => [
+                        name === "revenue" ? money(Number(value)) : `${value} units`,
+                        name === "revenue" ? "Revenue" : "Units",
+                      ]}
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? "Promotion"}
+                    />
+                    <Bar yAxisId="left" dataKey="revenue" fill="#facc15" radius={[6, 6, 0, 0]} name="revenue" />
+                    <Bar yAxisId="right" dataKey="units" fill="#22c55e" radius={[6, 6, 0, 0]} name="units" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#2b2b36] bg-white/[0.02] p-5 text-center text-sm text-white/60">
+                  No active promotions yet. Activate a campaign to view comparison graph.
+                </div>
+              )}
+            </div>
+
             <div className="overflow-hidden rounded-2xl border border-[#2b2b36]">
               <Table>
                 <TableHeader className="bg-[#1f1f28]">
