@@ -17,7 +17,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useCustomers, useProducts, useSales } from "../../lib/hooks";
+import { useCustomers, useProducts, usePromotions, useSales } from "../../lib/hooks";
 
 type RevenueTrendPeriod = "daily" | "weekly" | "monthly" | "quarterly" | "annually";
 type RankingMetric = "units" | "revenue";
@@ -187,7 +187,7 @@ function MetricCard({ title, value, note, icon: Icon }: { title: string; value: 
 }
 
 export function PredictiveAnalytics() {
-  const [analyticsView, setAnalyticsView] = useState<"overview" | "product" | "customer" | "sales">("overview");
+  const [analyticsView, setAnalyticsView] = useState<"overview" | "product" | "customer" | "sales" | "promotion">("overview");
   const [revenueTrendPeriod, setRevenueTrendPeriod] = useState<RevenueTrendPeriod>("daily");
   const [salesForecastPeriod, setSalesForecastPeriod] = useState<RevenueTrendPeriod>("monthly");
   const [productAnalyticsPeriod, setProductAnalyticsPeriod] = useState<RevenueTrendPeriod>("monthly");
@@ -196,10 +196,12 @@ export function PredictiveAnalytics() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
   const customersQuery = useCustomers();
+  const promotionsQuery = usePromotions();
 
   const sales = ((salesQuery.data as any[]) ?? []).filter(isCompletedSale);
   const products = (productsQuery.data as any[]) ?? [];
   const customers = (customersQuery.data as any[]) ?? [];
+  const promotions = (promotionsQuery.data as any[]) ?? [];
 
   const analytics = useMemo(() => {
     const now = new Date();
@@ -673,6 +675,54 @@ export function PredictiveAnalytics() {
       })),
     ].slice(0, 5);
 
+    const totalUnitsAllTime = Math.max(
+      sales.reduce((sum: number, sale: any) => {
+        const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+        return sum + details.reduce((detailSum: number, detail: any) => detailSum + Number(detail.quantity ?? 0), 0);
+      }, 0),
+      1,
+    );
+
+    const promotionPerformance = promotions
+      .map((promo: any, index: number) => {
+        const promoProducts = Array.isArray(promo.promo_product) ? promo.promo_product : [];
+        const productIds = new Set(promoProducts.map((row: any) => String(row.product_id ?? row.product?.product_id ?? "")));
+        const start = toDate(promo.start_date);
+        const end = toDate(promo.end_date);
+
+        let revenue = 0;
+        let units = 0;
+        sales.forEach((sale: any) => {
+          const date = toDate(sale.transaction_date ?? sale.created_at);
+          if (!date) return;
+          if (start && date < start) return;
+          if (end && date > end) return;
+          const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+          details.forEach((detail: any) => {
+            const productId = String(detail.product_id ?? "");
+            if (productIds.size && !productIds.has(productId)) return;
+            units += Number(detail.quantity ?? 0);
+            revenue += Number(detail.subtotal ?? detail.price ?? 0);
+          });
+        });
+
+        return {
+          id: String(promo.promo_id ?? `promo-${index}`),
+          name: String(promo.promo_name ?? "Promotion"),
+          status: String(promo.status ?? "Scheduled"),
+          start: start ? formatShortDate(start) : "N/A",
+          end: end ? formatShortDate(end) : "N/A",
+          revenue,
+          units,
+          contribution: Number(((units / totalUnitsAllTime) * 100).toFixed(1)),
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const activePromotionCount = promotionPerformance.filter((promo) => promo.status.toLowerCase() === "active").length;
+    const promoRevenue = promotionPerformance.reduce((sum, promo) => sum + promo.revenue, 0);
+    const promoUnits = promotionPerformance.reduce((sum, promo) => sum + promo.units, 0);
+
     return {
       productMovement,
       fastProducts: productMovement.filter((product) => product.movement === "Fast").slice(0, 5),
@@ -702,10 +752,14 @@ export function PredictiveAnalytics() {
       totalUnits90,
       productPeriodLabel,
       topRankingPeriodLabel,
+      promotionPerformance,
+      activePromotionCount,
+      promoRevenue,
+      promoUnits,
     };
-  }, [customers, productAnalyticsPeriod, products, revenueTrendPeriod, sales, salesForecastPeriod, topRankingMetric, topRankingPeriod]);
+  }, [customers, productAnalyticsPeriod, products, promotions, revenueTrendPeriod, sales, salesForecastPeriod, topRankingMetric, topRankingPeriod]);
 
-  if (salesQuery.isLoading || productsQuery.isLoading || customersQuery.isLoading) {
+  if (salesQuery.isLoading || productsQuery.isLoading || customersQuery.isLoading || promotionsQuery.isLoading) {
     return <div className="text-sm text-white/60">Loading analytics...</div>;
   }
 
@@ -713,18 +767,20 @@ export function PredictiveAnalytics() {
   const showProduct = analyticsView === "overview" || analyticsView === "product";
   const showCustomer = analyticsView === "overview" || analyticsView === "customer";
   const showSales = analyticsView === "overview" || analyticsView === "sales";
+  const showPromotion = analyticsView === "overview" || analyticsView === "promotion";
 
   const filterTabs = [
     { id: "overview" as const, label: "Overview", icon: BarChart3, count: null },
     { id: "product" as const, label: "Product Analytics", icon: Package, count: analytics.productMovement.length },
     { id: "customer" as const, label: "Customer Analytics", icon: Users, count: analytics.genderRows.length + analytics.ageRows.length },
     { id: "sales" as const, label: "Sales Analytics", icon: TrendingUp, count: analytics.trendChart.length },
+    { id: "promotion" as const, label: "Promotion Analytics", icon: Sparkles, count: analytics.promotionPerformance.length },
   ];
 
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-[#2b2b36] bg-[#16161d] p-2">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
           {filterTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = analyticsView === tab.id;
@@ -953,6 +1009,77 @@ export function PredictiveAnalytics() {
                   <p className="mt-1 text-xs text-white/55">{analytics.forecastNote}</p>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>}
+
+      {showPromotion && <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <MetricCard
+            title="Active Promotions"
+            value={String(analytics.activePromotionCount)}
+            note="Campaigns currently running"
+            icon={Sparkles}
+          />
+          <MetricCard
+            title="Promotion Revenue"
+            value={shortMoney(analytics.promoRevenue)}
+            note="Sales value linked to promotion windows"
+            icon={TrendingUp}
+          />
+          <MetricCard
+            title="Promotion Units"
+            value={analytics.promoUnits.toLocaleString("en-PH")}
+            note="Items sold under promotion periods"
+            icon={Package}
+          />
+        </div>
+
+        <Card className="bg-[#16161d] border-[#2b2b36]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Sparkles className="h-5 w-5 text-yellow-400" />
+              Promotion Performance
+            </CardTitle>
+            <p className="text-sm text-white/55">Top campaigns ranked by estimated revenue contribution.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-hidden rounded-2xl border border-[#2b2b36]">
+              <Table>
+                <TableHeader className="bg-[#1f1f28]">
+                  <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
+                    <TableHead className="text-center text-white">Promotion</TableHead>
+                    <TableHead className="text-center text-white">Date Range</TableHead>
+                    <TableHead className="text-center text-white">Status</TableHead>
+                    <TableHead className="text-center text-white">Units</TableHead>
+                    <TableHead className="text-center text-white">Revenue</TableHead>
+                    <TableHead className="text-center text-white">Contribution</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analytics.promotionPerformance.length ? analytics.promotionPerformance.slice(0, 10).map((promo) => (
+                    <TableRow key={promo.id} className="border-[#2b2b36] hover:bg-white/[0.03]">
+                      <TableCell className="text-center font-semibold text-white">{promo.name}</TableCell>
+                      <TableCell className="text-center text-white/80">{promo.start} - {promo.end}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={promo.status.toLowerCase() === "active" ? "bg-green-600 text-white" : "bg-white/10 text-white/80"}>
+                          {promo.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center text-yellow-300">{promo.units}</TableCell>
+                      <TableCell className="text-center text-white">{money(promo.revenue)}</TableCell>
+                      <TableCell className="text-center text-emerald-300">{promo.contribution}%</TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow className="border-[#2b2b36]">
+                      <TableCell colSpan={6} className="py-8 text-center text-white/60">
+                        No promotion data yet. Create promotions to see campaign performance here.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
