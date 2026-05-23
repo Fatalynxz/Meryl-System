@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Edit, Info, Package, Plus, Search, Settings, Trash2, Warehouse } from "lucide-react";
+import { Edit, Info, Package, Plus, Search, Settings, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { useCategories, useInventory, useProducts, useProductsMutations } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
@@ -356,13 +356,27 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
   };
 
   const deleteProduct = async (product: UiProduct) => {
-    if (product.hasInventory) {
-      toast.error("This product has inventory. Remove or archive inventory before deleting master data.");
-      return;
-    }
     try {
+      // Remove related inventory logs and inventory rows first to satisfy FK constraints.
+      const { error: logDeleteError } = await supabase
+        .from("inventory_log")
+        .delete()
+        .eq("product_id", product.product_id);
+      if (logDeleteError) throw logDeleteError;
+
+      const { error: inventoryDeleteError } = await supabase
+        .from("inventory")
+        .delete()
+        .eq("product_id", product.product_id);
+      if (inventoryDeleteError) throw inventoryDeleteError;
+
       await productMutations.removeMutation.mutateAsync(product.product_id);
       await queryClient.invalidateQueries({ queryKey: ["products"] });
+      await queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      await queryClient.invalidateQueries({ queryKey: ["inventoryLog"] });
+      await queryClient.invalidateQueries({ queryKey: ["returns"] });
+      setIsProductDialogOpen(false);
+      setEditingProduct(null);
       toast.success("Product deleted from Product List.");
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to delete product");
@@ -443,7 +457,17 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                         <DialogTitle className="text-yellow-300">{editingProduct ? "Edit Product Master" : "Add Product Master"}</DialogTitle>
                       </DialogHeader>
                       <ProductMasterForm formData={productForm} setFormData={setProductForm} categories={categories} />
-                      <DialogFooter>
+                      <DialogFooter className="flex items-center justify-between gap-2">
+                        {editingProduct ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => void deleteProduct(editingProduct)}
+                            className="text-red-300 hover:bg-red-800/70 hover:text-red-100"
+                          >
+                            Delete Product
+                          </Button>
+                        ) : <span />}
                         <Button onClick={saveProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
                           {editingProduct ? "Update Product" : "Save Product"}
                         </Button>
@@ -465,7 +489,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
               />
             </div>
             {activeTab === "list" ? (
-              <ProductListTable products={filteredProducts} onEdit={openEditProduct} onDelete={deleteProduct} onConfigure={openSettingsForProduct} />
+              <ProductListTable products={filteredProducts} onEdit={openEditProduct} />
             ) : (
               <InventoryTable products={filteredProducts} onConfigure={openSettingsForProduct} />
             )}
@@ -489,7 +513,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   );
 }
 
-function ProductListTable({ products, onEdit, onDelete, onConfigure }: { products: UiProduct[]; onEdit: (product: UiProduct) => void; onDelete: (product: UiProduct) => void; onConfigure: (product: UiProduct) => void }) {
+function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit: (product: UiProduct) => void }) {
   return (
     <div className="border border-red-800 rounded-lg overflow-x-auto">
       <Table className="w-full min-w-[980px]">
@@ -513,9 +537,7 @@ function ProductListTable({ products, onEdit, onDelete, onConfigure }: { product
               <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatMoney(product.unit_price)}</TableCell>
               <TableCell className="text-center whitespace-nowrap">
                 <div className="flex justify-center gap-2">
-                  <Button size="sm" variant="ghost" className="text-yellow-400 hover:bg-red-600" onClick={() => onConfigure(product)}><Settings className="w-4 h-4" /></Button>
                   <Button size="sm" variant="ghost" className="text-yellow-400 hover:bg-red-600" onClick={() => onEdit(product)}><Edit className="w-4 h-4" /></Button>
-                  <Button size="sm" variant="ghost" className="text-yellow-400 hover:bg-red-600" onClick={() => onDelete(product)}><Trash2 className="w-4 h-4" /></Button>
                 </div>
               </TableCell>
             </TableRow>
