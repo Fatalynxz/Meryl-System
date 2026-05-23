@@ -611,7 +611,6 @@ function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit:
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">
                 <span>{product.name}</span>
-                {product.isArchived && <Badge className="ml-2 bg-gray-600 text-white">Archived</Badge>}
               </TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.category}</TableCell>
