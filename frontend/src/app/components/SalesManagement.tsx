@@ -13,12 +13,12 @@ import { useReturns, useSales } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 
-type SaleStatus = "Completed" | "Pending" | "Cancelled";
+type SaleStatus = "Completed" | "Pending" | "Voided";
 
 function getStatus(paymentStatus?: string | null): SaleStatus {
   const status = (paymentStatus ?? "Paid").toLowerCase();
   if (status.includes("pending")) return "Pending";
-  if (status.includes("cancel") || status.includes("fail")) return "Cancelled";
+  if (status.includes("void") || status.includes("cancel") || status.includes("fail")) return "Voided";
   return "Completed";
 }
 
@@ -34,7 +34,7 @@ function formatSalesDisplayId(sequence: number) {
 
 function toPaymentStatus(status: SaleStatus): string {
   if (status === "Pending") return "pending";
-  if (status === "Cancelled") return "failed";
+  if (status === "Voided") return "failed";
   return "completed";
 }
 
@@ -281,7 +281,7 @@ export function SalesManagement() {
                             <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                               <SelectItem value="Completed">Completed</SelectItem>
                               <SelectItem value="Pending">Pending</SelectItem>
-                              <SelectItem value="Cancelled">Cancelled</SelectItem>
+                              <SelectItem value="Voided">Voided</SelectItem>
                             </SelectContent>
                           </Select>
                         ) : (
