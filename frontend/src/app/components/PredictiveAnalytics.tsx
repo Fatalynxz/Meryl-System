@@ -174,25 +174,8 @@ function stockBadgeClass(stock: number, reorder: number) {
   return "bg-green-700 text-white";
 }
 
-function MetricCard({ title, value, note, icon: Icon }: { title: string; value: string; note: string; icon: any }) {
-  return (
-    <Card className="border-[#2b2b36] bg-[#16161d]">
-      <CardContent className="p-5">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <p className="text-sm font-medium text-white/70">{title}</p>
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-yellow-400/10 ring-1 ring-yellow-400/10">
-            <Icon className="h-6 w-6 text-yellow-400" />
-          </div>
-        </div>
-        <p className="whitespace-nowrap text-3xl font-bold leading-none tracking-tight text-white">{value}</p>
-        <p className="mt-3 min-h-[2rem] text-sm leading-snug text-emerald-300">{note}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function PredictiveAnalytics() {
-  const [analyticsView, setAnalyticsView] = useState<"overview" | "product" | "customer" | "sales" | "promotion">("overview");
+  const [analyticsView, setAnalyticsView] = useState<"product" | "customer" | "sales" | "promotion">("product");
   const [revenueTrendPeriod, setRevenueTrendPeriod] = useState<RevenueTrendPeriod>("daily");
   const [salesForecastPeriod, setSalesForecastPeriod] = useState<RevenueTrendPeriod>("monthly");
   const [productAnalyticsPeriod, setProductAnalyticsPeriod] = useState<RevenueTrendPeriod>("monthly");
@@ -790,15 +773,13 @@ export function PredictiveAnalytics() {
     return <div className="text-sm text-white/60">Loading analytics...</div>;
   }
 
-  const showOverview = analyticsView === "overview";
-  const showProduct = analyticsView === "overview" || analyticsView === "product";
-  const showCustomer = analyticsView === "overview" || analyticsView === "customer";
-  const showSales = analyticsView === "overview" || analyticsView === "sales";
-  const showPromotion = analyticsView === "overview" || analyticsView === "promotion";
+  const showProduct = analyticsView === "product";
+  const showCustomer = analyticsView === "customer";
+  const showSales = analyticsView === "sales";
+  const showPromotion = analyticsView === "promotion";
   const hasActivePromotionPerformance = analytics.activePromotionChart.some((promo) => promo.revenue > 0 || promo.units > 0);
 
   const filterTabs = [
-    { id: "overview" as const, label: "Overview", icon: BarChart3, count: null },
     { id: "product" as const, label: "Product Analytics", icon: Package, count: analytics.productMovement.length },
     { id: "customer" as const, label: "Customer Analytics", icon: Users, count: analytics.genderRows.length + analytics.ageRows.length },
     { id: "sales" as const, label: "Sales Analytics", icon: TrendingUp, count: analytics.trendChart.length },
@@ -808,7 +789,7 @@ export function PredictiveAnalytics() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-[#2b2b36] bg-[#16161d] p-2">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
           {filterTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = analyticsView === tab.id;
@@ -835,33 +816,6 @@ export function PredictiveAnalytics() {
           })}
         </div>
       </div>
-
-      {showOverview && <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          title="Predicted Next Month"
-          value={shortMoney(analytics.predictedNextMonth)}
-          note={`${analytics.projectedUnits.toLocaleString("en-PH")} projected units`}
-          icon={TrendingUp}
-        />
-        <MetricCard
-          title="Inventory Turnover"
-          value={`${analytics.inventoryTurnover.toFixed(2)}x`}
-          note="90-day sales vs average stock"
-          icon={Package}
-        />
-        <MetricCard
-          title="Restock Alerts"
-          value={String(analytics.restockAlerts.length)}
-          note="Items at or below reorder level"
-          icon={AlertTriangle}
-        />
-        <MetricCard
-          title="Customer Segments"
-          value={String(analytics.genderRows.length + analytics.ageRows.length)}
-          note="Gender + age range groups"
-          icon={Users}
-        />
-      </div>}
 
       {showSales && <div className="space-y-6">
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
@@ -1496,7 +1450,7 @@ export function PredictiveAnalytics() {
       </div>
       )}
 
-      {(showOverview || analyticsView === "product") && <Card className="bg-[#16161d] border-[#2b2b36]">
+      {showProduct && <Card className="bg-[#16161d] border-[#2b2b36]">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Sparkles className="h-5 w-5 text-yellow-400" /> Targeted Marketing Recommendations
