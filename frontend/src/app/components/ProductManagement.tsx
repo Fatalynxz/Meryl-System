@@ -379,6 +379,43 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       setEditingProduct(null);
       toast.success("Product deleted from Product List.");
     } catch (error: any) {
+      const message = String(error?.message ?? "").toLowerCase();
+      const blockedByHistory =
+        message.includes("foreign key") ||
+        message.includes("sales_details_product_id_fkey") ||
+        message.includes("violates");
+
+      if (blockedByHistory) {
+        try {
+          // Keep sales history intact: archive product instead of hard delete.
+          const { error: archiveProductError } = await supabase
+            .from("product")
+            .update({ status: "inactive" } as any)
+            .eq("product_id", product.product_id);
+          if (archiveProductError) throw archiveProductError;
+
+          const { error: archiveInventoryError } = await supabase
+            .from("inventory")
+            .update({
+              inventory_status: "inactive",
+              stock_quantity: 0,
+              last_updated: new Date().toISOString(),
+            } as any)
+            .eq("product_id", product.product_id);
+          if (archiveInventoryError) throw archiveInventoryError;
+
+          await queryClient.invalidateQueries({ queryKey: ["products"] });
+          await queryClient.invalidateQueries({ queryKey: ["inventory"] });
+          setIsProductDialogOpen(false);
+          setEditingProduct(null);
+          toast.success("Product is linked to sales history and was archived instead.");
+          return;
+        } catch (archiveError: any) {
+          toast.error(archiveError?.message ?? "Failed to archive product");
+          return;
+        }
+      }
+
       toast.error(error?.message ?? "Failed to delete product");
     }
   };
@@ -465,7 +502,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                             onClick={() => void deleteProduct(editingProduct)}
                             className="text-red-300 hover:bg-red-800/70 hover:text-red-100"
                           >
-                            Delete Product
+                            Delete / Archive Product
                           </Button>
                         ) : <span />}
                         <Button onClick={saveProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
