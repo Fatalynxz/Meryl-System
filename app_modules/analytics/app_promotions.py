@@ -387,8 +387,6 @@ def _build_promotion_email(
         "<div style='max-width:640px;margin:auto;background:#15161d;border:1px solid #2b2d38;"
         "border-radius:22px;overflow:hidden'>"
         "<div style='background:linear-gradient(135deg,#e51b2a,#8b111b);padding:28px'>"
-        "<div style='color:#ffcc00;font-size:12px;font-weight:800;letter-spacing:1.4px;"
-        "text-transform:uppercase'>Meryl Shoes VIP Offer</div>"
         f"<h1 style='font-size:32px;line-height:1.15;margin:14px 0 10px'>{escape(template['headline'])}</h1>"
         f"<p style='margin:0;color:#f3f4f6;line-height:1.55'>{escape(template['body'])}</p>"
         "</div>"
