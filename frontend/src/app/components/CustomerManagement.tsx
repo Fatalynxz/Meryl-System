@@ -6,7 +6,7 @@ import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Edit, Mail, MapPin, Phone, Search, Star, Trash2, Users, Gift } from "lucide-react";
+import { Crown, Edit, Mail, MapPin, Phone, Search, Star, Trash2, Users, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomers, useCustomersMutations, useSales, useReturns } from "../../lib/hooks";
 
@@ -193,10 +193,13 @@ export function CustomerManagement() {
         </Card>
         <Card className="bg-red-700 border-red-800">
           <CardContent className="pt-6">
-            <div>
-              <p className="text-sm text-yellow-200">Top Customer</p>
-              <p className="text-lg text-yellow-300">{topCustomer?.name || "N/A"}</p>
-              <p className="text-xs text-yellow-200">{topCustomer?.totalPurchases || 0} purchases</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-yellow-200">Top Customer</p>
+                <p className="text-lg text-yellow-300">{topCustomer?.name || "N/A"}</p>
+                <p className="text-xs text-yellow-200">{topCustomer?.totalPurchases || 0} purchases</p>
+              </div>
+              <Crown className="h-8 w-8 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
