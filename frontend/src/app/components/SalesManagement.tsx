@@ -117,6 +117,7 @@ export function SalesManagement() {
             product_id: d.product_id,
             productName: (Array.isArray(d.product) ? d.product[0]?.product_name : d.product?.product_name) ?? "N/A",
             quantity: Number(d.quantity ?? 0),
+            returned_quantity: Number(d.returned_quantity ?? 0),
             price: Number(d.price ?? 0),
             discount_applied: Number(d.discount_applied ?? 0),
             subtotal: Number(d.subtotal ?? 0),
@@ -145,6 +146,21 @@ export function SalesManagement() {
       ),
     [visibleSales, searchTerm],
   );
+
+  const replacementLabelBySaleId = useMemo(() => {
+    const map = new Map<string, "Fully Replaced" | "Partially Replaced" | "Not Replaced">();
+    for (const sale of visibleSales) {
+      const details = Array.isArray(sale.saleDetails) ? sale.saleDetails : [];
+      const hasReplacement = Number(sale.replacementCount ?? 0) > 0;
+      if (!hasReplacement) {
+        map.set(sale.sales_id, "Not Replaced");
+        continue;
+      }
+      const fullyReplaced = details.length > 0 && details.every((d: any) => Number(d.returned_quantity ?? 0) >= Number(d.quantity ?? 0));
+      map.set(sale.sales_id, fullyReplaced ? "Fully Replaced" : "Partially Replaced");
+    }
+    return map;
+  }, [visibleSales]);
 
   const completedSales = visibleSales.filter((s) => s.status === "Completed");
   const totalRevenue = completedSales.reduce((sum, sale) => sum + sale.total_amount, 0);
@@ -252,34 +268,41 @@ export function SalesManagement() {
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.customerName}</TableCell>
                     <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {sale.total_amount}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
-                      {isAdmin ? (
-                        <Select
-                          value={sale.status}
-                          onValueChange={(value) => void handleStatusUpdate(sale, value as SaleStatus)}
-                          disabled={updatingSaleId === sale.sales_id}
-                        >
-                          <SelectTrigger className="h-8 w-full bg-red-600 border-red-800 text-yellow-200">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-                            <SelectItem value="Completed">Completed</SelectItem>
-                            <SelectItem value="Pending">Pending</SelectItem>
-                            <SelectItem value="Cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge
-                          className={
-                            sale.status === "Completed"
-                              ? "bg-green-600 text-white"
-                              : sale.status === "Pending"
-                                ? "bg-yellow-600 text-red-900"
-                                : "bg-red-900 text-yellow-200"
-                          }
-                        >
-                          {sale.status}
-                        </Badge>
-                      )}
+                      <div className="flex flex-col items-center gap-1">
+                        {isAdmin ? (
+                          <Select
+                            value={sale.status}
+                            onValueChange={(value) => void handleStatusUpdate(sale, value as SaleStatus)}
+                            disabled={updatingSaleId === sale.sales_id}
+                          >
+                            <SelectTrigger className="h-8 w-full bg-red-600 border-red-800 text-yellow-200">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                              <SelectItem value="Completed">Completed</SelectItem>
+                              <SelectItem value="Pending">Pending</SelectItem>
+                              <SelectItem value="Cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge
+                            className={
+                              sale.status === "Completed"
+                                ? "bg-green-600 text-white"
+                                : sale.status === "Pending"
+                                  ? "bg-yellow-600 text-red-900"
+                                  : "bg-red-900 text-yellow-200"
+                            }
+                          >
+                            {sale.status}
+                          </Badge>
+                        )}
+                        {replacementLabelBySaleId.get(sale.sales_id) !== "Not Replaced" && (
+                          <Badge className={replacementLabelBySaleId.get(sale.sales_id) === "Fully Replaced" ? "bg-cyan-700 text-white" : "bg-blue-700 text-white"}>
+                            {replacementLabelBySaleId.get(sale.sales_id)}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{sale.lastActivityDate}</TableCell>
                     <TableCell className="text-center whitespace-nowrap">

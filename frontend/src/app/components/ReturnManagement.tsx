@@ -230,7 +230,8 @@ export function ReturnManagement() {
             }),
             customer_id: String(sale.customer_id ?? ""),
           };
-        }),
+        })
+        .filter((sale) => sale.details.some((detail: any) => Number(detail.returnable_quantity ?? 0) > 0)),
     [isAdmin, productMap, sales, salesDisplayMap, user?.user_id],
   );
 
