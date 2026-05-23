@@ -143,6 +143,7 @@ export function ReturnManagement() {
   const [returnedItemSearch, setReturnedItemSearch] = useState("");
   const [replacementSearch, setReplacementSearch] = useState("");
   const [selectedReturnedDetailIds, setSelectedReturnedDetailIds] = useState<string[]>([]);
+  const [returnedItemQtyByDetail, setReturnedItemQtyByDetail] = useState<Record<string, number>>({});
   const [replacementLines, setReplacementLines] = useState<ReplacementLine[]>([]);
 
   const sales = (salesQuery.data as any[]) ?? [];
@@ -238,6 +239,17 @@ export function ReturnManagement() {
     const details = selectedSale?.details ?? [];
     return details.filter((detail) => selected.has(detail.sales_detail_id));
   }, [selectedReturnedDetailIds, selectedSale?.details]);
+  const selectedReturnedItemsWithQty = useMemo(
+    () =>
+      selectedReturnedItems.map((item) => ({
+        ...item,
+        selectedQty: Math.min(
+          Math.max(1, Number(returnedItemQtyByDetail[item.sales_detail_id] ?? formData.quantity ?? 1)),
+          Math.max(1, Number(item.returnable_quantity ?? item.quantity ?? 1)),
+        ),
+      })),
+    [formData.quantity, returnedItemQtyByDetail, selectedReturnedItems],
+  );
   const selectedOriginalItem =
     selectedReturnedItems[0] ??
     selectedSale?.details.find((detail) => detail.product_id === formData.returned_product_id);
@@ -251,12 +263,12 @@ export function ReturnManagement() {
   );
   const quantity = Math.min(Math.max(1, Number(formData.quantity || 1)), maxReturnQty);
   const originalTotal =
-    selectedReturnedItems.length > 0
-      ? selectedReturnedItems.reduce((sum, item) => sum + Number(item.price ?? 0) * quantity, 0)
+    selectedReturnedItemsWithQty.length > 0
+      ? selectedReturnedItemsWithQty.reduce((sum, item) => sum + Number(item.price ?? 0) * Number(item.selectedQty ?? 1), 0)
       : Number(selectedOriginalItem?.price ?? 0) * quantity;
   const replacementTotal =
-    selectedReturnedItems.length > 0
-      ? Number(replacementProduct?.price ?? 0) * quantity * selectedReturnedItems.length
+    selectedReturnedItemsWithQty.length > 0
+      ? selectedReturnedItemsWithQty.reduce((sum, item) => sum + Number(replacementProduct?.price ?? 0) * Number(item.selectedQty ?? 1), 0)
       : Number(replacementProduct?.price ?? 0) * quantity;
   const priceDifference = replacementTotal - originalTotal;
   const customerPays = Math.max(0, priceDifference);
@@ -317,6 +329,7 @@ export function ReturnManagement() {
     if (saleId !== formData.sales_id) {
       setReplacementLines([]);
       setSelectedReturnedDetailIds([]);
+      setReturnedItemQtyByDetail({});
     }
     setFormData({
       ...formData,
@@ -331,43 +344,50 @@ export function ReturnManagement() {
     setSelectedReturnedDetailIds((prev) => {
       if (prev.includes(salesDetailId)) {
         const next = prev.filter((id) => id !== salesDetailId);
+        setReturnedItemQtyByDetail((qtyPrev) => {
+          const copy = { ...qtyPrev };
+          delete copy[salesDetailId];
+          return copy;
+        });
         if (next.length === 0) {
           setFormData((current) => ({ ...current, returned_product_id: "" }));
         }
         return next;
       }
       setFormData((current) => ({ ...current, returned_product_id: productId }));
+      setReturnedItemQtyByDetail((qtyPrev) => ({ ...qtyPrev, [salesDetailId]: Number(formData.quantity || 1) }));
       return [...prev, salesDetailId];
     });
   };
 
   const addReplacementLine = () => {
-    if (!selectedSale || selectedReturnedItems.length === 0 || !replacementProduct) {
+    if (!selectedSale || selectedReturnedItemsWithQty.length === 0 || !replacementProduct) {
       toast.error("Select sale, returned item(s), and replacement item first");
       return;
     }
-    const duplicate = selectedReturnedItems.find((item) =>
+    const duplicate = selectedReturnedItemsWithQty.find((item) =>
       replacementLines.some((line) => line.sales_detail_id === item.sales_detail_id),
     );
     if (duplicate) {
       toast.error(`${duplicate.productName} is already in the replacement list`);
       return;
     }
-    const invalidQty = selectedReturnedItems.find((item) => quantity > Number(item.returnable_quantity ?? 0));
+    const invalidQty = selectedReturnedItemsWithQty.find((item) => Number(item.selectedQty ?? 1) > Number(item.returnable_quantity ?? 0));
     if (invalidQty) {
       toast.error(`Only ${invalidQty.returnable_quantity} unit(s) can be returned from ${invalidQty.productName}`);
       return;
     }
-    const stockNeeded = quantity * selectedReturnedItems.length;
+    const stockNeeded = selectedReturnedItemsWithQty.reduce((sum, item) => sum + Number(item.selectedQty ?? 1), 0);
     if (replacementProduct.stock < stockNeeded) {
       toast.error(`Only ${replacementProduct.stock} replacement unit(s) available, but ${stockNeeded} needed`);
       return;
     }
 
     setReplacementLines((prev) => {
-      const additions = selectedReturnedItems.map((item) => {
-        const originalLineTotal = Number(item.price ?? 0) * quantity;
-        const replacementLineTotal = Number(replacementProduct.price ?? 0) * quantity;
+      const additions = selectedReturnedItemsWithQty.map((item) => {
+        const lineQty = Number(item.selectedQty ?? 1);
+        const originalLineTotal = Number(item.price ?? 0) * lineQty;
+        const replacementLineTotal = Number(replacementProduct.price ?? 0) * lineQty;
         return {
           line_id: buildClientId(),
           sales_detail_id: item.sales_detail_id,
@@ -375,7 +395,7 @@ export function ReturnManagement() {
           returned_product_name: item.productName,
           replacement_product_id: replacementProduct.product_id,
           replacement_product_name: replacementProduct.name,
-          quantity,
+          quantity: lineQty,
           returned_price_unit: Number(item.price ?? 0),
           replacement_price_unit: Number(replacementProduct.price ?? 0),
           price_difference: replacementLineTotal - originalLineTotal,
@@ -392,6 +412,7 @@ export function ReturnManagement() {
       quantity: 1,
     }));
     setSelectedReturnedDetailIds([]);
+    setReturnedItemQtyByDetail({});
   };
 
   const removeReplacementLine = (lineId: string) => {
@@ -997,19 +1018,45 @@ export function ReturnManagement() {
                               <TableHead className="w-[30%] text-yellow-300 text-center">Product</TableHead>
                               <TableHead className="w-[12%] text-yellow-300 text-center">Sold</TableHead>
                               <TableHead className="w-[14%] text-yellow-300 text-center">Returnable</TableHead>
+                              <TableHead className="w-[14%] text-yellow-300 text-center">Return Qty</TableHead>
                               <TableHead className="w-[18%] text-yellow-300 text-center">Price</TableHead>
-                              <TableHead className="w-[12%] text-yellow-300 text-center">Action</TableHead>
+                              <TableHead className="w-[10%] text-yellow-300 text-center">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {filteredReturnedItems.map((detail: any) => {
                               const isSelected = selectedReturnedDetailIds.includes(detail.sales_detail_id);
+                              const rowQty = Math.min(
+                                Math.max(1, Number(returnedItemQtyByDetail[detail.sales_detail_id] ?? formData.quantity ?? 1)),
+                                Math.max(1, Number(detail.returnable_quantity ?? detail.quantity ?? 1)),
+                              );
                               return (
                               <TableRow key={`${detail.sales_detail_id}-${detail.product_id}`} className={`border-red-800 transition-colors hover:bg-red-800/60 ${isSelected ? "bg-yellow-400/10" : ""}`}>
                                 <TableCell className="truncate text-yellow-200 text-center" title={detail.product_id}>{detail.product_id.slice(0, 8)}</TableCell>
                                 <TableCell className="truncate text-yellow-200 text-center" title={detail.productName}>{detail.productName}</TableCell>
                                 <TableCell className="text-yellow-200 text-center">{detail.quantity}</TableCell>
                                 <TableCell className="text-yellow-200 text-center">{detail.returnable_quantity}</TableCell>
+                                <TableCell className="text-center">
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={Math.max(1, Number(detail.returnable_quantity ?? 1))}
+                                    value={rowQty}
+                                    disabled={!isSelected}
+                                    onChange={(event) => {
+                                      const raw = Number(event.target.value || 1);
+                                      const nextQty = Math.min(
+                                        Math.max(1, raw),
+                                        Math.max(1, Number(detail.returnable_quantity ?? detail.quantity ?? 1)),
+                                      );
+                                      setReturnedItemQtyByDetail((prev) => ({
+                                        ...prev,
+                                        [detail.sales_detail_id]: nextQty,
+                                      }));
+                                    }}
+                                    className="mx-auto h-8 w-20 bg-red-600 border-red-800 text-yellow-200 text-center disabled:opacity-50"
+                                  />
+                                </TableCell>
                                 <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(detail.price)}</TableCell>
                                 <TableCell className="text-center">
                                   <Button
@@ -1140,7 +1187,7 @@ export function ReturnManagement() {
                         className="bg-red-600 border-red-800 text-yellow-200"
                       />
                       {selectedReturnedItems.length > 1 && (
-                        <p className="text-xs text-yellow-300">Quantity will apply to each selected returned product.</p>
+                        <p className="text-xs text-yellow-300">Tip: Set exact qty per selected item in Step 2 (Return Qty column).</p>
                       )}
                     </div>
                     <div className="space-y-2">
