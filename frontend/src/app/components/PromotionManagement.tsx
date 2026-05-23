@@ -232,6 +232,7 @@ export function PromotionManagement() {
   });
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [hiddenRecommendationIds, setHiddenRecommendationIds] = useState<Set<string>>(new Set());
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [lastNotificationBatch, setLastNotificationBatch] = useState<Notification[]>([]);
   const [lastNotificationPromo, setLastNotificationPromo] = useState<Partial<Promotion>>({});
@@ -415,9 +416,11 @@ export function PromotionManagement() {
   const visibleProductRecommendations = useMemo(
     () =>
       productRecommendations.filter(
-        (rec) => !activeRecommendationSignatures.has(recommendationSignature(rec.discount_type, rec.targetProducts)),
+        (rec) =>
+          !hiddenRecommendationIds.has(rec.id) &&
+          !activeRecommendationSignatures.has(recommendationSignature(rec.discount_type, rec.targetProducts)),
       ),
-    [activeRecommendationSignatures, productRecommendations],
+    [activeRecommendationSignatures, hiddenRecommendationIds, productRecommendations],
   );
 
   const applyRecommendation = (rec: PromotionRecommendation) => {
@@ -434,6 +437,7 @@ export function PromotionManagement() {
       end_date: toDateInput(end),
       status: 'Scheduled',
     });
+    setHiddenRecommendationIds((prev) => new Set(prev).add(rec.id));
     setIsAddDialogOpen(true);
     toast.success('Recommendation applied to promotion form');
   };

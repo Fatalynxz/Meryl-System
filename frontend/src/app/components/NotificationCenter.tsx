@@ -21,6 +21,8 @@ function asDate(value: string | null | undefined) {
 }
 
 export function NotificationCenter() {
+  const READ_STORAGE_KEY = "meryl_notifications_read_ids";
+  const DISMISSED_STORAGE_KEY = "meryl_notifications_dismissed_ids";
   const [isOpen, setIsOpen] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
@@ -165,6 +167,25 @@ export function NotificationCenter() {
   }, [products, sales, promotions, returnsList, dbNotifications, dismissedIds]);
 
   const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+
+  useEffect(() => {
+    try {
+      const readRaw = localStorage.getItem(READ_STORAGE_KEY);
+      const dismissedRaw = localStorage.getItem(DISMISSED_STORAGE_KEY);
+      if (readRaw) setReadIds(new Set(JSON.parse(readRaw)));
+      if (dismissedRaw) setDismissedIds(new Set(JSON.parse(dismissedRaw)));
+    } catch {
+      // Ignore malformed local storage values.
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(Array.from(readIds)));
+  }, [readIds]);
+
+  useEffect(() => {
+    localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify(Array.from(dismissedIds)));
+  }, [dismissedIds]);
 
   useEffect(() => {
     if (!isOpen) return;
