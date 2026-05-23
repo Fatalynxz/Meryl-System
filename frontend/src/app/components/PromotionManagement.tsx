@@ -179,6 +179,13 @@ function recommendationSignature(type: string | undefined, target: string | unde
   return `${String(type ?? '').toLowerCase()}::${normalizeRecommendationTarget(target)}`;
 }
 
+function normalizeRecommendationTitle(value: string | undefined) {
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 export function PromotionManagement() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
@@ -238,6 +245,29 @@ export function PromotionManagement() {
   const [lastNotificationPromo, setLastNotificationPromo] = useState<Partial<Promotion>>({});
   const [isSavingPromotion, setIsSavingPromotion] = useState(false);
   const [isUpdatingPromotion, setIsUpdatingPromotion] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('promotions.hiddenRecommendationIds');
+      if (!raw) return;
+      const ids = JSON.parse(raw);
+      if (!Array.isArray(ids)) return;
+      setHiddenRecommendationIds(new Set(ids.map((id) => String(id))));
+    } catch {
+      // ignore bad stored values
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        'promotions.hiddenRecommendationIds',
+        JSON.stringify(Array.from(hiddenRecommendationIds)),
+      );
+    } catch {
+      // ignore local storage write failures
+    }
+  }, [hiddenRecommendationIds]);
 
   const triggerPromotionEmailNotification = async (promoId: string) => {
     const parseResult = async (response: Response) => response.json().catch(() => ({}));
@@ -413,14 +443,25 @@ export function PromotionManagement() {
     return covered;
   }, [promotions]);
 
+  const activeRecommendationTitles = useMemo(() => {
+    const covered = new Set<string>();
+    promotions
+      .filter((promo) => promo.status !== 'Ended')
+      .forEach((promo) => {
+        covered.add(normalizeRecommendationTitle(promo.promo_name));
+      });
+    return covered;
+  }, [promotions]);
+
   const visibleProductRecommendations = useMemo(
     () =>
       productRecommendations.filter(
         (rec) =>
           !hiddenRecommendationIds.has(rec.id) &&
-          !activeRecommendationSignatures.has(recommendationSignature(rec.discount_type, rec.targetProducts)),
+          !activeRecommendationSignatures.has(recommendationSignature(rec.discount_type, rec.targetProducts)) &&
+          !activeRecommendationTitles.has(normalizeRecommendationTitle(rec.title)),
       ),
-    [activeRecommendationSignatures, hiddenRecommendationIds, productRecommendations],
+    [activeRecommendationSignatures, activeRecommendationTitles, hiddenRecommendationIds, productRecommendations],
   );
 
   const applyRecommendation = (rec: PromotionRecommendation) => {
