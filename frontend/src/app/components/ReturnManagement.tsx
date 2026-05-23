@@ -142,6 +142,7 @@ export function ReturnManagement() {
   const [salePickerSearch, setSalePickerSearch] = useState("");
   const [returnedItemSearch, setReturnedItemSearch] = useState("");
   const [replacementSearch, setReplacementSearch] = useState("");
+  const [isReplacementPickerOpen, setIsReplacementPickerOpen] = useState(false);
   const [selectedReturnedDetailIds, setSelectedReturnedDetailIds] = useState<string[]>([]);
   const [returnedItemQtyByDetail, setReturnedItemQtyByDetail] = useState<Record<string, number>>({});
   const [replacementLines, setReplacementLines] = useState<ReplacementLine[]>([]);
@@ -358,6 +359,11 @@ export function ReturnManagement() {
       setReturnedItemQtyByDetail((qtyPrev) => ({ ...qtyPrev, [salesDetailId]: Number(formData.quantity || 1) }));
       return [...prev, salesDetailId];
     });
+  };
+
+  const selectReplacementProduct = (productId: string) => {
+    setFormData((current) => ({ ...current, replacement_product_id: productId }));
+    setIsReplacementPickerOpen(false);
   };
 
   const addReplacementLine = () => {
@@ -1079,54 +1085,80 @@ export function ReturnManagement() {
                     <div className={`space-y-3 rounded-xl border border-red-800 p-4 ${!hasReturnedSelected ? "opacity-50" : ""}`}>
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <Label className="text-yellow-300">Step 3: Select Replacement Product</Label>
-                        <div className="relative md:w-80">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
-                          <Input
-                            value={replacementSearch}
-                            onChange={(event) => setReplacementSearch(event.target.value)}
-                            placeholder="Search replacement by SKU, name, brand..."
-                            className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
-                            disabled={!hasReturnedSelected}
-                          />
-                        </div>
+                        <Dialog open={isReplacementPickerOpen} onOpenChange={setIsReplacementPickerOpen}>
+                          <DialogTrigger asChild>
+                            <Button
+                              type="button"
+                              disabled={!hasReturnedSelected}
+                              className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-50"
+                            >
+                              {replacementProduct ? "Change Replacement Product" : "Choose Replacement Product"}
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 !w-[92vw] !max-w-[980px] max-h-[84vh] overflow-hidden p-0">
+                            <div className="border-b border-zinc-800 p-4">
+                              <DialogHeader>
+                                <DialogTitle className="text-yellow-300">Select Replacement Product</DialogTitle>
+                              </DialogHeader>
+                            </div>
+                            <div className="max-h-[66vh] overflow-y-auto p-4 space-y-3">
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                                <Input
+                                  value={replacementSearch}
+                                  onChange={(event) => setReplacementSearch(event.target.value)}
+                                  placeholder="Search replacement by SKU, name, brand..."
+                                  className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                                />
+                              </div>
+                              <div className="border border-red-800 rounded-xl overflow-y-auto max-h-[48vh]">
+                                <Table className="w-full table-fixed text-sm">
+                                  <TableHeader>
+                                    <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                                      <TableHead className="w-[24%] text-yellow-300 text-center">Product</TableHead>
+                                      <TableHead className="w-[14%] text-yellow-300 text-center">Brand</TableHead>
+                                      <TableHead className="w-[16%] text-yellow-300 text-center">Variant</TableHead>
+                                      <TableHead className="w-[16%] text-yellow-300 text-center">Price</TableHead>
+                                      <TableHead className="w-[14%] text-yellow-300 text-center">Stock</TableHead>
+                                      <TableHead className="w-[16%] text-yellow-300 text-center">Action</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {filteredReplacementProducts.map((product) => (
+                                      <TableRow key={product.product_id} className={`border-red-800 transition-colors hover:bg-red-800/60 ${formData.replacement_product_id === product.product_id ? "bg-yellow-400/10" : ""}`}>
+                                        <TableCell className="truncate text-yellow-200 text-center" title={product.name}>{product.name}</TableCell>
+                                        <TableCell className="truncate text-yellow-200 text-center" title={product.brand}>{product.brand}</TableCell>
+                                        <TableCell className="truncate text-yellow-200 text-center" title={`${product.color} / ${product.size}`}>{product.color} / {product.size}</TableCell>
+                                        <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(product.price)}</TableCell>
+                                        <TableCell className="text-center">
+                                          <Badge className="rounded-full bg-yellow-400 text-red-900">{product.stock} units</Badge>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                          <Button
+                                            size="sm"
+                                            onClick={() => selectReplacementProduct(product.product_id)}
+                                            className="h-8 rounded-full bg-yellow-400 px-4 text-red-900 hover:bg-yellow-500"
+                                          >
+                                            {formData.replacement_product_id === product.product_id ? "Selected" : "Select"}
+                                          </Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                       {!hasReturnedSelected && <p className="text-xs text-zinc-300">Select the returned product first.</p>}
-                      <div className="border border-red-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-56">
-                        <Table className="w-full table-fixed text-sm">
-                          <TableHeader>
-                            <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                              <TableHead className="w-[24%] text-yellow-300 text-center">Product</TableHead>
-                              <TableHead className="w-[14%] text-yellow-300 text-center">Brand</TableHead>
-                              <TableHead className="w-[16%] text-yellow-300 text-center">Variant</TableHead>
-                              <TableHead className="w-[16%] text-yellow-300 text-center">Price</TableHead>
-                              <TableHead className="w-[14%] text-yellow-300 text-center">Stock</TableHead>
-                              <TableHead className="w-[16%] text-yellow-300 text-center">Action</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredReplacementProducts.map((product) => (
-                              <TableRow key={product.product_id} className={`border-red-800 transition-colors hover:bg-red-800/60 ${formData.replacement_product_id === product.product_id ? "bg-yellow-400/10" : ""}`}>
-                                <TableCell className="truncate text-yellow-200 text-center" title={product.name}>{product.name}</TableCell>
-                                <TableCell className="truncate text-yellow-200 text-center" title={product.brand}>{product.brand}</TableCell>
-                                <TableCell className="truncate text-yellow-200 text-center" title={`${product.color} / ${product.size}`}>{product.color} / {product.size}</TableCell>
-                                <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(product.price)}</TableCell>
-                                <TableCell className="text-center">
-                                  <Badge className="rounded-full bg-yellow-400 text-red-900">{product.stock} units</Badge>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Button
-                                    size="sm"
-                                    disabled={!hasReturnedSelected}
-                                    onClick={() => setFormData({ ...formData, replacement_product_id: product.product_id })}
-                                    className="h-8 rounded-full bg-yellow-400 px-4 text-red-900 hover:bg-yellow-500"
-                                  >
-                                    {formData.replacement_product_id === product.product_id ? "Selected" : "Select"}
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                      <div className="rounded-xl border border-red-800 bg-red-900/20 p-3">
+                        <p className="text-xs text-yellow-300">Selected Replacement Product</p>
+                        <p className="text-sm text-yellow-200">
+                          {replacementProduct
+                            ? `${replacementProduct.name} (${formatCurrency(replacementProduct.price)})`
+                            : "No replacement product selected yet"}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -1264,7 +1296,6 @@ export function ReturnManagement() {
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Store Credit</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Additional Pay</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Status</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Date</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
@@ -1286,9 +1317,6 @@ export function ReturnManagement() {
                     <TableCell className="text-yellow-300 whitespace-nowrap text-center">{formatCurrency(returnItem.additional_payment)}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
                       <Badge className="bg-green-600 text-white">{returnItem.return_status}</Badge>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-center">
-                      <Badge className="bg-yellow-500 text-red-950">{returnItem.salesStatus}</Badge>
                     </TableCell>
                     <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{returnItem.return_date}</TableCell>
                     <TableCell className="text-center">
