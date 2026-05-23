@@ -154,7 +154,6 @@ export function PointOfSale() {
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
-  const [discount, setDiscount] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>("walk-in");
   const [saveWalkInDetails, setSaveWalkInDetails] = useState(false);
   const [walkInCustomerName, setWalkInCustomerName] = useState("");
@@ -334,7 +333,7 @@ export function PointOfSale() {
         .map((v) => ({ ...v }))
     : [];
 
-  const addVariantToCart = (selectedVariant: ProductVariant, requestedQuantity: number, manualDiscount: number) => {
+  const addVariantToCart = (selectedVariant: ProductVariant, requestedQuantity: number) => {
     if (!isSellableProduct(selectedVariant)) {
       toast.error("This product is not sellable. Set it to Active and make sure it has stock first.");
       return false;
@@ -370,7 +369,7 @@ export function PointOfSale() {
       })?.[0]?.promo;
     const promoDiscount = matchedPromotion
       ? promoToPercent(matchedPromotion.discountType, matchedPromotion.discountValue, selectedVariant.price)
-      : manualDiscount;
+      : 0;
 
     const isBogoApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bogo"));
     const quantityToAdd = isBogoApplied ? requestedQuantity * 2 : requestedQuantity;
@@ -412,7 +411,6 @@ export function PointOfSale() {
     setSelectedColor("");
     setSelectedSize("");
     setQuantity(1);
-    setDiscount(0);
     if (isBogoApplied) {
       toast.success("BOGO applied: quantity doubled and charged as buy-1-get-1");
     } else if (matchedPromotion) {
@@ -433,14 +431,13 @@ export function PointOfSale() {
     );
     if (!selectedVariant) return;
 
-    const added = addVariantToCart(selectedVariant, quantity, discount);
+    const added = addVariantToCart(selectedVariant, quantity);
     if (!added) return;
 
     setSelectedProductKey("");
     setSelectedColor("");
     setSelectedSize("");
     setQuantity(1);
-    setDiscount(0);
   };
 
   const selectProductVariant = (variant: ProductVariant) => {
@@ -744,7 +741,7 @@ export function PointOfSale() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="space-y-2">
                 <Label className="text-yellow-300">Quantity</Label>
                 <Input
@@ -752,17 +749,6 @@ export function PointOfSale() {
                   min="1"
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  className="bg-red-600 border-red-800 text-yellow-200"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-yellow-300">Discount (%)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={discount}
-                  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                   className="bg-red-600 border-red-800 text-yellow-200"
                 />
               </div>
