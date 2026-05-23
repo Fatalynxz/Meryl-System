@@ -1233,7 +1233,7 @@ export function ReturnManagement() {
                     disabled={isSaving}
                     className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60 font-bold"
                   >
-                    {isSaving ? "Processing..." : "✓ Complete Replacement"}
+                    {isSaving ? "Processing..." : "Save Replacement to Records"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
