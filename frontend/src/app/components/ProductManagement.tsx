@@ -34,6 +34,7 @@ type UiProduct = {
   srp: number;
   status: InventoryStatus;
   hasInventory: boolean;
+  isArchived: boolean;
 };
 
 type ProductFormData = {
@@ -139,6 +140,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
   const [editingProduct, setEditingProduct] = useState<UiProduct | null>(null);
   const [productForm, setProductForm] = useState<ProductFormData>(defaultProductForm);
   const [stockForm, setStockForm] = useState<StockFormData>(defaultStockForm);
+  const [showArchived, setShowArchived] = useState(false);
 
   const productsQuery = useProducts();
   const inventoryQuery = useInventory();
@@ -177,6 +179,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       const srp = Number(inventory?.srp ?? row.price ?? row.cost_price ?? unitPrice);
       const reorder = Number(inventory?.reorder_level ?? row.reorder_level ?? 10);
       const status = toUiStatus(inventory?.inventory_status ?? row.status);
+      const isArchived = String(row.status ?? "").trim().toLowerCase() === "inactive";
       return {
         id: String(row.product_id ?? ""),
         product_id: String(row.product_id ?? ""),
@@ -195,6 +198,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         srp,
         status,
         hasInventory: Boolean(inventory?.inventory_id),
+        isArchived,
       };
     });
   }, [inventoryByProductId, productsQuery.data]);
@@ -203,7 +207,8 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
 
   const filteredProducts = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    const source = activeTab === "inventory" ? products.filter((product) => product.hasInventory) : products;
+    const sourceRaw = activeTab === "inventory" ? products.filter((product) => product.hasInventory) : products;
+    const source = activeTab === "list" && !showArchived ? sourceRaw.filter((product) => !product.isArchived) : sourceRaw;
     return source.filter(
       (product) =>
         product.name.toLowerCase().includes(q) ||
@@ -215,7 +220,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         product.size.toLowerCase().includes(q) ||
         variantLabel(product).toLowerCase().includes(q),
     );
-  }, [activeTab, products, searchTerm]);
+  }, [activeTab, products, searchTerm, showArchived]);
 
   const selectedSettingsProduct = productMap.get(stockForm.product_id);
   const isExternallyRouted = Boolean(view);
@@ -356,6 +361,35 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
   };
 
   const deleteProduct = async (product: UiProduct) => {
+    if (product.isArchived) {
+      try {
+        const { error: restoreProductError } = await supabase
+          .from("product")
+          .update({ status: "active" } as any)
+          .eq("product_id", product.product_id);
+        if (restoreProductError) throw restoreProductError;
+
+        const { error: restoreInventoryError } = await supabase
+          .from("inventory")
+          .update({
+            inventory_status: "active",
+            last_updated: new Date().toISOString(),
+          } as any)
+          .eq("product_id", product.product_id);
+        if (restoreInventoryError) throw restoreInventoryError;
+
+        await queryClient.invalidateQueries({ queryKey: ["products"] });
+        await queryClient.invalidateQueries({ queryKey: ["inventory"] });
+        setIsProductDialogOpen(false);
+        setEditingProduct(null);
+        toast.success("Product restored.");
+        return;
+      } catch (error: any) {
+        toast.error(error?.message ?? "Failed to restore product");
+        return;
+      }
+    }
+
     try {
       // Remove related inventory logs and inventory rows first to satisfy FK constraints.
       const { error: logDeleteError } = await supabase
@@ -481,6 +515,16 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Badge className="bg-yellow-400 text-red-900">{filteredProducts.length} records</Badge>
+                {activeTab === "list" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowArchived((prev) => !prev)}
+                    className="border border-red-700 text-yellow-200 hover:bg-red-800"
+                  >
+                    {showArchived ? "Hide Archived" : "Show Archived"}
+                  </Button>
+                )}
                 {activeTab === "list" && isExternallyRouted && (
                   <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
                     <DialogTrigger asChild>
@@ -502,7 +546,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                             onClick={() => void deleteProduct(editingProduct)}
                             className="text-red-300 hover:bg-red-800/70 hover:text-red-100"
                           >
-                            Delete / Archive Product
+                            {editingProduct.isArchived ? "Restore Product" : "Delete / Archive Product"}
                           </Button>
                         ) : <span />}
                         <Button onClick={saveProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
@@ -563,9 +607,12 @@ function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit:
         </TableHeader>
         <TableBody>
           {products.map((product) => (
-            <TableRow key={product.product_id} className="border-red-800">
+            <TableRow key={product.product_id} className={`border-red-800 ${product.isArchived ? "opacity-55" : ""}`}>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
-              <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.name}</TableCell>
+              <TableCell className="text-yellow-200 text-center whitespace-nowrap">
+                <span>{product.name}</span>
+                {product.isArchived && <Badge className="ml-2 bg-gray-600 text-white">Archived</Badge>}
+              </TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.category}</TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.color}</TableCell>
