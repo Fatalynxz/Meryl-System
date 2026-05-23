@@ -142,6 +142,7 @@ export function ReturnManagement() {
   const [salePickerSearch, setSalePickerSearch] = useState("");
   const [returnedItemSearch, setReturnedItemSearch] = useState("");
   const [replacementSearch, setReplacementSearch] = useState("");
+  const [selectedReturnedDetailIds, setSelectedReturnedDetailIds] = useState<string[]>([]);
   const [replacementLines, setReplacementLines] = useState<ReplacementLine[]>([]);
 
   const sales = (salesQuery.data as any[]) ?? [];
@@ -232,19 +233,37 @@ export function ReturnManagement() {
   );
 
   const selectedSale = salesOptions.find((sale) => sale.sales_id === formData.sales_id);
-  const selectedOriginalItem = selectedSale?.details.find((detail) => detail.product_id === formData.returned_product_id);
+  const selectedReturnedItems = useMemo(() => {
+    const selected = new Set(selectedReturnedDetailIds);
+    const details = selectedSale?.details ?? [];
+    return details.filter((detail) => selected.has(detail.sales_detail_id));
+  }, [selectedReturnedDetailIds, selectedSale?.details]);
+  const selectedOriginalItem =
+    selectedReturnedItems[0] ??
+    selectedSale?.details.find((detail) => detail.product_id === formData.returned_product_id);
   const replacementProduct = productMap.get(formData.replacement_product_id);
   const requiresReplacement = formData.return_action === "Replacement" || formData.return_action === "Adjustment";
-  const maxReturnQty = Math.max(1, Number(selectedOriginalItem?.returnable_quantity ?? selectedOriginalItem?.quantity ?? 1));
+  const maxReturnQty = Math.max(
+    1,
+    selectedReturnedItems.length
+      ? Math.min(...selectedReturnedItems.map((item) => Number(item.returnable_quantity ?? item.quantity ?? 1)))
+      : Number(selectedOriginalItem?.returnable_quantity ?? selectedOriginalItem?.quantity ?? 1),
+  );
   const quantity = Math.min(Math.max(1, Number(formData.quantity || 1)), maxReturnQty);
-  const originalTotal = Number(selectedOriginalItem?.price ?? 0) * quantity;
-  const replacementTotal = Number(replacementProduct?.price ?? 0) * quantity;
+  const originalTotal =
+    selectedReturnedItems.length > 0
+      ? selectedReturnedItems.reduce((sum, item) => sum + Number(item.price ?? 0) * quantity, 0)
+      : Number(selectedOriginalItem?.price ?? 0) * quantity;
+  const replacementTotal =
+    selectedReturnedItems.length > 0
+      ? Number(replacementProduct?.price ?? 0) * quantity * selectedReturnedItems.length
+      : Number(replacementProduct?.price ?? 0) * quantity;
   const priceDifference = replacementTotal - originalTotal;
   const customerPays = Math.max(0, priceDifference);
   const totalAdditionalPayment = replacementLines.reduce((sum, line) => sum + Math.max(0, line.price_difference), 0);
   const totalCreditIssued = replacementLines.reduce((sum, line) => sum + Math.max(0, -line.price_difference), 0);
   const hasSaleSelected = Boolean(selectedSale);
-  const hasReturnedSelected = Boolean(selectedOriginalItem);
+  const hasReturnedSelected = selectedReturnedItems.length > 0;
   const hasReplacementSelected = Boolean(replacementProduct);
   const eligibleReplacementProducts = useMemo(
     () => products,
@@ -297,6 +316,7 @@ export function ReturnManagement() {
   const selectSaleForReturn = (saleId: string) => {
     if (saleId !== formData.sales_id) {
       setReplacementLines([]);
+      setSelectedReturnedDetailIds([]);
     }
     setFormData({
       ...formData,
@@ -307,50 +327,63 @@ export function ReturnManagement() {
     });
   };
 
-  const selectReturnedProduct = (productId: string) => {
-    setFormData({
-      ...formData,
-      returned_product_id: productId,
-      replacement_product_id: "",
-      quantity: 1,
+  const toggleReturnedProduct = (salesDetailId: string, productId: string) => {
+    setSelectedReturnedDetailIds((prev) => {
+      if (prev.includes(salesDetailId)) {
+        const next = prev.filter((id) => id !== salesDetailId);
+        if (next.length === 0) {
+          setFormData((current) => ({ ...current, returned_product_id: "" }));
+        }
+        return next;
+      }
+      setFormData((current) => ({ ...current, returned_product_id: productId }));
+      return [...prev, salesDetailId];
     });
   };
 
   const addReplacementLine = () => {
-    if (!selectedSale || !selectedOriginalItem || !replacementProduct) {
-      toast.error("Select sale, returned item, and replacement item first");
+    if (!selectedSale || selectedReturnedItems.length === 0 || !replacementProduct) {
+      toast.error("Select sale, returned item(s), and replacement item first");
       return;
     }
-    if (quantity > maxReturnQty) {
-      toast.error(`Only ${maxReturnQty} unit(s) can be returned from this item`);
+    const duplicate = selectedReturnedItems.find((item) =>
+      replacementLines.some((line) => line.sales_detail_id === item.sales_detail_id),
+    );
+    if (duplicate) {
+      toast.error(`${duplicate.productName} is already in the replacement list`);
       return;
     }
-    if (replacementProduct.stock < quantity) {
-      toast.error(`Only ${replacementProduct.stock} replacement unit(s) available`);
+    const invalidQty = selectedReturnedItems.find((item) => quantity > Number(item.returnable_quantity ?? 0));
+    if (invalidQty) {
+      toast.error(`Only ${invalidQty.returnable_quantity} unit(s) can be returned from ${invalidQty.productName}`);
       return;
     }
-    const existing = replacementLines.find((line) => line.sales_detail_id === selectedOriginalItem.sales_detail_id);
-    if (existing) {
-      toast.error("This sold item is already in the replacement list");
+    const stockNeeded = quantity * selectedReturnedItems.length;
+    if (replacementProduct.stock < stockNeeded) {
+      toast.error(`Only ${replacementProduct.stock} replacement unit(s) available, but ${stockNeeded} needed`);
       return;
     }
 
-    setReplacementLines((prev) => [
-      ...prev,
-      {
-        line_id: buildClientId(),
-        sales_detail_id: selectedOriginalItem.sales_detail_id,
-        returned_product_id: selectedOriginalItem.product_id,
-        returned_product_name: selectedOriginalItem.productName,
-        replacement_product_id: replacementProduct.product_id,
-        replacement_product_name: replacementProduct.name,
-        quantity,
-        returned_price_unit: Number(selectedOriginalItem.price ?? 0),
-        replacement_price_unit: Number(replacementProduct.price ?? 0),
-        price_difference,
-        inventory_action: formData.inventory_action,
-      },
-    ]);
+    setReplacementLines((prev) => {
+      const additions = selectedReturnedItems.map((item) => {
+        const originalLineTotal = Number(item.price ?? 0) * quantity;
+        const replacementLineTotal = Number(replacementProduct.price ?? 0) * quantity;
+        return {
+          line_id: buildClientId(),
+          sales_detail_id: item.sales_detail_id,
+          returned_product_id: item.product_id,
+          returned_product_name: item.productName,
+          replacement_product_id: replacementProduct.product_id,
+          replacement_product_name: replacementProduct.name,
+          quantity,
+          returned_price_unit: Number(item.price ?? 0),
+          replacement_price_unit: Number(replacementProduct.price ?? 0),
+          price_difference: replacementLineTotal - originalLineTotal,
+          inventory_action: formData.inventory_action,
+        };
+      });
+      return [...prev, ...additions];
+    });
 
     setFormData((prev) => ({
       ...prev,
@@ -358,6 +391,7 @@ export function ReturnManagement() {
       replacement_product_id: "",
       quantity: 1,
     }));
+    setSelectedReturnedDetailIds([]);
   };
 
   const removeReplacementLine = (lineId: string) => {
@@ -928,23 +962,16 @@ export function ReturnManagement() {
                     </div>
                     <div>
                       <p className="text-xs text-yellow-300">Returned Item</p>
-                      <p className="text-sm text-yellow-200">{selectedOriginalItem?.productName ?? "Not selected"}</p>
+                      <p className="text-sm text-yellow-200">
+                        {selectedReturnedItems.length
+                          ? `${selectedReturnedItems.length} item(s) selected`
+                          : "Not selected"}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-yellow-300">Replacement Item</p>
                       <p className="text-sm text-yellow-200">{replacementProduct?.name ?? "Not selected"}</p>
                     </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      onClick={addReplacementLine}
-                      disabled={!selectedOriginalItem || !replacementProduct}
-                      className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
-                    >
-                      Add Item to Replacement List
-                    </Button>
                   </div>
 
                   <div className={`space-y-3 rounded-xl border border-red-800 p-4 ${!hasSaleSelected ? "opacity-50" : ""}`}>
@@ -975,8 +1002,10 @@ export function ReturnManagement() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredReturnedItems.map((detail: any) => (
-                              <TableRow key={`${detail.sales_detail_id}-${detail.product_id}`} className={`border-red-800 transition-colors hover:bg-red-800/60 ${formData.returned_product_id === detail.product_id ? "bg-yellow-400/10" : ""}`}>
+                            {filteredReturnedItems.map((detail: any) => {
+                              const isSelected = selectedReturnedDetailIds.includes(detail.sales_detail_id);
+                              return (
+                              <TableRow key={`${detail.sales_detail_id}-${detail.product_id}`} className={`border-red-800 transition-colors hover:bg-red-800/60 ${isSelected ? "bg-yellow-400/10" : ""}`}>
                                 <TableCell className="truncate text-yellow-200 text-center" title={detail.product_id}>{detail.product_id.slice(0, 8)}</TableCell>
                                 <TableCell className="truncate text-yellow-200 text-center" title={detail.productName}>{detail.productName}</TableCell>
                                 <TableCell className="text-yellow-200 text-center">{detail.quantity}</TableCell>
@@ -986,14 +1015,14 @@ export function ReturnManagement() {
                                   <Button
                                     size="sm"
                                     disabled={Number(detail.returnable_quantity ?? 0) <= 0}
-                                    onClick={() => selectReturnedProduct(detail.product_id)}
+                                    onClick={() => toggleReturnedProduct(detail.sales_detail_id, detail.product_id)}
                                     className="h-8 rounded-full bg-yellow-400 px-4 text-red-900 hover:bg-yellow-500 disabled:opacity-50"
                                   >
-                                    {formData.returned_product_id === detail.product_id ? "Selected" : "Select"}
+                                    {isSelected ? "Selected" : "Select"}
                                   </Button>
                                 </TableCell>
                               </TableRow>
-                            ))}
+                            )})}
                           </TableBody>
                         </Table>
                       </div>
@@ -1110,6 +1139,9 @@ export function ReturnManagement() {
                         onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value || 1) })}
                         className="bg-red-600 border-red-800 text-yellow-200"
                       />
+                      {selectedReturnedItems.length > 1 && (
+                        <p className="text-xs text-yellow-300">Quantity will apply to each selected returned product.</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label className="text-yellow-300">Original Value</Label>
@@ -1135,6 +1167,17 @@ export function ReturnManagement() {
                       className="bg-red-600 border-red-800 text-yellow-200"
                       placeholder="e.g., wrong size, damaged item, customer requested exchange"
                     />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={addReplacementLine}
+                      disabled={!hasReturnedSelected || !replacementProduct}
+                      className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                    >
+                      Add Item to Replacement List
+                    </Button>
                   </div>
                 </div>
                 <DialogFooter className="border-t border-red-800 p-5">
