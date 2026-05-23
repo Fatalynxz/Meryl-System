@@ -375,7 +375,6 @@ def _build_promotion_email(
     safe_customer = escape(str(customer_name or "there").strip() or "there")
     safe_campaign = escape(clean_name)
     safe_discount = escape(discount)
-    safe_code = escape(code)
     safe_start = escape(start_date or "Today")
     safe_end = escape(end_date or "Limited time")
     safe_preview = escape(template["preview"])
@@ -396,11 +395,9 @@ def _build_promotion_email(
         "<div style='padding:26px'>"
         f"<p style='font-size:16px;line-height:1.55;margin-top:0'>Hi {safe_customer},</p>"
         f"<p style='font-size:16px;line-height:1.55'>Campaign: <strong>{safe_campaign}</strong></p>"
-        "<div style='background:#ffcc00;color:#111217;border-radius:16px;padding:18px;margin:20px 0;"
-        "text-align:center'>"
-        f"<div style='font-size:15px;font-weight:700'>Use code</div>"
-        f"<div style='font-size:34px;font-weight:900;letter-spacing:2px'>{safe_code}</div>"
-        f"<div style='font-size:14px'>Offer: {safe_discount}</div>"
+        "<div style='background:#171923;color:#f3f4f6;border:1px solid #2b2d38;border-radius:16px;padding:16px;margin:20px 0;'>"
+        "<div style='font-size:14px;font-weight:700;color:#ffcc00;margin-bottom:6px'>Offer Details</div>"
+        f"<div style='font-size:16px;line-height:1.5'>This campaign includes: <strong>{safe_discount}</strong></div>"
         "</div>"
         "<div style='display:flex;gap:12px;margin:18px 0;flex-wrap:wrap'>"
         f"<span style='border:1px solid #2b2d38;border-radius:999px;padding:8px 12px;color:#d1d5db'>Starts: {safe_start}</span>"
