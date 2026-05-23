@@ -276,7 +276,12 @@ export function SalesManagement() {
                             disabled={updatingSaleId === sale.sales_id}
                           >
                             <SelectTrigger className="h-8 w-full bg-red-600 border-red-800 text-yellow-200">
-                              <SelectValue />
+                              <span className="truncate">
+                                {sale.status}
+                                {replacementLabelBySaleId.get(sale.sales_id) !== "Not Replaced"
+                                  ? ` • ${replacementLabelBySaleId.get(sale.sales_id)}`
+                                  : ""}
+                              </span>
                             </SelectTrigger>
                             <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                               <SelectItem value="Completed">Completed</SelectItem>
@@ -295,11 +300,6 @@ export function SalesManagement() {
                             }
                           >
                             {sale.status}
-                          </Badge>
-                        )}
-                        {replacementLabelBySaleId.get(sale.sales_id) !== "Not Replaced" && (
-                          <Badge className={replacementLabelBySaleId.get(sale.sales_id) === "Fully Replaced" ? "bg-cyan-700 text-white" : "bg-blue-700 text-white"}>
-                            {replacementLabelBySaleId.get(sale.sales_id)}
                           </Badge>
                         )}
                       </div>
