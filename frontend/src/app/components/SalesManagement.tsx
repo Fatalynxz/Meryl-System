@@ -268,7 +268,7 @@ export function SalesManagement() {
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.customerName}</TableCell>
                     <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {sale.total_amount}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center justify-center gap-2">
                         {isAdmin ? (
                           <Select
                             value={sale.status}
@@ -276,12 +276,7 @@ export function SalesManagement() {
                             disabled={updatingSaleId === sale.sales_id}
                           >
                             <SelectTrigger className="h-8 w-full bg-red-600 border-red-800 text-yellow-200">
-                              <span className="truncate">
-                                {sale.status}
-                                {replacementLabelBySaleId.get(sale.sales_id) !== "Not Replaced"
-                                  ? ` • ${replacementLabelBySaleId.get(sale.sales_id)}`
-                                  : ""}
-                              </span>
+                              <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                               <SelectItem value="Completed">Completed</SelectItem>
@@ -301,6 +296,9 @@ export function SalesManagement() {
                           >
                             {sale.status}
                           </Badge>
+                        )}
+                        {replacementLabelBySaleId.get(sale.sales_id) !== "Not Replaced" && (
+                          <Badge className="bg-blue-700 text-white" title="Replaced">Replaced</Badge>
                         )}
                       </div>
                     </TableCell>
