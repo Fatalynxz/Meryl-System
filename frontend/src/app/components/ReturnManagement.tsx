@@ -505,12 +505,17 @@ export function ReturnManagement() {
   };
 
   const createInventoryLog = async (productId: string, quantityChange: number, transactionType: string, referenceId: string) => {
+    const normalized = String(transactionType ?? "").trim().toLowerCase();
+    const dbTransactionType =
+      normalized === "return" || normalized === "restock" || normalized === "sale" || normalized === "adjustment"
+        ? normalized
+        : "adjustment";
     await tryInsertRow("inventory_log", [
       {
         inventory_log_id: buildClientId(),
         product_id: productId,
         quantity_change: quantityChange,
-        transaction_type: transactionType,
+        transaction_type: dbTransactionType,
         reference_id: referenceId,
         date_updated: new Date().toISOString(),
       },
@@ -690,10 +695,10 @@ export function ReturnManagement() {
 
         if (line.inventory_action === "Return to Stock") {
           await updateInventoryStock(line.returned_product_id, line.quantity);
-          await createInventoryLog(line.returned_product_id, line.quantity, "Return", returnId);
+          await createInventoryLog(line.returned_product_id, line.quantity, "return", returnId);
         }
         await updateInventoryStock(line.replacement_product_id, -line.quantity);
-        await createInventoryLog(line.replacement_product_id, -line.quantity, "Replacement", returnId);
+        await createInventoryLog(line.replacement_product_id, -line.quantity, "adjustment", returnId);
       }
 
       await tryUpdateById("sales_transaction", "sales_id", selectedSale.sales_id, [
@@ -1001,7 +1006,7 @@ export function ReturnManagement() {
                     </div>
                   </div>
 
-                  <div className={`space-y-3 rounded-xl border border-red-800 p-4 ${!hasSaleSelected ? "opacity-50" : ""}`}>
+                  <div className={`space-y-3 rounded-xl border border-zinc-800 bg-zinc-950 p-4 ${!hasSaleSelected ? "opacity-50" : ""}`}>
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <Label className="text-yellow-300">Step 2: Select Returned Product</Label>
                         <div className="relative md:w-80">
@@ -1016,17 +1021,17 @@ export function ReturnManagement() {
                         </div>
                       </div>
                       {!hasSaleSelected && <p className="text-xs text-zinc-300">Select a sale first to show purchased items.</p>}
-                      <div className="border border-red-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-48">
-                        <Table className="w-full table-fixed text-sm">
+                      <div className="border border-zinc-800 rounded-xl overflow-y-auto overflow-x-auto max-h-48">
+                        <Table className="w-full text-sm">
                           <TableHeader>
-                            <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                              <TableHead className="w-[14%] text-yellow-300 text-center">SKU</TableHead>
-                              <TableHead className="w-[30%] text-yellow-300 text-center">Product</TableHead>
-                              <TableHead className="w-[12%] text-yellow-300 text-center">Sold</TableHead>
-                              <TableHead className="w-[14%] text-yellow-300 text-center">Returnable</TableHead>
-                              <TableHead className="w-[14%] text-yellow-300 text-center">Return Qty</TableHead>
-                              <TableHead className="w-[18%] text-yellow-300 text-center">Price</TableHead>
-                              <TableHead className="w-[10%] text-yellow-300 text-center">Action</TableHead>
+                            <TableRow className="bg-zinc-900 hover:bg-zinc-900 border-zinc-800">
+                              <TableHead className="text-yellow-300 text-center">SKU</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Product</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Sold</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Returnable</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Return Qty</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Price</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1037,7 +1042,7 @@ export function ReturnManagement() {
                                 Math.max(1, Number(detail.returnable_quantity ?? detail.quantity ?? 1)),
                               );
                               return (
-                              <TableRow key={`${detail.sales_detail_id}-${detail.product_id}`} className={`border-red-800 transition-colors hover:bg-red-800/60 ${isSelected ? "bg-yellow-400/10" : ""}`}>
+                              <TableRow key={`${detail.sales_detail_id}-${detail.product_id}`} className={`border-zinc-800 transition-colors hover:bg-zinc-900 ${isSelected ? "bg-yellow-400/10" : ""}`}>
                                 <TableCell className="truncate text-yellow-200 text-center" title={detail.product_id}>{detail.product_id.slice(0, 8)}</TableCell>
                                 <TableCell className="truncate text-yellow-200 text-center" title={detail.productName}>{detail.productName}</TableCell>
                                 <TableCell className="text-yellow-200 text-center">{detail.quantity}</TableCell>
@@ -1060,7 +1065,7 @@ export function ReturnManagement() {
                                         [detail.sales_detail_id]: nextQty,
                                       }));
                                     }}
-                                    className="mx-auto h-8 w-20 bg-red-600 border-red-800 text-yellow-200 text-center disabled:opacity-50"
+                                    className="mx-auto h-8 w-20 bg-zinc-900 border-zinc-700 text-yellow-200 text-center disabled:opacity-50"
                                   />
                                 </TableCell>
                                 <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(detail.price)}</TableCell>
@@ -1082,7 +1087,7 @@ export function ReturnManagement() {
                     </div>
 
                   {requiresReplacement && (
-                    <div className={`space-y-3 rounded-xl border border-red-800 p-4 ${!hasReturnedSelected ? "opacity-50" : ""}`}>
+                    <div className={`space-y-3 rounded-xl border border-zinc-800 bg-zinc-950 p-4 ${!hasReturnedSelected ? "opacity-50" : ""}`}>
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <Label className="text-yellow-300">Step 3: Select Replacement Product</Label>
                         <Dialog open={isReplacementPickerOpen} onOpenChange={setIsReplacementPickerOpen}>
@@ -1111,21 +1116,21 @@ export function ReturnManagement() {
                                   className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
                                 />
                               </div>
-                              <div className="border border-red-800 rounded-xl overflow-y-auto max-h-[48vh]">
-                                <Table className="w-full table-fixed text-sm">
+                              <div className="border border-zinc-800 rounded-xl overflow-y-auto overflow-x-auto max-h-[48vh]">
+                                <Table className="w-full text-sm">
                                   <TableHeader>
-                                    <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                                      <TableHead className="w-[24%] text-yellow-300 text-center">Product</TableHead>
-                                      <TableHead className="w-[14%] text-yellow-300 text-center">Brand</TableHead>
-                                      <TableHead className="w-[16%] text-yellow-300 text-center">Variant</TableHead>
-                                      <TableHead className="w-[16%] text-yellow-300 text-center">Price</TableHead>
-                                      <TableHead className="w-[14%] text-yellow-300 text-center">Stock</TableHead>
-                                      <TableHead className="w-[16%] text-yellow-300 text-center">Action</TableHead>
+                                    <TableRow className="bg-zinc-900 hover:bg-zinc-900 border-zinc-800">
+                                      <TableHead className="text-yellow-300 text-center">Product</TableHead>
+                                      <TableHead className="text-yellow-300 text-center">Brand</TableHead>
+                                      <TableHead className="text-yellow-300 text-center">Variant</TableHead>
+                                      <TableHead className="text-yellow-300 text-center">Price</TableHead>
+                                      <TableHead className="text-yellow-300 text-center">Stock</TableHead>
+                                      <TableHead className="text-yellow-300 text-center">Action</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
                                     {filteredReplacementProducts.map((product) => (
-                                      <TableRow key={product.product_id} className={`border-red-800 transition-colors hover:bg-red-800/60 ${formData.replacement_product_id === product.product_id ? "bg-yellow-400/10" : ""}`}>
+                                      <TableRow key={product.product_id} className={`border-zinc-800 transition-colors hover:bg-zinc-900 ${formData.replacement_product_id === product.product_id ? "bg-yellow-400/10" : ""}`}>
                                         <TableCell className="truncate text-yellow-200 text-center" title={product.name}>{product.name}</TableCell>
                                         <TableCell className="truncate text-yellow-200 text-center" title={product.brand}>{product.brand}</TableCell>
                                         <TableCell className="truncate text-yellow-200 text-center" title={`${product.color} / ${product.size}`}>{product.color} / {product.size}</TableCell>
@@ -1152,7 +1157,7 @@ export function ReturnManagement() {
                         </Dialog>
                       </div>
                       {!hasReturnedSelected && <p className="text-xs text-zinc-300">Select the returned product first.</p>}
-                      <div className="rounded-xl border border-red-800 bg-red-900/20 p-3">
+                      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
                         <p className="text-xs text-yellow-300">Selected Replacement Product</p>
                         <p className="text-sm text-yellow-200">
                           {replacementProduct
