@@ -121,6 +121,23 @@ async function tryInsertRow(table: string, payloads: Record<string, any>[]) {
   if (lastError) throw lastError;
 }
 
+function isMissingTableError(error: any) {
+  const message = String(error?.message ?? "").toLowerCase();
+  return message.includes("could not find the table") || message.includes("relation") && message.includes("does not exist");
+}
+
+async function resolveExistingTableName(candidates: string[]) {
+  let lastError: any = null;
+  for (const table of candidates) {
+    const { error } = await supabase.from(table as any).select("*").limit(1);
+    if (!error) return table;
+    lastError = error;
+    if (!isMissingTableError(error)) throw error;
+  }
+  if (lastError) throw lastError;
+  throw new Error(`Could not resolve any table from: ${candidates.join(", ")}`);
+}
+
 function normalizeSaleStatus(value: string | null | undefined) {
   const normalized = String(value ?? "Completed").trim();
   return normalized || "Completed";
@@ -720,9 +737,11 @@ export function ReturnManagement() {
       await recordAdditionalPayment(selectedSale.sales_id, totalAdditionalPayment);
 
       if (totalCreditIssued > 0 && selectedSale.customer_id) {
+        const creditTable = await resolveExistingTableName(["customer_credits", "customer_credit"]);
+        const creditTxnTable = await resolveExistingTableName(["customer_credit_transactions", "customer_credit_transaction"]);
         const customerId = String(selectedSale.customer_id);
         const { data: existingCredit, error: creditFetchError } = await supabase
-          .from("customer_credits")
+          .from(creditTable as any)
           .select("customer_credit_id, total_issued, total_used, available_credit")
           .eq("customer_id", customerId)
           .maybeSingle();
@@ -732,7 +751,7 @@ export function ReturnManagement() {
           const nextTotalIssued = Number(existingCredit.total_issued ?? 0) + totalCreditIssued;
           const nextAvailableCredit = Number(existingCredit.available_credit ?? 0) + totalCreditIssued;
           const { error: updateCreditError } = await supabase
-            .from("customer_credits")
+            .from(creditTable as any)
             .update({
               total_issued: nextTotalIssued,
               available_credit: nextAvailableCredit,
@@ -741,7 +760,7 @@ export function ReturnManagement() {
             .eq("customer_credit_id", existingCredit.customer_credit_id);
           if (updateCreditError) throw updateCreditError;
         } else {
-          const { error: insertCreditError } = await supabase.from("customer_credits").insert({
+          const { error: insertCreditError } = await supabase.from(creditTable as any).insert({
             customer_credit_id: buildClientId(),
             customer_id: customerId,
             total_issued: totalCreditIssued,
@@ -753,7 +772,7 @@ export function ReturnManagement() {
           if (insertCreditError) throw insertCreditError;
         }
 
-        const { error: creditTxnError } = await supabase.from("customer_credit_transactions").insert({
+        const { error: creditTxnError } = await supabase.from(creditTxnTable as any).insert({
           customer_credit_txn_id: buildClientId(),
           customer_id: customerId,
           return_id: null,
