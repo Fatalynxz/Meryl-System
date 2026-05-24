@@ -32,6 +32,14 @@ function formatSalesDisplayId(sequence: number) {
   return `SALES-${String(sequence).padStart(3, "0")}`;
 }
 
+function formatStaffCode(userId?: string | null, username?: string | null) {
+  const id = String(userId ?? "").replace(/-/g, "").toUpperCase();
+  if (id.length >= 6) return `STF-${id.slice(0, 6)}`;
+  const uname = String(username ?? "").trim().toUpperCase();
+  if (uname) return `STF-${uname.slice(0, 6)}`;
+  return "STF-UNKNOWN";
+}
+
 function toPaymentStatus(status: SaleStatus): string {
   if (status === "Pending") return "pending";
   if (status === "Voided") return "failed";
@@ -106,6 +114,7 @@ export function SalesManagement() {
           user_id: String(sale.user_id ?? cashier?.user_id ?? ""),
           cashierName: cashier?.name ?? cashier?.username ?? "Unknown Cashier",
           cashierUsername: cashier?.username ?? "",
+          cashierCode: formatStaffCode(sale.user_id ?? cashier?.user_id, cashier?.username),
           customerName: customer?.name ?? "Walk-in Customer",
           status: getStatus(payment?.payment_status),
           replacementCount: replacementInfo.count,
@@ -261,6 +270,7 @@ export function SalesManagement() {
                       <TableCell className="text-yellow-200 whitespace-nowrap text-center">
                         <div className="flex flex-col">
                           <span>{sale.cashierName}</span>
+                          <span className="text-xs text-yellow-300/80">{sale.cashierCode}</span>
                           {sale.cashierUsername && <span className="text-xs text-yellow-200/60">@{sale.cashierUsername}</span>}
                         </div>
                       </TableCell>
@@ -322,7 +332,7 @@ export function SalesManagement() {
                           <div className="space-y-4 py-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div><p className="text-sm text-yellow-200">Customer</p><p className="text-yellow-300">{sale.customerName}</p></div>
-                              {isAdmin && <div><p className="text-sm text-yellow-200">Cashier</p><p className="text-yellow-300">{sale.cashierName}</p></div>}
+                              {isAdmin && <div><p className="text-sm text-yellow-200">Cashier</p><p className="text-yellow-300">{sale.cashierName} ({sale.cashierCode})</p></div>}
                               <div><p className="text-sm text-yellow-200">Transaction Date</p><p className="text-yellow-300">{sale.transaction_date}</p></div>
                             </div>
                             <div>
