@@ -33,11 +33,16 @@ function formatSalesDisplayId(sequence: number) {
 }
 
 function formatStaffCode(userId?: string | null, username?: string | null) {
-  const id = String(userId ?? "").replace(/-/g, "").toUpperCase();
-  if (id.length >= 6) return `STF-${id.slice(0, 6)}`;
-  const uname = String(username ?? "").trim().toUpperCase();
-  if (uname) return `STF-${uname.slice(0, 6)}`;
-  return "STF-UNKNOWN";
+  const uname = String(username ?? "");
+  const usernameDigits = uname.replace(/\D/g, "");
+  if (usernameDigits) return `Cashier ${usernameDigits.slice(-3).padStart(3, "0")}`;
+
+  const id = String(userId ?? "").replace(/-/g, "");
+  if (id) {
+    const numeric = id.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 1000;
+    return `Cashier ${String(numeric).padStart(3, "0")}`;
+  }
+  return "Cashier 000";
 }
 
 function toPaymentStatus(status: SaleStatus): string {
