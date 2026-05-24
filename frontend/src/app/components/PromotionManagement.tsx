@@ -200,11 +200,22 @@ export function PromotionManagement() {
   }));
   const customerNameMap = new Map(customers.map((c) => [c.customer_id, c.name]));
   const productRows = (productsQuery.data as any[]) ?? [];
+  const sellableProductRows = useMemo(
+    () =>
+      productRows.filter((p: any) => {
+        const inv = Array.isArray(p.inventory) ? p.inventory[0] : p.inventory;
+        const stock = Number(inv?.stock_quantity ?? 0);
+        const invStatus = String(inv?.inventory_status ?? 'active').toLowerCase();
+        const productStatus = String(p.status ?? 'active').toLowerCase();
+        return stock > 0 && invStatus === 'active' && productStatus === 'active';
+      }),
+    [productRows],
+  );
   const categoryOptions = useMemo(
     () =>
       Array.from(
         new Set(
-          productRows
+          sellableProductRows
             .map(
               (p: any) =>
                 String(p.category?.[0]?.category_name ?? p.category?.category_name ?? '').trim(),
@@ -212,18 +223,30 @@ export function PromotionManagement() {
             .filter(Boolean),
         ),
       ).sort((a, b) => a.localeCompare(b)),
-    [productRows],
+    [sellableProductRows],
   );
   const productOptions = useMemo(
     () =>
-      productRows
-        .map((p: any) => ({
-          name: String(p.product_name ?? 'Unknown Product').trim(),
-          category: String(p.category?.[0]?.category_name ?? p.category?.category_name ?? '').trim(),
-        }))
+      sellableProductRows
+        .map((p: any) => {
+          const inv = Array.isArray(p.inventory) ? p.inventory[0] : p.inventory;
+          return {
+            name: String(p.product_name ?? 'Unknown Product').trim(),
+            category: String(p.category?.[0]?.category_name ?? p.category?.category_name ?? '').trim(),
+            stock: Number(inv?.stock_quantity ?? 0),
+          };
+        })
         .filter((p: any) => p.name)
+        .reduce((acc: Array<{ name: string; category: string; stock: number }>, current) => {
+          const idx = acc.findIndex(
+            (row) => row.name.toLowerCase() === current.name.toLowerCase() && row.category.toLowerCase() === current.category.toLowerCase(),
+          );
+          if (idx >= 0) acc[idx] = { ...acc[idx], stock: acc[idx].stock + current.stock };
+          else acc.push(current);
+          return acc;
+        }, [])
         .sort((a: any, b: any) => a.name.localeCompare(b.name)),
-    [productRows],
+    [sellableProductRows],
   );
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -1009,7 +1032,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
   formData: Partial<Promotion>;
   setFormData: (data: Partial<Promotion>) => void;
   categoryOptions: string[];
-  productOptions: Array<{ name: string; category: string }>;
+  productOptions: Array<{ name: string; category: string; stock: number }>;
 }) {
   const minPromotionDate = todayDateInput();
   const isBogoType = String(formData.discount_type ?? '').toLowerCase().includes('bogo');
@@ -1017,7 +1040,8 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
   const [selectedCategories, setSelectedCategories] = useState<string[]>(parsed.categories);
   const [selectedProducts, setSelectedProducts] = useState<string[]>(parsed.products);
   const [pendingCategory, setPendingCategory] = useState('');
-  const [pendingProduct, setPendingProduct] = useState('');
+  const [isProductPickerOpen, setIsProductPickerOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
 
   useEffect(() => {
     const next = parseTargetProducts(formData.targetProducts);
@@ -1029,6 +1053,13 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
     if (!selectedCategories.length) return productOptions;
     return productOptions.filter((p) => selectedCategories.includes(p.category));
   }, [productOptions, selectedCategories]);
+  const searchedProductOptions = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (!q) return filteredProductOptions;
+    return filteredProductOptions.filter((p) =>
+      `${p.name} ${p.category} ${p.stock}`.toLowerCase().includes(q),
+    );
+  }, [filteredProductOptions, productSearch]);
   const targetProductsValue = String(formData.targetProducts ?? '').trim();
   const isAllProductsSelected = targetProductsValue.toLowerCase() === 'all products';
 
@@ -1173,21 +1204,57 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
 
             <div className="space-y-2">
               <Label className="text-yellow-300 text-xs">Products (filtered by category)</Label>
-              <Select value={pendingProduct} onValueChange={(value) => {
-                addProduct(value);
-                setPendingProduct('');
-              }}>
-                <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent className="bg-red-700 border-red-800 text-yellow-200 max-h-64">
-                  {filteredProductOptions.map((product) => (
-                    <SelectItem key={product.name} value={product.name}>
-                      {product.name} {product.category ? `(${product.category})` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Dialog open={isProductPickerOpen} onOpenChange={setIsProductPickerOpen}>
+                <DialogTrigger asChild>
+                  <Button type="button" className="w-full justify-start bg-red-600 border border-red-800 text-yellow-200 hover:bg-red-500">
+                    Select product
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-[#15161d] border-[#2a2c36] text-yellow-100 max-w-2xl max-h-[85vh] overflow-hidden p-0">
+                  <DialogHeader className="border-b border-white/10 px-5 py-4">
+                    <DialogTitle className="text-white">Select Sellable Products</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 p-5">
+                    <Input
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="bg-red-600 border-red-800 text-yellow-200"
+                      placeholder="Search by product or category..."
+                    />
+                    <div className="max-h-[48vh] overflow-y-auto rounded-lg border border-red-800">
+                      <Table className="w-full text-sm">
+                        <TableHeader>
+                          <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                            <TableHead className="text-yellow-300 text-center">Product</TableHead>
+                            <TableHead className="text-yellow-300 text-center">Category</TableHead>
+                            <TableHead className="text-yellow-300 text-center">Stock</TableHead>
+                            <TableHead className="text-yellow-300 text-center">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {searchedProductOptions.map((product) => (
+                            <TableRow key={`${product.name}-${product.category}`} className="border-red-800">
+                              <TableCell className="text-yellow-200 text-center">{product.name}</TableCell>
+                              <TableCell className="text-yellow-200 text-center">{product.category || 'Uncategorized'}</TableCell>
+                              <TableCell className="text-yellow-300 text-center">{product.stock}</TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                  onClick={() => addProduct(product.name)}
+                                >
+                                  Add
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <div className="flex flex-wrap gap-2 min-h-6">
                 {selectedProducts.map((product) => (
                   <Badge key={product} className="bg-red-500 text-yellow-200 gap-1 pr-1">
