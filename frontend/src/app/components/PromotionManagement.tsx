@@ -263,6 +263,7 @@ export function PromotionManagement() {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [hiddenRecommendationIds, setHiddenRecommendationIds] = useState<Set<string>>(new Set());
+  const [pendingRecommendationId, setPendingRecommendationId] = useState<string | null>(null);
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const [lastNotificationBatch, setLastNotificationBatch] = useState<Notification[]>([]);
   const [lastNotificationPromo, setLastNotificationPromo] = useState<Partial<Promotion>>({});
@@ -501,7 +502,7 @@ export function PromotionManagement() {
       end_date: toDateInput(end),
       status: 'Scheduled',
     });
-    setHiddenRecommendationIds((prev) => new Set(prev).add(rec.id));
+    setPendingRecommendationId(rec.id);
     setIsAddDialogOpen(true);
     toast.success('Recommendation applied to promotion form');
   };
@@ -582,7 +583,11 @@ export function PromotionManagement() {
         end_date: formData.end_date,
       });
       await promotionsQuery.refetch();
+      if (pendingRecommendationId) {
+        setHiddenRecommendationIds((prev) => new Set(prev).add(pendingRecommendationId));
+      }
       setIsAddDialogOpen(false);
+      setPendingRecommendationId(null);
       setFormData({});
       if (deliverySummary.enabled) {
         toast.success(`Promotion created! Emails sent: ${deliverySummary.sent}, failed: ${deliverySummary.failed}.`);
@@ -674,6 +679,15 @@ export function PromotionManagement() {
   const openEditDialog = (promotion: Promotion) => {
     setEditingPromotion(promotion);
     setFormData(promotion);
+  };
+
+  const handleCreateDialogOpenChange = (open: boolean) => {
+    setIsAddDialogOpen(open);
+    if (!open) {
+      // Cancel/exit should not permanently hide recommendation cards.
+      setPendingRecommendationId(null);
+      setFormData({});
+    }
   };
 
   const totalRevenue = promotions.reduce((sum, p) => sum + p.salesGenerated, 0);
@@ -799,7 +813,7 @@ export function PromotionManagement() {
               <Tag className="w-5 h-5" />
               Promotion Campaigns
             </CardTitle>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
               <DialogTrigger asChild>
                 <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
                   <Plus className="w-4 h-4 mr-2" />
