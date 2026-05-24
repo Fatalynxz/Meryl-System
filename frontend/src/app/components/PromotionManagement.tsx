@@ -450,7 +450,7 @@ export function PromotionManagement() {
       id: 'weekend-traffic',
       title: 'Weekend traffic booster',
       rationale: 'Use short promo window to increase conversion without long margin impact.',
-      discount_type: 'Fixed Amount',
+      discount_type: 'Percentage',
       discount_value: 20,
       targetProducts: 'All Products',
     });
