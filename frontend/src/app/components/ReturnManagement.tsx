@@ -193,7 +193,7 @@ export function ReturnManagement() {
         const inventory = Array.isArray(product.inventory)
           ? product.inventory[0]
           : product.inventory ?? inventoryByProductId.get(String(product.product_id ?? ""));
-        const price = Number(product.price ?? product.cost_price ?? 0);
+        const price = Number(inventory?.srp ?? product.price ?? product.cost_price ?? 0);
         return {
           product_id: String(product.product_id ?? ""),
           name: String(product.product_name ?? "Unnamed Product"),
