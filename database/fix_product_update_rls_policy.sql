@@ -40,5 +40,19 @@ begin
       using (true)
       with check (true);
   end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'product'
+      and policyname = 'product_insert_for_app'
+  ) then
+    create policy product_insert_for_app
+      on public.product
+      for insert
+      to anon, authenticated
+      with check (true);
+  end if;
 end
 $$;
