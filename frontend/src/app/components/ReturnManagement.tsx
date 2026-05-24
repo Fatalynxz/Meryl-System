@@ -879,7 +879,7 @@ export function ReturnManagement() {
                   Process Replacement
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 !w-[94vw] !max-w-[1050px] max-h-[88vh] overflow-hidden p-0 shadow-2xl">
+              <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 !w-[94vw] !max-w-[1050px] max-h-[88vh] overflow-hidden p-0 shadow-2xl flex flex-col">
                 <div className="border-b border-zinc-800 p-5 bg-zinc-900">
                   <DialogHeader>
                     <DialogTitle className="text-yellow-300 flex items-center gap-2">
@@ -888,7 +888,8 @@ export function ReturnManagement() {
                     </DialogTitle>
                   </DialogHeader>
                 </div>
-                <div className="grid max-h-[70vh] gap-5 overflow-y-auto overflow-x-hidden p-5 scrollbar-hide">
+                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-5 scrollbar-hide">
+                  <div className="grid gap-5">
                   <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
                     <div className="mb-2 flex items-center justify-between">
                       <p className="text-sm font-semibold text-zinc-100">Current Selection</p>
@@ -1273,7 +1274,7 @@ export function ReturnManagement() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-3">
                     <p className="text-xs text-yellow-300/80">
                       Step 5: Add the selected row first, then finalize all rows below.
                     </p>
@@ -1285,9 +1286,10 @@ export function ReturnManagement() {
                     >
                       Add Selected Item
                     </Button>
+                    </div>
                   </div>
                 </div>
-                <DialogFooter className="border-t border-red-800 p-5">
+                <DialogFooter className="shrink-0 border-t border-red-800 p-5">
                   <Button
                     onClick={handleAddReturn}
                     disabled={isSaving}
