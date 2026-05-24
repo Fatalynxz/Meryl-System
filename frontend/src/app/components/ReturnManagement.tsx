@@ -101,6 +101,12 @@ function formatSequence(prefix: string, sequence: number) {
   return `${prefix}-${String(sequence).padStart(3, "0")}`;
 }
 
+function extractPesoAmount(text: string) {
+  const match = String(text ?? "").match(/(?:customer adds|adds)\s*php\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
+  if (!match?.[1]) return 0;
+  return Number(match[1].replace(/,/g, "")) || 0;
+}
+
 async function tryUpdateById(table: string, idColumn: string, id: string, payloads: Record<string, any>[]) {
   let lastError: any = null;
   for (const payload of payloads) {
@@ -459,6 +465,12 @@ export function ReturnManagement() {
       const customer = Array.isArray(sale?.customer) ? sale.customer[0] : sale?.customer;
       const processedUser = Array.isArray(row.user) ? row.user[0] : row.user;
       const details = Array.isArray(row.return_details) ? row.return_details : [];
+      const paymentFromDetails = details.reduce((sum: number, detail: any) => {
+        const byDiff = Math.max(0, Number(detail?.price_difference ?? 0));
+        if (byDiff > 0) return sum + byDiff;
+        return sum + extractPesoAmount(String(detail?.reason ?? ""));
+      }, 0);
+      const rowAdditionalPayment = Number(row.additional_payment ?? row.total_replacement_payments ?? 0);
       return {
         return_id: String(row.return_id ?? ""),
         display_return_id: returnDisplayMap.get(String(row.return_id ?? "")) ?? "RET-000",
@@ -470,7 +482,7 @@ export function ReturnManagement() {
         total_refund: Number(row.total_refund ?? 0),
         return_type: String(row.return_type ?? "Replacement"),
         return_status: String(row.return_status ?? "Completed"),
-        additional_payment: Number(row.additional_payment ?? 0),
+        additional_payment: rowAdditionalPayment > 0 ? rowAdditionalPayment : paymentFromDetails,
         adjustment_amount: Number(row.adjustment_amount ?? 0),
         processedBy: processedUser?.name ?? processedUser?.username ?? "Staff",
         salesStatus: normalizeSaleStatus(sale?.sales_status ?? sale?.status),
