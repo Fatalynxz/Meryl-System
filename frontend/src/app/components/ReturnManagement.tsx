@@ -1273,14 +1273,17 @@ export function ReturnManagement() {
                     />
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-yellow-300/80">
+                      Step 5: Add the selected row first, then finalize all rows below.
+                    </p>
                     <Button
                       type="button"
                       onClick={addReplacementLine}
                       disabled={!hasReturnedSelected || !replacementProduct}
-                      className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                      className="border border-yellow-400/70 bg-transparent text-yellow-300 hover:bg-yellow-400/15"
                     >
-                      Add Item to Replacement List
+                      Add Selected Item
                     </Button>
                   </div>
                 </div>
@@ -1290,7 +1293,7 @@ export function ReturnManagement() {
                     disabled={isSaving}
                     className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60 font-bold"
                   >
-                    {isSaving ? "Processing..." : "Save Replacement to Records"}
+                    {isSaving ? "Processing..." : `Finalize Replacement (${replacementLines.length} item${replacementLines.length === 1 ? "" : "s"})`}
                   </Button>
                 </DialogFooter>
               </DialogContent>
