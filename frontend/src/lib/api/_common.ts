@@ -74,13 +74,19 @@ export async function updateRow<T extends TableName>(
   payload: Update<T>,
 ) {
   const idColumn = getIdColumn(table);
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from(table)
     .update(payload as never)
-    .eq(idColumn as never, id)
-    .select()
-    .single();
+    .eq(idColumn as never, id);
   if (error) throw error;
+
+  const { data, error: fetchError } = await supabase
+    .from(table)
+    .select("*")
+    .eq(idColumn as never, id)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+  if (!data) throw new Error(`Update succeeded but could not reload ${String(table)} with ${idColumn}=${id}.`);
   return data as Row<T>;
 }
 
@@ -89,4 +95,3 @@ export async function removeRow<T extends TableName>(table: T, id: string) {
   const { error } = await supabase.from(table).delete().eq(idColumn as never, id);
   if (error) throw error;
 }
-
