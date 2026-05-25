@@ -351,18 +351,19 @@ export function ReturnManagement() {
   }, [eligibleReplacementProducts, replacementSearch]);
 
   const selectSaleForReturn = (saleId: string) => {
-    if (saleId !== formData.sales_id) {
-      setReplacementLines([]);
-      setSelectedReturnedDetailIds([]);
-      setReturnedItemQtyByDetail({});
-    }
-    setFormData({
-      ...formData,
+    // Always reset dependent selection state when switching sale context.
+    setReplacementLines([]);
+    setSelectedReturnedDetailIds([]);
+    setReturnedItemQtyByDetail({});
+    setReturnedItemSearch("");
+    setReplacementSearch("");
+    setFormData((current) => ({
+      ...current,
       sales_id: saleId,
       returned_product_id: "",
       replacement_product_id: "",
       quantity: 1,
-    });
+    }));
   };
 
   const toggleReturnedProduct = (salesDetailId: string, productId: string) => {
@@ -1054,7 +1055,7 @@ export function ReturnManagement() {
                         </div>
                       </div>
                       {!hasSaleSelected && <p className="text-xs text-zinc-300">Select a sale first to show purchased items.</p>}
-                      <div className="border border-zinc-800 rounded-xl overflow-y-auto overflow-x-auto max-h-48">
+                      <div key={`returned-items-${formData.sales_id || "none"}`} className="border border-zinc-800 rounded-xl overflow-y-auto overflow-x-auto max-h-48">
                         <Table className="w-full text-sm">
                           <TableHeader>
                             <TableRow className="bg-zinc-900 hover:bg-zinc-900 border-zinc-800">
