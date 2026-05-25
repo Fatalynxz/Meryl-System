@@ -353,7 +353,7 @@ export function PromotionManagement() {
         promo_name: stripPromoTypeMarker(String(row.promo_name ?? 'Promotion')),
         discount_type,
         discount_value: Number(row.discount_value ?? 0),
-        targetProducts: String(row.targetProducts ?? row.target_products ?? 'All Products'),
+        targetProducts: String(row.target_products ?? row.targetProducts ?? 'All Products'),
         start_date: String(row.start_date ?? '').slice(0, 10),
         end_date: String(row.end_date ?? '').slice(0, 10),
         status,
@@ -545,6 +545,7 @@ export function PromotionManagement() {
           ? 0
           : Number(formData.discount_value || 0),
         target_products: formData.targetProducts || 'All Products',
+        targetProducts: formData.targetProducts || 'All Products',
         start_date: formData.start_date!,
         end_date: formData.end_date!,
         status: toDbStatus(formData.status, formData.start_date),
@@ -641,6 +642,7 @@ export function PromotionManagement() {
           ? 0
           : formData.discount_value,
         target_products: formData.targetProducts,
+        targetProducts: formData.targetProducts,
         start_date: formData.start_date,
         end_date: formData.end_date,
         status: toDbStatus(formData.status, formData.start_date),
