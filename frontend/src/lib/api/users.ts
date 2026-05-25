@@ -10,8 +10,13 @@ function shouldFallbackFromRpc(error: any) {
   );
 }
 
+function isMissingStaffCodeColumn(error: any) {
+  const message = String(error?.message ?? "").toLowerCase();
+  return message.includes("staff_code") && message.includes("column");
+}
+
 async function createUserFallback(payload: any) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("user")
     .insert({
       name: payload.name,
@@ -20,9 +25,24 @@ async function createUserFallback(payload: any) {
       role_id: payload.role_id,
       status: payload.status,
       email: payload.email,
+      staff_code: payload.staff_code || null,
     } as any)
     .select("*, role:role(*)")
     .single();
+  if (error && isMissingStaffCodeColumn(error)) {
+    ({ data, error } = await supabase
+      .from("user")
+      .insert({
+        name: payload.name,
+        username: payload.username,
+        password: payload.password,
+        role_id: payload.role_id,
+        status: payload.status,
+        email: payload.email,
+      } as any)
+      .select("*, role:role(*)")
+      .single());
+  }
   if (error) throw error;
   return data;
 }
@@ -34,16 +54,26 @@ async function updateUserFallback(id: string, payload: any) {
     role_id: payload.role_id,
     status: payload.status,
     email: payload.email,
+    staff_code: payload.staff_code || null,
   };
   if (String(payload.password ?? "").trim()) {
     updatePayload.password = payload.password;
   }
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("user")
     .update(updatePayload)
     .eq("user_id", id)
     .select("*, role:role(*)")
     .single();
+  if (error && isMissingStaffCodeColumn(error)) {
+    delete updatePayload.staff_code;
+    ({ data, error } = await supabase
+      .from("user")
+      .update(updatePayload)
+      .eq("user_id", id)
+      .select("*, role:role(*)")
+      .single());
+  }
   if (error) throw error;
   return data;
 }
@@ -61,7 +91,16 @@ export const usersApi = {
       p_status: payload.status,
       p_email: payload.email,
     });
-    if (!error) return data;
+    if (!error) {
+      if (payload.staff_code) {
+        const { error: patchError } = await supabase
+          .from("user")
+          .update({ staff_code: payload.staff_code } as any)
+          .eq("user_id", String((data as any)?.user_id ?? ""));
+        if (patchError && !isMissingStaffCodeColumn(patchError)) throw patchError;
+      }
+      return data;
+    }
     if (!shouldFallbackFromRpc(error)) throw error;
     return createUserFallback(payload);
   },
@@ -76,7 +115,16 @@ export const usersApi = {
       p_status: payload.status,
       p_email: payload.email,
     });
-    if (!error) return data;
+    if (!error) {
+      if (payload.staff_code !== undefined) {
+        const { error: patchError } = await supabase
+          .from("user")
+          .update({ staff_code: payload.staff_code || null } as any)
+          .eq("user_id", id);
+        if (patchError && !isMissingStaffCodeColumn(patchError)) throw patchError;
+      }
+      return data;
+    }
     if (!shouldFallbackFromRpc(error)) throw error;
     return updateUserFallback(id, payload);
   },

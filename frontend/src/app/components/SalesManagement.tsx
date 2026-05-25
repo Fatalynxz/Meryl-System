@@ -33,7 +33,10 @@ function formatSalesDisplayId(sequence: number) {
   return `SALES-${String(sequence).padStart(3, "0")}`;
 }
 
-function formatStaffCode(userId?: string | null, username?: string | null) {
+function formatStaffCode(staffCode?: string | null, userId?: string | null, username?: string | null) {
+  const explicitCode = String(staffCode ?? "").trim();
+  if (explicitCode) return explicitCode;
+
   const uname = String(username ?? "");
   const usernameDigits = uname.replace(/\D/g, "");
   if (usernameDigits) return `Cashier ${usernameDigits.slice(-3).padStart(3, "0")}`;
@@ -120,7 +123,7 @@ export function SalesManagement() {
           user_id: String(sale.user_id ?? cashier?.user_id ?? ""),
           cashierName: cashier?.name ?? cashier?.username ?? "Unknown Cashier",
           cashierUsername: cashier?.username ?? "",
-          cashierCode: formatStaffCode(sale.user_id ?? cashier?.user_id, cashier?.username),
+          cashierCode: formatStaffCode(cashier?.staff_code, sale.user_id ?? cashier?.user_id, cashier?.username),
           customerName: customer?.name ?? "Walk-in Customer",
           status: getStatus(payment?.payment_status),
           replacementCount: replacementInfo.count,

@@ -19,6 +19,7 @@ type UserStatus = 'Active' | 'Inactive';
 type UserRow = {
   user_id: string;
   display_id: string;
+  staff_code: string;
   name: string;
   username: string;
   email?: string | null;
@@ -31,6 +32,7 @@ type UserRow = {
 };
 
 type UserFormData = {
+  staff_code: string;
   name: string;
   username: string;
   email: string;
@@ -40,6 +42,7 @@ type UserFormData = {
 };
 
 const emptyForm: UserFormData = {
+  staff_code: '',
   name: '',
   username: '',
   email: '',
@@ -73,6 +76,12 @@ function roleLabel(role: AppRole) {
   if (role === 'admin') return 'Admin';
   if (role === 'inventory') return 'Inventory';
   return 'Sales';
+}
+
+function generateStaffCode(role: AppRole) {
+  const prefix = role === "inventory" ? "INV" : role === "admin" ? "ADM" : "CSH";
+  const random = Math.floor(Math.random() * 900 + 100);
+  return `${prefix}-${random}`;
 }
 
 export function UserManagement() {
@@ -113,6 +122,7 @@ export function UserManagement() {
       return {
         user_id: String(raw.user_id ?? ''),
         display_id: `USR-${String(index + 1).padStart(3, '0')}`,
+        staff_code: String(raw.staff_code ?? ''),
         name: String(raw.name ?? 'Unnamed User'),
         username: String(raw.username ?? ''),
         email: raw.email ?? '',
@@ -151,6 +161,7 @@ export function UserManagement() {
 
     return {
       actor_user_id: currentUser.user_id,
+      staff_code: source.staff_code.trim() || null,
       name: source.name.trim() || existing?.name,
       username: source.username.trim() || existing?.username,
       password: source.password.trim(),
@@ -177,6 +188,7 @@ export function UserManagement() {
           name: formData.name.trim(),
           username: formData.username.trim(),
           role: formData.role,
+          staff_code: formData.staff_code.trim() || null,
           status: formData.status,
           email: formData.email.trim() || null,
         },
@@ -214,6 +226,7 @@ export function UserManagement() {
           name: formData.name.trim(),
           username: formData.username.trim(),
           role: formData.role,
+          staff_code: formData.staff_code.trim() || null,
           status: formData.status,
           email: formData.email.trim() || null,
         },
@@ -241,6 +254,7 @@ export function UserManagement() {
           email: target.email ?? '',
           password: '',
           role: target.role,
+          staff_code: target.staff_code || '',
           status: 'Inactive',
         }, target),
       });
@@ -263,6 +277,7 @@ export function UserManagement() {
     setFormData({
       name: item.name,
       username: item.username,
+      staff_code: item.staff_code || '',
       email: item.email ?? '',
       password: '',
       role: item.role,
@@ -343,6 +358,7 @@ export function UserManagement() {
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                   <TableHead className="text-yellow-300 whitespace-nowrap">User ID</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap">Staff Code</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap">Name</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap">Username</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap">Email</TableHead>
@@ -356,7 +372,7 @@ export function UserManagement() {
               <TableBody>
                 {usersQuery.isLoading && (
                   <TableRow className="border-red-800">
-                    <TableCell colSpan={9} className="text-center text-yellow-200 py-6">Loading users...</TableCell>
+                    <TableCell colSpan={10} className="text-center text-yellow-200 py-6">Loading users...</TableCell>
                   </TableRow>
                 )}
                 {!usersQuery.isLoading && filteredUsers.map((item) => {
@@ -364,6 +380,7 @@ export function UserManagement() {
                   return (
                     <TableRow key={item.user_id} className="border-red-800">
                       <TableCell className="text-yellow-200 whitespace-nowrap">{item.display_id}</TableCell>
+                      <TableCell className="text-yellow-300 whitespace-nowrap">{item.staff_code || 'N/A'}</TableCell>
                       <TableCell className="text-yellow-200 whitespace-nowrap">{item.name}</TableCell>
                       <TableCell className="text-yellow-200 whitespace-nowrap">{item.username}</TableCell>
                       <TableCell className="text-yellow-200 whitespace-nowrap">{item.email || 'N/A'}</TableCell>
@@ -424,7 +441,7 @@ export function UserManagement() {
                 })}
                 {!usersQuery.isLoading && !filteredUsers.length && (
                   <TableRow className="border-red-800">
-                    <TableCell colSpan={9} className="text-center text-yellow-200 py-6">No users found.</TableCell>
+                    <TableCell colSpan={10} className="text-center text-yellow-200 py-6">No users found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -459,6 +476,27 @@ function UserForm({ formData, setFormData, requirePassword = false }: {
 }) {
   return (
     <div className="grid gap-4 py-4">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="staff_code" className="text-yellow-300">Staff Code</Label>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-yellow-300 hover:bg-red-600"
+            onClick={() => setFormData({ ...formData, staff_code: generateStaffCode(formData.role) })}
+          >
+            Auto-generate
+          </Button>
+        </div>
+        <Input
+          id="staff_code"
+          value={formData.staff_code}
+          onChange={(e) => setFormData({ ...formData, staff_code: e.target.value })}
+          placeholder="e.g., CSH-079"
+          className="bg-red-600 border-red-800 text-yellow-200"
+        />
+      </div>
       <div className="space-y-2">
         <Label htmlFor="name" className="text-yellow-300">Full Name *</Label>
         <Input
