@@ -1,32 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
-import { LogIn, User, Lock } from 'lucide-react';
-import { useAuth } from '../../lib/auth-context';
+import { LogIn, User, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { getPostLoginPath, useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
 
 
 export function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, signInWithGoogle, requestEmailOtp } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  const routeByRoleName = (roleName: string) => {
-    const normalized = roleName.trim().toLowerCase();
-    if (normalized === 'admin' || normalized === 'administrator') return '/admin';
-    if (normalized === 'sales' || normalized === 'sales staff') return '/sales';
-    if (normalized === 'inventory' || normalized === 'inventory staff') return '/inventory';
-    return '/';
-  };
+  const [externalSubmitting, setExternalSubmitting] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
     setError('');
+    setNotice('');
 
     try {
       const user = await login(username, password);
@@ -34,7 +30,7 @@ export function Login() {
         setError('Invalid username or password');
         return;
       }
-      navigate(routeByRoleName(user.role_name));
+      navigate(getPostLoginPath(user));
     } catch {
       setError('Invalid username or password');
     } finally {
@@ -42,6 +38,40 @@ export function Login() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    if (externalSubmitting) return;
+    setExternalSubmitting(true);
+    setError('');
+    setNotice('');
+
+    try {
+      await signInWithGoogle();
+    } catch (googleError) {
+      setError(googleError instanceof Error ? googleError.message : 'Google sign-in is not available right now.');
+      setExternalSubmitting(false);
+    }
+  };
+
+  const handleEmailOtp = async () => {
+    if (externalSubmitting) return;
+    if (!staffEmail.trim()) {
+      setError('Enter your staff email first.');
+      return;
+    }
+
+    setExternalSubmitting(true);
+    setError('');
+    setNotice('');
+
+    try {
+      await requestEmailOtp(staffEmail);
+      setNotice('Check your email for the sign-in link or OTP. Use the same email saved in the Users page.');
+    } catch (otpError) {
+      setError(otpError instanceof Error ? otpError.message : 'Could not send the email sign-in link.');
+    } finally {
+      setExternalSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0E0E12] text-white flex items-center justify-center p-4 relative overflow-hidden">
@@ -56,20 +86,20 @@ export function Login() {
           <div className="absolute right-20 bottom-0 w-48 h-48 rounded-full bg-[#FFD60A]/10 blur-2xl" />
 
           <div className="relative flex items-center gap-3">
-            <BrandLogo size="lg" className="ring-white/25" />
+            <BrandLogo size="lg" className="h-20 w-20 ring-white/35 shadow-2xl shadow-black/45" />
             <div>
-              <div className="text-white">Meryl Shoes</div>
-              <div className="text-[11px] text-white/70">Management Suite</div>
+              <div className="text-white text-lg font-semibold tracking-wide">Meryl Shoes</div>
+              <div className="text-[11px] text-white/70">Admin Console</div>
             </div>
           </div>
 
           <div className="relative">
             <div className="text-[11px] uppercase tracking-widest text-[#FFD60A]/90">Welcome back</div>
             <h1 className="mt-3 text-white text-4xl tracking-tight leading-tight">
-              Run your store<br/>like a fintech.
+              Run your store<br/>with confidence.
             </h1>
             <p className="mt-3 text-white/80 text-sm max-w-sm">
-              Real-time POS, inventory and sales analytics — designed for speed, built for scale.
+              Real-time POS, inventory, and sales analytics designed for daily operations.
             </p>
           </div>
           <div className="relative h-16" />
@@ -122,6 +152,12 @@ export function Login() {
               </div>
             )}
 
+            {notice && (
+              <div className="rounded-xl px-3 py-2.5 bg-emerald-500/10 border border-emerald-400/25 text-sm text-emerald-200">
+                {notice}
+              </div>
+            )}
+
             <Button
               type="submit"
               disabled={submitting}
@@ -131,6 +167,56 @@ export function Login() {
               Sign in
             </Button>
           </form>
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-white/40">
+              <ShieldCheck className="h-3.5 w-3.5 text-[#FFD60A]" />
+              Secure options
+            </div>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              type="button"
+              disabled={externalSubmitting || submitting}
+              onClick={handleGoogleLogin}
+              className="h-11 w-full rounded-xl border border-white/10 bg-[#1D1D25] text-white hover:bg-white/10"
+            >
+              <span className="mr-2 grid h-5 w-5 place-items-center rounded-full bg-white text-sm font-bold text-[#E5202A]">
+                G
+              </span>
+              Continue with Google
+            </Button>
+
+            <div className="rounded-2xl border border-white/10 bg-[#111117] p-3">
+              <label className="text-xs text-white/60 mb-1.5 block">Email OTP / sign-in link</label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+                  <input
+                    type="email"
+                    value={staffEmail}
+                    onChange={(event) => setStaffEmail(event.target.value)}
+                    placeholder="staff@email.com"
+                    className="h-11 w-full rounded-xl border border-white/5 bg-[#1D1D25] pl-10 pr-3 text-sm text-white placeholder:text-white/30 transition focus:border-[#FFD60A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFD60A]/20"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  disabled={externalSubmitting || submitting}
+                  onClick={handleEmailOtp}
+                  className="h-11 rounded-xl bg-[#FFD60A] px-5 font-semibold text-[#17171D] hover:bg-[#ffcf24]"
+                >
+                  Send OTP
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] leading-4 text-white/45">
+                Google and OTP only work when the email exists in Users and the account is Active.
+              </p>
+            </div>
+          </div>
 
         </div>
       </div>
