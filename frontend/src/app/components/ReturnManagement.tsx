@@ -1327,17 +1327,12 @@ export function ReturnManagement() {
           </div>
 
           <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-            <Table className="w-full min-w-[1280px]">
+            <Table className="w-full min-w-[840px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Product Returned</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Qty</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Type</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Store Credit</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Additional Pay</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Date</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
@@ -1345,19 +1340,11 @@ export function ReturnManagement() {
               </TableHeader>
               <TableBody>
                 {filteredReturns.map((returnItem) => {
-                  const firstDetail = returnItem.returnDetails[0];
-                  const returnedProduct = firstDetail?.productName ?? "N/A";
-                  const returnedQty = returnItem.returnDetails.reduce((sum, detail) => sum + detail.quantity_returned, 0);
                   return (
                   <TableRow key={returnItem.return_id} className="border-red-800">
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.display_return_id}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.display_sales_id}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.customerName}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnedProduct}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnedQty}</TableCell>
-                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.return_type}</TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">{formatCurrency(returnItem.total_refund)}</TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">{formatCurrency(returnItem.additional_payment)}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
                       <Badge className="bg-green-600 text-white">{returnItem.return_status}</Badge>
                     </TableCell>
@@ -1374,60 +1361,73 @@ export function ReturnManagement() {
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl">
+                        <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-3xl">
                           <DialogHeader>
                             <DialogTitle className="text-yellow-300">Return Details - {returnItem.display_return_id}</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <p className="text-sm text-yellow-200">Customer</p>
-                                <p className="text-yellow-300">{returnItem.customerName}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-yellow-200">Original Sale</p>
-                                <p className="text-yellow-300">{returnItem.display_sales_id}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-yellow-200">Return Type</p>
-                                <p className="text-yellow-300">{returnItem.return_type}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-yellow-200">Processed By</p>
-                                <p className="text-yellow-300">{returnItem.processedBy}</p>
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-sm text-yellow-200 mb-2">Return Details</p>
-                              {returnItem.returnDetails.map((detail) => (
-                                <div key={detail.return_detail_id} className="bg-red-600 p-3 rounded mb-2">
-                                  <p className="text-yellow-300">{detail.productName}</p>
-                                  <p className="text-yellow-200 text-xs">
-                                    Qty: {detail.quantity_returned} | Refund/Credit: {formatCurrency(detail.refund_amount)}
-                                  </p>
-                                  <p className="text-yellow-200 text-xs">
-                                    Replacement: {detail.replacementProductName} | Inventory: {detail.inventory_action}
-                                  </p>
-                                  <p className="text-yellow-200 text-xs mt-1">{detail.reason}</p>
+                            <div className="rounded-lg border border-red-800 bg-red-800/30 p-4">
+                              <p className="mb-3 text-xs uppercase tracking-wide text-yellow-300/80">Summary</p>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div>
+                                  <p className="text-sm text-yellow-200">Customer</p>
+                                  <p className="text-yellow-300">{returnItem.customerName}</p>
                                 </div>
-                              ))}
+                                <div>
+                                  <p className="text-sm text-yellow-200">Original Sale</p>
+                                  <p className="text-yellow-300">{returnItem.display_sales_id}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-yellow-200">Return Type</p>
+                                  <p className="text-yellow-300">{returnItem.return_type}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-yellow-200">Processed By</p>
+                                  <p className="text-yellow-300">{returnItem.processedBy}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-yellow-200">Return Date</p>
+                                  <p className="text-yellow-300">{returnItem.return_date}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-yellow-200">Sales Status</p>
+                                  <p className="text-yellow-300">{returnItem.salesStatus}</p>
+                                </div>
+                              </div>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              <div>
-                                <p className="text-sm text-yellow-200">Refund / Credit</p>
-                                <p className="text-yellow-300">{formatCurrency(returnItem.total_refund)}</p>
+
+                            <div className="rounded-lg border border-red-800 bg-red-800/30 p-4">
+                              <p className="mb-3 text-xs uppercase tracking-wide text-yellow-300/80">Financials</p>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div>
+                                  <p className="text-sm text-yellow-200">Refund / Credit</p>
+                                  <p className="text-yellow-300">{formatCurrency(returnItem.total_refund)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-yellow-200">Additional Pay</p>
+                                  <p className="text-yellow-300">{formatCurrency(returnItem.additional_payment)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-yellow-200">Return Status</p>
+                                  <p className="text-yellow-300">{returnItem.return_status}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-sm text-yellow-200">Additional Pay</p>
-                                <p className="text-yellow-300">{formatCurrency(returnItem.additional_payment)}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-yellow-200">Sales Status</p>
-                                <p className="text-yellow-300">{returnItem.salesStatus}</p>
-                              </div>
-                              <div>
-                                <p className="text-sm text-yellow-200">Return Date</p>
-                                <p className="text-yellow-300">{returnItem.return_date}</p>
+                            </div>
+
+                            <div className="rounded-lg border border-red-800 bg-red-800/30 p-4">
+                              <p className="mb-3 text-xs uppercase tracking-wide text-yellow-300/80">Returned Items</p>
+                              <div className="space-y-2">
+                                {returnItem.returnDetails.map((detail) => (
+                                  <div key={detail.return_detail_id} className="rounded-md bg-red-600/60 p-3">
+                                    <p className="text-yellow-100 font-medium">{detail.productName}</p>
+                                    <p className="text-yellow-200 text-xs">
+                                      Qty: {detail.quantity_returned} | Refund/Credit: {formatCurrency(detail.refund_amount)}
+                                    </p>
+                                    <p className="text-yellow-200 text-xs">
+                                      Replacement: {detail.replacementProductName} | Inventory: {detail.inventory_action}
+                                    </p>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           </div>
