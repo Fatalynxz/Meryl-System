@@ -1,12 +1,23 @@
 import { getRowById, listRows, removeRow } from "./_common";
 
 const PROMO_JOIN = "*, promo_product:promo_product(*, product:product(*))";
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? "http://localhost:5000"
+    : "");
+
+function apiUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/$/, "");
+  return base ? `${base}${path}` : path;
+}
 
 export const promotionsApi = {
   list: () => listRows("promotion", PROMO_JOIN, "created_at"),
   getById: (id: string) => getRowById("promotion", id, PROMO_JOIN),
   create: async (payload: any) => {
-    const response = await fetch("/api/promotions/public", {
+    const response = await fetch(apiUrl("/api/promotions/public"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -25,7 +36,7 @@ export const promotionsApi = {
     return result.promotion ?? result;
   },
   update: async (id: string, payload: any) => {
-    const response = await fetch(`/api/promotions/${encodeURIComponent(id)}/public`, {
+    const response = await fetch(apiUrl(`/api/promotions/${encodeURIComponent(id)}/public`), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
