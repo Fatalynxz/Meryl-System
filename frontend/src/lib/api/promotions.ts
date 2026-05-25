@@ -12,9 +12,15 @@ export const promotionsApi = {
       credentials: "include",
       body: JSON.stringify(payload),
     });
-    const result = await response.json().catch(() => ({}));
+    const raw = await response.text();
+    let result: any = {};
+    try {
+      result = raw ? JSON.parse(raw) : {};
+    } catch {
+      result = {};
+    }
     if (!response.ok || result?.ok === false) {
-      throw new Error(result?.error || "Unable to create promotion");
+      throw new Error(result?.error || `Unable to create promotion (HTTP ${response.status} ${response.statusText}) ${raw ? `- ${raw.slice(0, 300)}` : ""}`.trim());
     }
     return result.promotion ?? result;
   },
@@ -25,9 +31,15 @@ export const promotionsApi = {
       credentials: "include",
       body: JSON.stringify(payload),
     });
-    const result = await response.json().catch(() => ({}));
+    const raw = await response.text();
+    let result: any = {};
+    try {
+      result = raw ? JSON.parse(raw) : {};
+    } catch {
+      result = {};
+    }
     if (!response.ok || result?.ok === false) {
-      throw new Error(result?.error || "Unable to update promotion");
+      throw new Error(result?.error || `Unable to update promotion (HTTP ${response.status} ${response.statusText}) ${raw ? `- ${raw.slice(0, 300)}` : ""}`.trim());
     }
     return result.promotion ?? result;
   },
