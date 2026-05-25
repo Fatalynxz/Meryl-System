@@ -5,16 +5,38 @@
 create extension if not exists pgcrypto;
 
 -- 2) Guard rails for inventory data quality.
-alter table public.inventory
-  add constraint chk_inventory_non_negative_stock
-  check (stock_quantity >= 0) not valid;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'chk_inventory_non_negative_stock'
+      and conrelid = 'public.inventory'::regclass
+  ) then
+    alter table public.inventory
+      add constraint chk_inventory_non_negative_stock
+      check (stock_quantity >= 0) not valid;
+  end if;
+end
+$$;
 
 alter table public.inventory
   validate constraint chk_inventory_non_negative_stock;
 
-alter table public.inventory
-  add constraint chk_inventory_non_negative_reorder
-  check (coalesce(reorder_level, 0) >= 0) not valid;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'chk_inventory_non_negative_reorder'
+      and conrelid = 'public.inventory'::regclass
+  ) then
+    alter table public.inventory
+      add constraint chk_inventory_non_negative_reorder
+      check (coalesce(reorder_level, 0) >= 0) not valid;
+  end if;
+end
+$$;
 
 alter table public.inventory
   validate constraint chk_inventory_non_negative_reorder;
@@ -112,4 +134,3 @@ $$;
 
 grant execute on function public.write_audit_log(uuid, text, text, text, jsonb, jsonb, jsonb)
 to authenticated;
-
