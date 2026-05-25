@@ -628,7 +628,12 @@ export function PromotionManagement() {
       }
 
       const createdPromoId = String(createdPromotion?.promo_id || newPromotionPayload.promo_id || '').trim();
-      await syncPromotionProductLinks(createdPromoId, formData.targetProducts || 'All Products');
+      try {
+        await syncPromotionProductLinks(createdPromoId, formData.targetProducts || 'All Products');
+      } catch (syncError: any) {
+        console.warn("Promotion link sync warning (create):", syncError);
+        toast.warning("Promotion saved, but product-link sync is limited by current permissions.");
+      }
       await writeAuditLog({
         actorUserId: user?.user_id,
         actionType: "create_promotion",
@@ -729,7 +734,12 @@ export function PromotionManagement() {
           payload: fallbackPayload,
         } as any);
       }
-      await syncPromotionProductLinks(editingPromotion.promo_id, formData.targetProducts);
+      try {
+        await syncPromotionProductLinks(editingPromotion.promo_id, formData.targetProducts);
+      } catch (syncError: any) {
+        console.warn("Promotion link sync warning (update):", syncError);
+        toast.warning("Promotion updated, but product-link sync is limited by current permissions.");
+      }
       await promotionsQuery.refetch();
       await writeAuditLog({
         actorUserId: user?.user_id,
