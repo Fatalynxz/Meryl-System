@@ -1279,6 +1279,24 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
       <div className="space-y-2">
         <Label htmlFor="targetProducts" className="text-yellow-300">Target Products *</Label>
         <div className="space-y-3 rounded-lg border border-red-800 p-3">
+          <Input
+            id="targetProducts"
+            value={formData.targetProducts || 'All Products'}
+            readOnly
+            onClick={() => {
+              setSelectedCategories([]);
+              setSelectedProducts([]);
+              setFormData({
+                ...formData,
+                targetProducts: 'All Products',
+              });
+            }}
+            className="bg-red-600 border-red-800 text-yellow-200 cursor-pointer"
+          />
+          <p className="text-xs text-yellow-300/80">
+            Tip: Click <span className="text-yellow-300">All Products</span> button or click the field above to target all products.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-yellow-300 text-xs">Categories (choose one or more)</Label>
@@ -1393,24 +1411,6 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
               </div>
             </div>
           </div>
-
-          <Input
-            id="targetProducts"
-            value={formData.targetProducts || 'All Products'}
-            readOnly
-            onClick={() => {
-              setSelectedCategories([]);
-              setSelectedProducts([]);
-              setFormData({
-                ...formData,
-                targetProducts: 'All Products',
-              });
-            }}
-            className="bg-red-600 border-red-800 text-yellow-200 cursor-pointer"
-          />
-          <p className="text-xs text-yellow-300/80">
-            Tip: Click <span className="text-yellow-300">All Products</span> button or click the field above to target all products.
-          </p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
