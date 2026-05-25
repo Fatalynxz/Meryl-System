@@ -1648,9 +1648,27 @@ def validate_promotion_date_range(start_date, end_date, *, allow_past_start=Fals
     end_raw = str(end_date or "").strip()[:10]
     if not start_raw or not end_raw:
         return False, "Start date and end date are required."
+
+    def parse_date(value):
+        value = str(value or "").strip()[:10]
+        if not value:
+            raise ValueError("empty")
+        # Primary expected format (HTML date input)
+        try:
+            return datetime.fromisoformat(value).date()
+        except ValueError:
+            pass
+        # Fallback for localized dd/mm/yyyy display/input
+        for fmt in ("%d/%m/%Y", "%m/%d/%Y"):
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
+        raise ValueError("invalid")
+
     try:
-        start = datetime.fromisoformat(start_raw).date()
-        end = datetime.fromisoformat(end_raw).date()
+        start = parse_date(start_raw)
+        end = parse_date(end_raw)
     except ValueError:
         return False, "Start date and end date must be valid dates."
     if start < today and not allow_past_start:
