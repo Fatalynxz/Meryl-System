@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, Package, Coins, Users, AlertCircle, ArrowUpRight, ArrowDownRight, MoreHorizontal } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, BarChart, Bar, Cell } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, CartesianGrid, BarChart, Bar, Cell, LabelList, YAxis } from "recharts";
 import { useCustomers, useProducts, useSales } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
 
@@ -370,13 +370,30 @@ export function Dashboard() {
           <div className="h-40">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={categoryData}>
-                <XAxis dataKey="name" stroke="#ffffff40" fontSize={10} tickLine={false} axisLine={false} />
+                <XAxis dataKey="name" stroke="#ffffff80" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis
+                  stroke="#ffffff55"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[0, 100]}
+                  tickFormatter={(value) => `${value}%`}
+                  width={30}
+                />
                 <Bar dataKey="value" radius={[8, 8, 0, 0]}>
                   {categoryData.map((entry, i) => (
                     <Cell key={entry.name} fill={i % 2 === 0 ? "#E5202A" : "#FFD60A"} />
                   ))}
+                  <LabelList
+                    dataKey="value"
+                    position="top"
+                    formatter={(value: number) => `${Number(value)}%`}
+                    fill="#FFFFFF"
+                    fontSize={11}
+                  />
                 </Bar>
                 <Tooltip
+                  formatter={(value: number) => [`${Number(value)}%`, "Percentage"]}
                   cursor={{ fill: "#ffffff05" }}
                   contentStyle={{ background: "#0E0E12", border: "1px solid #ffffff20", borderRadius: 12, color: "#fff" }}
                 />
