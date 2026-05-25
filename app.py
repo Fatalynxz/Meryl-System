@@ -1642,6 +1642,24 @@ def promotions_delete(promo_id):
     return redirect("/promotions")
 
 
+def parse_promotion_date(value):
+    value = str(value or "").strip()[:10]
+    if not value:
+        raise ValueError("empty")
+    # Primary expected format (HTML date input)
+    try:
+        return datetime.fromisoformat(value).date()
+    except ValueError:
+        pass
+    # Fallback for localized dd/mm/yyyy display/input
+    for fmt in ("%d/%m/%Y", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError("invalid")
+
+
 def validate_promotion_date_range(start_date, end_date, *, allow_past_start=False):
     today = datetime.now().date()
     start_raw = str(start_date or "").strip()[:10]
@@ -1649,26 +1667,9 @@ def validate_promotion_date_range(start_date, end_date, *, allow_past_start=Fals
     if not start_raw or not end_raw:
         return False, "Start date and end date are required."
 
-    def parse_date(value):
-        value = str(value or "").strip()[:10]
-        if not value:
-            raise ValueError("empty")
-        # Primary expected format (HTML date input)
-        try:
-            return datetime.fromisoformat(value).date()
-        except ValueError:
-            pass
-        # Fallback for localized dd/mm/yyyy display/input
-        for fmt in ("%d/%m/%Y", "%m/%d/%Y"):
-            try:
-                return datetime.strptime(value, fmt).date()
-            except ValueError:
-                continue
-        raise ValueError("invalid")
-
     try:
-        start = parse_date(start_raw)
-        end = parse_date(end_raw)
+        start = parse_promotion_date(start_raw)
+        end = parse_promotion_date(end_raw)
     except ValueError:
         return False, "Start date and end date must be valid dates."
     if start < today and not allow_past_start:
@@ -1695,12 +1696,18 @@ def normalize_promotion_api_payload(payload, *, allow_past_start=False):
     if not is_valid:
         return None, error
 
+    try:
+        start_iso = parse_promotion_date(start_date).isoformat()
+        end_iso = parse_promotion_date(end_date).isoformat()
+    except ValueError:
+        return None, "Start date and end date must be valid dates."
+
     normalized = {
         "promo_name": promo_name,
         "discount_type": db_promotion_type(payload.get("discount_type") or "percentage"),
         "discount_value": safe_float(payload.get("discount_value"), 0),
-        "start_date": start_date,
-        "end_date": end_date,
+        "start_date": start_iso,
+        "end_date": end_iso,
         "status": db_promotion_status(payload.get("status") or "inactive"),
     }
     if "target_products" in payload:
