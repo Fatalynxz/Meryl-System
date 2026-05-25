@@ -33,10 +33,15 @@ export function BrandLogo({ size = 'md', className = '' }: BrandLogoProps) {
 
   return (
     <div
-      className={`${styles.shell} ${className} flex shrink-0 items-center justify-center bg-gradient-to-br from-[#FFF7DB] via-[#FFE89A] to-[#FFD65A] shadow-2xl shadow-black/35`}
+      className={`${styles.shell} ${className} flex shrink-0 items-center justify-center overflow-hidden bg-[#FEEA8A] shadow-2xl shadow-black/35`}
     >
-      <div className={`${styles.inner} flex items-center justify-center rounded-[1rem] bg-white/18`}>
-        <img src={logo} alt="Meryl Shoes" className={`${styles.image} w-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]`} />
+      <div className={`${styles.inner} flex items-center justify-center rounded-[1rem]`}>
+        <img
+          src={logo}
+          alt="Meryl Shoes"
+          className={`${styles.image} w-full object-contain`}
+          style={{ imageRendering: "auto" }}
+        />
       </div>
     </div>
   );
