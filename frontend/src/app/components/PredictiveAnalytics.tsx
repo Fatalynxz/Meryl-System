@@ -778,6 +778,7 @@ export function PredictiveAnalytics() {
   const showSales = analyticsView === "sales";
   const showPromotion = analyticsView === "promotion";
   const hasActivePromotionPerformance = analytics.activePromotionChart.some((promo) => promo.revenue > 0 || promo.units > 0);
+  const categoryUnitsTotal = analytics.categoryChart.reduce((sum, row) => sum + Number(row.units ?? 0), 0);
 
   const filterTabs = [
     { id: "product" as const, label: "Product Analytics", icon: Package, count: analytics.productMovement.length },
@@ -879,7 +880,11 @@ export function PredictiveAnalytics() {
                 </Pie>
                 <Tooltip
                   contentStyle={{ backgroundColor: "#18181f", border: "1px solid #3a3a45", borderRadius: "12px", color: "#fff" }}
-                  formatter={(value: any) => [`${value} units`, "Sold"]}
+                  formatter={(value: any) => {
+                    const units = Number(value ?? 0);
+                    const pct = categoryUnitsTotal > 0 ? Math.round((units / categoryUnitsTotal) * 100) : 0;
+                    return [`${pct}% (${units} units)`, "Share"];
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -887,7 +892,9 @@ export function PredictiveAnalytics() {
               {analytics.categoryChart.map((category) => (
                 <div key={category.name} className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
                   <span className="truncate text-white/75">{category.name}</span>
-                  <span className="font-semibold text-yellow-300">{category.units}</span>
+                  <span className="font-semibold text-yellow-300">
+                    {categoryUnitsTotal > 0 ? Math.round((Number(category.units ?? 0) / categoryUnitsTotal) * 100) : 0}%
+                  </span>
                 </div>
               ))}
             </div>
