@@ -1642,7 +1642,7 @@ def promotions_delete(promo_id):
     return redirect("/promotions")
 
 
-def validate_promotion_date_range(start_date, end_date):
+def validate_promotion_date_range(start_date, end_date, *, allow_past_start=False):
     today = datetime.now().date()
     start_raw = str(start_date or "").strip()[:10]
     end_raw = str(end_date or "").strip()[:10]
@@ -1653,7 +1653,7 @@ def validate_promotion_date_range(start_date, end_date):
         end = datetime.fromisoformat(end_raw).date()
     except ValueError:
         return False, "Start date and end date must be valid dates."
-    if start < today:
+    if start < today and not allow_past_start:
         return False, "Start date cannot be in the past."
     if end < today:
         return False, "End date cannot be in the past."
@@ -1662,12 +1662,16 @@ def validate_promotion_date_range(start_date, end_date):
     return True, ""
 
 
-def normalize_promotion_api_payload(payload):
+def normalize_promotion_api_payload(payload, *, allow_past_start=False):
     payload = payload or {}
     promo_name = str(payload.get("promo_name") or "").strip()
     start_date = str(payload.get("start_date") or "").strip()[:10]
     end_date = str(payload.get("end_date") or "").strip()[:10]
-    is_valid, error = validate_promotion_date_range(start_date, end_date)
+    is_valid, error = validate_promotion_date_range(
+        start_date,
+        end_date,
+        allow_past_start=allow_past_start,
+    )
     if not promo_name:
         return None, "Promotion name is required."
     if not is_valid:
@@ -1724,7 +1728,29 @@ def api_promotion_update_public(promo_id):
     if not promo_id:
         return {"ok": False, "error": "missing_promo_id"}, 400
 
-    payload, error = normalize_promotion_api_payload(request.get_json(silent=True) or {})
+    raw_payload = request.get_json(silent=True) or {}
+    requested_start_date = str(raw_payload.get("start_date") or "").strip()[:10]
+    allow_past_start = False
+    try:
+        existing_rows = (
+            supabase()
+            .table("promotion")
+            .select("start_date")
+            .eq("promo_id", promo_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        existing_start_date = str((existing_rows[0] or {}).get("start_date") or "").strip()[:10] if existing_rows else ""
+        allow_past_start = bool(existing_start_date and requested_start_date and existing_start_date == requested_start_date)
+    except Exception:
+        allow_past_start = False
+
+    payload, error = normalize_promotion_api_payload(
+        raw_payload,
+        allow_past_start=allow_past_start,
+    )
     if error:
         return {"ok": False, "error": error}, 400
 
