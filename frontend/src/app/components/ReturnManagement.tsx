@@ -1361,69 +1361,69 @@ export function ReturnManagement() {
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-3xl">
+                        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-3xl">
                           <DialogHeader>
-                            <DialogTitle className="text-yellow-300">Return Details - {returnItem.display_return_id}</DialogTitle>
+                            <DialogTitle className="text-zinc-100">Return Details - {returnItem.display_return_id}</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
-                            <div className="rounded-lg border border-red-800 bg-red-800/30 p-4">
-                              <p className="mb-3 text-xs uppercase tracking-wide text-yellow-300/80">Summary</p>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                              <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Summary</p>
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 <div>
-                                  <p className="text-sm text-yellow-200">Customer</p>
-                                  <p className="text-yellow-300">{returnItem.customerName}</p>
+                                  <p className="text-sm text-zinc-400">Customer</p>
+                                  <p className="text-zinc-100">{returnItem.customerName}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-yellow-200">Original Sale</p>
-                                  <p className="text-yellow-300">{returnItem.display_sales_id}</p>
+                                  <p className="text-sm text-zinc-400">Original Sale</p>
+                                  <p className="text-zinc-100">{returnItem.display_sales_id}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-yellow-200">Return Type</p>
-                                  <p className="text-yellow-300">{returnItem.return_type}</p>
+                                  <p className="text-sm text-zinc-400">Return Type</p>
+                                  <p className="text-zinc-100">{returnItem.return_type}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-yellow-200">Processed By</p>
-                                  <p className="text-yellow-300">{returnItem.processedBy}</p>
+                                  <p className="text-sm text-zinc-400">Processed By</p>
+                                  <p className="text-zinc-100">{returnItem.processedBy}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-yellow-200">Return Date</p>
-                                  <p className="text-yellow-300">{returnItem.return_date}</p>
+                                  <p className="text-sm text-zinc-400">Return Date</p>
+                                  <p className="text-zinc-100">{returnItem.return_date}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-yellow-200">Sales Status</p>
-                                  <p className="text-yellow-300">{returnItem.salesStatus}</p>
+                                  <p className="text-sm text-zinc-400">Sales Status</p>
+                                  <p className="text-zinc-100">{returnItem.salesStatus}</p>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="rounded-lg border border-red-800 bg-red-800/30 p-4">
-                              <p className="mb-3 text-xs uppercase tracking-wide text-yellow-300/80">Financials</p>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                              <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Financials</p>
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 <div>
-                                  <p className="text-sm text-yellow-200">Refund / Credit</p>
-                                  <p className="text-yellow-300">{formatCurrency(returnItem.total_refund)}</p>
+                                  <p className="text-sm text-zinc-400">Refund / Credit</p>
+                                  <p className="text-zinc-100">{formatCurrency(returnItem.total_refund)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-yellow-200">Additional Pay</p>
-                                  <p className="text-yellow-300">{formatCurrency(returnItem.additional_payment)}</p>
+                                  <p className="text-sm text-zinc-400">Additional Pay</p>
+                                  <p className="text-zinc-100">{formatCurrency(returnItem.additional_payment)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-yellow-200">Return Status</p>
-                                  <p className="text-yellow-300">{returnItem.return_status}</p>
+                                  <p className="text-sm text-zinc-400">Return Status</p>
+                                  <p className="text-zinc-100">{returnItem.return_status}</p>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="rounded-lg border border-red-800 bg-red-800/30 p-4">
-                              <p className="mb-3 text-xs uppercase tracking-wide text-yellow-300/80">Returned Items</p>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                              <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Returned Items</p>
                               <div className="space-y-2">
                                 {returnItem.returnDetails.map((detail) => (
-                                  <div key={detail.return_detail_id} className="rounded-md bg-red-600/60 p-3">
-                                    <p className="text-yellow-100 font-medium">{detail.productName}</p>
-                                    <p className="text-yellow-200 text-xs">
+                                  <div key={detail.return_detail_id} className="rounded-md border border-zinc-800 bg-zinc-900/80 p-3">
+                                    <p className="text-zinc-100 font-medium">{detail.productName}</p>
+                                    <p className="text-zinc-300 text-xs">
                                       Qty: {detail.quantity_returned} | Refund/Credit: {formatCurrency(detail.refund_amount)}
                                     </p>
-                                    <p className="text-yellow-200 text-xs">
+                                    <p className="text-zinc-300 text-xs">
                                       Replacement: {detail.replacementProductName} | Inventory: {detail.inventory_action}
                                     </p>
                                   </div>
