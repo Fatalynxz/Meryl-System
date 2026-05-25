@@ -225,8 +225,8 @@ export function SalesManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Total Revenue</p>
-                <p className="text-2xl text-yellow-300">₱{totalRevenue.toFixed(2)}</p>
+                <p className="text-sm text-zinc-400">Total Revenue</p>
+                <p className="text-2xl text-zinc-100">₱{totalRevenue.toFixed(2)}</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-yellow-400" />
             </div>
@@ -236,8 +236,8 @@ export function SalesManagement() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Today's Sales</p>
-                <p className="text-2xl text-yellow-300">{todaySales.length}</p>
+                <p className="text-sm text-zinc-400">Today's Sales</p>
+                <p className="text-2xl text-zinc-100">{todaySales.length}</p>
               </div>
               <Calendar className="h-8 w-8 text-yellow-400" />
             </div>
@@ -248,7 +248,7 @@ export function SalesManagement() {
       <Card className="bg-red-700 border-red-800">
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle className="text-yellow-300 flex items-center gap-2">
+            <CardTitle className="text-zinc-100 flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
               Sales Records
             </CardTitle>
@@ -261,7 +261,7 @@ export function SalesManagement() {
               placeholder="Search by sales ID, customer, or product..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+              className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-zinc-100/50"
             />
           </div>
 
@@ -269,13 +269,13 @@ export function SalesManagement() {
             <Table className="w-full min-w-[860px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales ID</TableHead>
-                  {isAdmin && <TableHead className="text-yellow-300 whitespace-nowrap text-center">Cashier</TableHead>}
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Amount</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Date</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
+                  <TableHead className="text-zinc-100 whitespace-nowrap text-center">Sales ID</TableHead>
+                  {isAdmin && <TableHead className="text-zinc-100 whitespace-nowrap text-center">Cashier</TableHead>}
+                  <TableHead className="text-zinc-100 whitespace-nowrap text-center">Customer</TableHead>
+                  <TableHead className="text-zinc-100 whitespace-nowrap text-center">Amount</TableHead>
+                  <TableHead className="text-zinc-100 whitespace-nowrap text-center">Status</TableHead>
+                  <TableHead className="text-zinc-100 whitespace-nowrap text-center">Date</TableHead>
+                  <TableHead className="text-zinc-100 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,13 +286,13 @@ export function SalesManagement() {
                       <TableCell className="text-yellow-200 whitespace-nowrap text-center">
                         <div className="flex flex-col">
                           <span>{sale.cashierName}</span>
-                          <span className="text-xs text-yellow-300/80">{sale.cashierCode}</span>
+                          <span className="text-xs text-zinc-100/80">{sale.cashierCode}</span>
                           {sale.cashierUsername && <span className="text-xs text-yellow-200/60">@{sale.cashierUsername}</span>}
                         </div>
                       </TableCell>
                     )}
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{sale.customerName}</TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center">PHP {sale.total_amount}</TableCell>
+                    <TableCell className="text-zinc-100 whitespace-nowrap text-center">PHP {Number(sale.total_amount ?? 0).toFixed(2)}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-2">
                         {isAdmin ? (
@@ -335,41 +335,41 @@ export function SalesManagement() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600"
+                            className="text-yellow-400 hover:text-zinc-100 hover:bg-red-600"
                             onClick={() => setViewingSale(sale)}
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-red-700 border-red-800 text-yellow-200">
+                        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-3xl">
                           <DialogHeader>
-                            <DialogTitle className="text-yellow-300">Sale Details - {sale.display_sales_id}</DialogTitle>
+                            <DialogTitle className="text-zinc-100">Sale Details - {sale.display_sales_id}</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div><p className="text-sm text-yellow-200">Customer</p><p className="text-yellow-300">{sale.customerName}</p></div>
-                              {isAdmin && <div><p className="text-sm text-yellow-200">Cashier</p><p className="text-yellow-300">{sale.cashierName} ({sale.cashierCode})</p></div>}
-                              <div><p className="text-sm text-yellow-200">Transaction Date</p><p className="text-yellow-300">{sale.transaction_date}</p></div>
+                            <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                              <div><p className="text-sm text-zinc-400">Customer</p><p className="text-zinc-100">{sale.customerName}</p></div>
+                              {isAdmin && <div><p className="text-sm text-zinc-400">Cashier</p><p className="text-zinc-100">{sale.cashierName} ({sale.cashierCode})</p></div>}
+                              <div><p className="text-sm text-zinc-400">Transaction Date</p><p className="text-zinc-100">{sale.transaction_date}</p></div>
                             </div>
                             <div>
-                              <p className="text-sm text-yellow-200 mb-2">Products</p>
+                              <p className="text-sm text-zinc-400 mb-2">Products</p>
                               {sale.saleDetails.map((detail: any, idx: number) => (
-                                <div key={idx} className="bg-red-600 p-2 rounded mb-2">
-                                  <p className="text-yellow-300">{detail.productName}</p>
+                                <div key={idx} className="rounded-md border border-zinc-800 bg-zinc-900/80 p-3 mb-2">
+                                  <p className="text-zinc-100">{detail.productName}</p>
                                   <p className="text-yellow-200 text-xs">Qty: {detail.quantity} × ₱{detail.price} = ₱{detail.subtotal}</p>
-                                  {detail.discount_applied > 0 && <p className="text-yellow-200 text-xs">Discount: -₱{detail.discount_applied}</p>}
+                                  {detail.discount_applied > 0 && <p className="text-yellow-200 text-xs">Discount: -PHP {Number(detail.discount_applied ?? 0).toFixed(2)}</p>}
                                 </div>
                               ))}
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div><p className="text-sm text-yellow-200">Payment Method</p><p className="text-yellow-300">{sale.payment_method}</p></div>
-                              <div><p className="text-sm text-yellow-200">Total Amount</p><p className="text-yellow-300">PHP {sale.total_amount}</p></div>
-                              <div><p className="text-sm text-yellow-200">Replacements</p><p className="text-yellow-300">{sale.replacementCount}</p></div>
-                              <div><p className="text-sm text-yellow-200">Added Payments</p><p className="text-yellow-300">PHP {Number(sale.replacementPayments ?? 0).toFixed(2)}</p></div>
-                              <div><p className="text-sm text-yellow-200">Credits Issued</p><p className="text-yellow-300">PHP {Number(sale.replacementCredits ?? 0).toFixed(2)}</p></div>
-                              <div><p className="text-sm text-yellow-200">Last Activity</p><p className="text-yellow-300">{sale.lastActivityDate}</p></div>
+                            <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                              <div><p className="text-sm text-zinc-400">Payment Method</p><p className="text-zinc-100">{sale.payment_method}</p></div>
+                              <div><p className="text-sm text-zinc-400">Total Amount</p><p className="text-zinc-100">PHP {Number(sale.total_amount ?? 0).toFixed(2)}</p></div>
+                              <div><p className="text-sm text-zinc-400">Replacements</p><p className="text-zinc-100">{sale.replacementCount}</p></div>
+                              <div><p className="text-sm text-zinc-400">Added Payments</p><p className="text-zinc-100">PHP {Number(sale.replacementPayments ?? 0).toFixed(2)}</p></div>
+                              <div><p className="text-sm text-zinc-400">Credits Issued</p><p className="text-zinc-100">PHP {Number(sale.replacementCredits ?? 0).toFixed(2)}</p></div>
+                              <div><p className="text-sm text-zinc-400">Last Activity</p><p className="text-zinc-100">{sale.lastActivityDate}</p></div>
                             </div>
-                            <div><p className="text-sm text-yellow-200">Status</p><p className="text-yellow-300">{sale.status}</p></div>
+                            <div><p className="text-sm text-zinc-400">Status</p><p className="text-zinc-100">{sale.status}</p></div>
                           </div>
                         </DialogContent>
                       </Dialog>
@@ -384,6 +384,7 @@ export function SalesManagement() {
     </div>
   );
 }
+
 
 
 
