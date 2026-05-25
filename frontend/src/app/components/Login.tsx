@@ -85,11 +85,11 @@ export function Login() {
           <div className="absolute -right-10 -top-10 w-72 h-72 rounded-full bg-[#FFD60A]/20 blur-3xl" />
           <div className="absolute right-20 bottom-0 w-48 h-48 rounded-full bg-[#FFD60A]/10 blur-2xl" />
 
-          <div className="relative flex items-center gap-3">
-            <BrandLogo size="lg" className="h-20 w-20 ring-white/35 shadow-2xl shadow-black/45" />
+          <div className="relative flex items-center gap-4">
+            <BrandLogo size="xl" className="ring-white/60 shadow-[0_18px_45px_rgba(0,0,0,0.5)]" />
             <div>
-              <div className="text-white text-lg font-semibold tracking-wide">Meryl Shoes</div>
-              <div className="text-[11px] text-white/70">Admin Console</div>
+              <div className="text-white text-xl font-bold tracking-wide">Meryl Shoes</div>
+              <div className="text-xs text-white/80">Admin Console</div>
             </div>
           </div>
 
