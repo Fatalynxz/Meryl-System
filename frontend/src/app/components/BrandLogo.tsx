@@ -1,4 +1,4 @@
-import logo from "figma:asset/eaa74449f608e0cfccb5e3476772f169ba8ab049.png";
+import logo from "../assets/Meryl_Logo_Red.svg";
 
 type BrandLogoProps = {
   size?: 'sm' | 'md' | 'lg';
