@@ -162,6 +162,11 @@ function parseTargetProducts(text: string | undefined) {
         .forEach((v) => products.push(v));
       return;
     }
+    // Backward compatibility: handle old recommendation format like "Running Shoes Category".
+    if (value.toLowerCase().endsWith(' category')) {
+      categories.push(value.slice(0, -' category'.length).trim());
+      return;
+    }
     products.push(value);
   });
 
@@ -508,7 +513,7 @@ export function PromotionManagement() {
         rationale: `Lowest sell-through ratio in last 30 days.`,
         discount_type: 'BOGO',
         discount_value: 50,
-        targetProducts: `${weakCategory.category} Category`,
+        targetProducts: `Categories: ${weakCategory.category}`,
       });
     }
     recs.push({
