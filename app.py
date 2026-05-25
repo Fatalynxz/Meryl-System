@@ -6,6 +6,7 @@ import math
 import os
 import random
 import smtplib
+import traceback
 from email.message import EmailMessage
 from pathlib import Path
 import re
@@ -1744,7 +1745,13 @@ def api_promotion_create_public():
             raise ValueError("Promotion was not created.")
         return {"ok": True, "promotion": created[0], **created[0]}
     except Exception as exc:
-        return {"ok": False, "error": str(exc)}, 500
+        err = str(exc) or repr(exc) or "Unknown promotion update error"
+        return {
+            "ok": False,
+            "error": err,
+            "error_type": type(exc).__name__,
+            "trace_tail": traceback.format_exc().splitlines()[-6:],
+        }, 500
 
 
 @app.route("/api/promotions/<promo_id>/public", methods=["PATCH"])
