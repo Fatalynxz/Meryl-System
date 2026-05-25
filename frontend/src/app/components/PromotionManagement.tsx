@@ -1193,18 +1193,17 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
     if (!value || selectedCategories.includes(value)) return;
     const nextCategories = [...selectedCategories, value];
     setSelectedCategories(nextCategories);
-    syncTargetProducts(nextCategories, selectedProducts);
+    // Reset product picks when category scope changes to avoid stale cross-category selections.
+    setSelectedProducts([]);
+    syncTargetProducts(nextCategories, []);
   };
 
   const removeCategory = (value: string) => {
     const nextCategories = selectedCategories.filter((c) => c !== value);
-    const nextProducts = selectedProducts.filter((name) => {
-      const found = productOptions.find((p) => p.name === name);
-      return !found || nextCategories.length === 0 || nextCategories.includes(found.category);
-    });
     setSelectedCategories(nextCategories);
-    setSelectedProducts(nextProducts);
-    syncTargetProducts(nextCategories, nextProducts);
+    // Reset product picks when category scope changes to avoid stale cross-category selections.
+    setSelectedProducts([]);
+    syncTargetProducts(nextCategories, []);
   };
 
   const addProduct = (value: string) => {
