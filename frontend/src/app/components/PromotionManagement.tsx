@@ -1208,10 +1208,18 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
   };
 
   const addProduct = (value: string) => {
-    if (!value || selectedProducts.includes(value)) return;
+    const normalizedValue = String(value ?? '').trim().toLowerCase();
+    if (!normalizedValue) return;
+    if (selectedProducts.some((p) => String(p).trim().toLowerCase() === normalizedValue)) {
+      toast.info('Product is already selected.');
+      return;
+    }
     const nextProducts = [...selectedProducts, value];
     setSelectedProducts(nextProducts);
     syncTargetProducts(selectedCategories, nextProducts);
+    setProductSearch('');
+    setIsProductPickerOpen(false);
+    toast.success(`Added ${value} to target products.`);
   };
 
   const removeProduct = (value: string) => {
