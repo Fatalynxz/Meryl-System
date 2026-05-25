@@ -11,6 +11,7 @@ import { Plus, Search, Edit, Trash2, Users, Shield, UserCog } from 'lucide-react
 import { toast } from 'sonner';
 import { useAuth } from '../../lib/auth-context';
 import { useRoles, useUsers, useUsersMutations } from '../../lib/hooks';
+import { writeAuditLog } from '../../lib/audit';
 
 type AppRole = 'admin' | 'sales' | 'inventory';
 type UserStatus = 'Active' | 'Inactive';
@@ -162,7 +163,20 @@ export function UserManagement() {
     }
 
     try {
-      await createMutation.mutateAsync(buildPayload(formData));
+      const created = await createMutation.mutateAsync(buildPayload(formData));
+      await writeAuditLog({
+        actorUserId: currentUser?.user_id,
+        actionType: "create_user",
+        entityType: "user",
+        entityId: String((created as any)?.user_id ?? ""),
+        newData: {
+          name: formData.name.trim(),
+          username: formData.username.trim(),
+          role: formData.role,
+          status: formData.status,
+          email: formData.email.trim() || null,
+        },
+      });
       setIsAddDialogOpen(false);
       resetForm();
       toast.success('User added successfully!');
@@ -180,6 +194,26 @@ export function UserManagement() {
 
     try {
       await updateMutation.mutateAsync({ id: editingUser.user_id, payload: buildPayload(formData, editingUser) });
+      await writeAuditLog({
+        actorUserId: currentUser?.user_id,
+        actionType: "update_user",
+        entityType: "user",
+        entityId: editingUser.user_id,
+        oldData: {
+          name: editingUser.name,
+          username: editingUser.username,
+          role: editingUser.role,
+          status: editingUser.status,
+          email: editingUser.email ?? null,
+        },
+        newData: {
+          name: formData.name.trim(),
+          username: formData.username.trim(),
+          role: formData.role,
+          status: formData.status,
+          email: formData.email.trim() || null,
+        },
+      });
       setEditingUser(null);
       resetForm();
       toast.success('User updated successfully!');
@@ -205,6 +239,14 @@ export function UserManagement() {
           role: target.role,
           status: 'Inactive',
         }, target),
+      });
+      await writeAuditLog({
+        actorUserId: currentUser?.user_id,
+        actionType: "deactivate_user",
+        entityType: "user",
+        entityId: target.user_id,
+        oldData: { status: target.status },
+        newData: { status: "Inactive" },
       });
       toast.success('User deactivated successfully!');
     } catch (error: any) {

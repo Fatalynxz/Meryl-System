@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useReturns, useSales } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
+import { writeAuditLog } from "../../lib/audit";
 
 type SaleStatus = "Completed" | "Pending" | "Voided";
 
@@ -197,6 +198,16 @@ export function SalesManagement() {
         .eq("payment_id", sale.payment_id);
 
       if (error) throw error;
+
+      await writeAuditLog({
+        actorUserId: user?.user_id,
+        actionType: "update_sale_status",
+        entityType: "payment",
+        entityId: String(sale.payment_id ?? sale.sales_id),
+        oldData: { status: sale.status },
+        newData: { status: nextStatus },
+        metadata: { sales_id: sale.sales_id, payment_id: sale.payment_id },
+      });
 
       await queryClient.invalidateQueries({ queryKey: ["sales"] });
       toast.success(`Sale status updated to ${nextStatus}`);

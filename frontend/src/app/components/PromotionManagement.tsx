@@ -11,6 +11,8 @@ import { Progress } from './ui/progress';
 import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCustomers, useProducts, usePromotions, usePromotionsMutations, useSales } from '../../lib/hooks';
+import { useAuth } from '../../lib/auth-context';
+import { writeAuditLog } from '../../lib/audit';
 
 type Promotion = {
   promo_id: string;
@@ -187,6 +189,7 @@ function normalizeRecommendationTitle(value: string | undefined) {
 }
 
 export function PromotionManagement() {
+  const { user } = useAuth();
   const salesQuery = useSales();
   const productsQuery = useProducts();
   const promotionsQuery = usePromotions();
@@ -557,6 +560,21 @@ export function PromotionManagement() {
       }
 
       const createdPromoId = String(createdPromotion?.promo_id || newPromotionPayload.promo_id || '').trim();
+      await writeAuditLog({
+        actorUserId: user?.user_id,
+        actionType: "create_promotion",
+        entityType: "promotion",
+        entityId: createdPromoId || null,
+        newData: {
+          promo_name: formData.promo_name,
+          discount_type: formData.discount_type,
+          discount_value: formData.discount_value,
+          targetProducts: formData.targetProducts,
+          start_date: formData.start_date,
+          end_date: formData.end_date,
+          status: formData.status,
+        },
+      });
       let recipients: Notification[] = [];
       let deliverySummary = { sent: 0, failed: 0, enabled: false, reason: '' };
       let notifyWarning = '';
@@ -641,6 +659,14 @@ export function PromotionManagement() {
           payload: fallbackPayload,
         } as any);
       }
+      await writeAuditLog({
+        actorUserId: user?.user_id,
+        actionType: "update_promotion",
+        entityType: "promotion",
+        entityId: editingPromotion.promo_id,
+        oldData: editingPromotion,
+        newData: formData,
+      });
       setEditingPromotion(null);
       setFormData({});
       toast.success('Promotion updated successfully!');
@@ -664,12 +690,24 @@ export function PromotionManagement() {
           // Fallback for React/Supabase-auth sessions that don't have Flask session cookie.
           await promotionsMutations.removeMutation.mutateAsync(promo_id as any);
           await promotionsQuery.refetch();
+          await writeAuditLog({
+            actorUserId: user?.user_id,
+            actionType: "delete_promotion",
+            entityType: "promotion",
+            entityId: promo_id,
+          });
           toast.success('Promotion deleted successfully!');
           return;
         }
         throw new Error(reason || 'Unable to delete promotion');
       }
       await promotionsQuery.refetch();
+      await writeAuditLog({
+        actorUserId: user?.user_id,
+        actionType: "delete_promotion",
+        entityType: "promotion",
+        entityId: promo_id,
+      });
       toast.success('Promotion deleted successfully!');
     } catch (error: any) {
       toast.error(error?.message ?? 'Unable to delete promotion');
