@@ -702,9 +702,14 @@ export function PromotionManagement() {
   const handleEditPromotion = async () => {
     if (!editingPromotion) return;
     const dateError = validatePromotionDates(formData.start_date, formData.end_date);
+    const isKeepingExistingPastStartDate =
+      dateError === 'Start date cannot be in the past.' &&
+      String(formData.start_date || '') === String(editingPromotion.start_date || '');
     if (dateError) {
-      toast.error(dateError);
-      return;
+      if (!isKeepingExistingPastStartDate) {
+        toast.error(dateError);
+        return;
+      }
     }
     try {
       setIsUpdatingPromotion(true);
