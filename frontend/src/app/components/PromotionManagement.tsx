@@ -195,7 +195,17 @@ function deriveTargetProductsFromLinks(row: any) {
     if (categoryName) categories.add(categoryName);
   });
   if (!categories.size && !products.size) return 'All Products';
-  return formatTargetProducts(Array.from(categories), Array.from(products));
+  const categoryList = Array.from(categories);
+  const productList = Array.from(products);
+
+  // Keep table labels concise: prefer category summary when links include category coverage.
+  if (categoryList.length > 0) {
+    return `Categories: ${categoryList.join(', ')}`;
+  }
+  if (productList.length <= 3) {
+    return `Products: ${productList.join(', ')}`;
+  }
+  return `Products: ${productList.slice(0, 3).join(', ')} +${productList.length - 3} more`;
 }
 
 function normalizeRecommendationTitle(value: string | undefined) {
