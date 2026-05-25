@@ -113,6 +113,26 @@ function parsePromotionTarget(rawValue: string | null | undefined) {
   };
 }
 
+function derivePromotionTargetFromLinks(row: any) {
+  const links = Array.isArray(row?.promo_product) ? row.promo_product : [];
+  if (!links.length) return "";
+
+  const categories = new Set<string>();
+  const products = new Set<string>();
+  links.forEach((link: any) => {
+    const product = Array.isArray(link?.product) ? link.product[0] : link?.product;
+    const productName = String(product?.product_name ?? "").trim();
+    const categoryName = String(product?.category?.[0]?.category_name ?? product?.category?.category_name ?? "").trim();
+    if (productName) products.add(productName);
+    if (categoryName) categories.add(categoryName);
+  });
+
+  if (!categories.size && !products.size) return "";
+  if (!categories.size) return `Products: ${Array.from(products).join(", ")}`;
+  if (!products.size) return `Categories: ${Array.from(categories).join(", ")}`;
+  return `Categories: ${Array.from(categories).join(", ")} | Products: ${Array.from(products).join(", ")}`;
+}
+
 function resolveEffectiveDiscountType(discountType: string, promoName: string | undefined) {
   const loweredName = String(promoName ?? "").toLowerCase();
   if (loweredName.includes(PROMO_TYPE_MARKERS.bogo.toLowerCase())) return "bogo";
@@ -290,7 +310,11 @@ export function PointOfSale() {
         const withinWindow = (!startDate || startDate <= today) && (!endDate || endDate >= today);
         if (!(status === "active" && withinWindow)) return null;
 
-        const parsedTarget = parsePromotionTarget(row.target_products ?? row.targetProducts);
+        const parsedTarget = parsePromotionTarget(
+          row.target_products ??
+            row.targetProducts ??
+            derivePromotionTargetFromLinks(row),
+        );
         return {
           discountType: resolveEffectiveDiscountType(
             String(row.discount_type ?? "percentage"),
