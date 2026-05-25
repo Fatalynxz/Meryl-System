@@ -661,6 +661,7 @@ export function PromotionManagement() {
           payload: fallbackPayload,
         } as any);
       }
+      await promotionsQuery.refetch();
       await writeAuditLog({
         actorUserId: user?.user_id,
         actionType: "update_promotion",
