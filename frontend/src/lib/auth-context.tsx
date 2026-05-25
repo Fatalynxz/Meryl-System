@@ -24,6 +24,9 @@ type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<AuthUser | null>;
+  signInWithGoogle: () => Promise<void>;
+  requestEmailOtp: (email: string) => Promise<void>;
+  completeExternalAuth: () => Promise<AuthUser | null>;
   logout: () => void;
 };
 
@@ -39,15 +42,167 @@ function readStoredUser(): AuthUser | null {
   }
 }
 
+function writeStoredUser(authUser: AuthUser) {
+  sessionStorage.setItem(MERYL_USER_STORAGE_KEY, JSON.stringify(authUser));
+}
+
+export function getPostLoginPath(authUser: AuthUser | null) {
+  const normalizedRole = authUser?.role_name.trim().toLowerCase() ?? "";
+  if (normalizedRole === "admin" || normalizedRole === "administrator") return "/admin";
+  if (normalizedRole === "sales" || normalizedRole === "sales staff") return "/sales";
+  if (normalizedRole === "inventory" || normalizedRole === "inventory staff") return "/inventory";
+  return "/";
+}
+
+async function findAppUserByEmail(email: string): Promise<AuthUser | null> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return null;
+
+  try {
+    const { data, error } = await supabase.rpc("login_user_by_email", {
+      p_email: normalizedEmail,
+    });
+
+    if (!error && data) {
+      return data as AuthUser;
+    }
+  } catch {
+    // Fall back to direct lookup for local/dev databases where the helper is not installed yet.
+  }
+
+  const { data: rows, error } = await supabase
+    .from("user")
+    .select("user_id,name,username,role_id,status,email")
+    .ilike("email", normalizedEmail)
+    .limit(1);
+
+  if (error) throw error;
+
+  const row = rows?.[0] as
+    | {
+        user_id: string;
+        name: string;
+        username: string;
+        role_id: string;
+        status: string | null;
+      }
+    | undefined;
+
+  if (!row || String(row.status ?? "active").toLowerCase() !== "active") {
+    return null;
+  }
+
+  const { data: roleRows, error: roleError } = await supabase
+    .from("role")
+    .select("role_name")
+    .eq("role_id", row.role_id)
+    .limit(1);
+
+  if (roleError) throw roleError;
+
+  return {
+    user_id: row.user_id,
+    name: row.name,
+    username: row.username,
+    role_id: row.role_id,
+    role_name: String((roleRows?.[0] as { role_name?: string } | undefined)?.role_name ?? ""),
+    status: row.status ?? "active",
+  };
+}
+
+function authRedirectUrl() {
+  return `${window.location.origin}/auth/callback`;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const completeExternalAuth = useCallback(async () => {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error) throw error;
+
+    const email = session?.user?.email;
+    if (!email) return null;
+
+    const authUser = await findAppUserByEmail(email);
+    if (!authUser) {
+      await supabase.auth.signOut();
+      return null;
+    }
+
+    writeStoredUser(authUser);
+    setUser(authUser);
+    return authUser;
+  }, []);
+
   useEffect(() => {
-    // One-time cleanup for old persistent login behavior.
-    localStorage.removeItem(MERYL_USER_STORAGE_KEY);
-    setUser(readStoredUser());
-    setLoading(false);
+    let mounted = true;
+
+    async function bootstrapAuth() {
+      // One-time cleanup for old persistent login behavior.
+      localStorage.removeItem(MERYL_USER_STORAGE_KEY);
+      const storedUser = readStoredUser();
+      if (storedUser && mounted) setUser(storedUser);
+
+      try {
+        if (!storedUser) {
+          await completeExternalAuth();
+        }
+      } catch {
+        await supabase.auth.signOut();
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    bootstrapAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session?.user?.email) {
+        completeExternalAuth().catch(() => {
+          sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
+          setUser(null);
+        });
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [completeExternalAuth]);
+
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: authRedirectUrl(),
+        queryParams: {
+          prompt: "select_account",
+        },
+      },
+    });
+
+    if (error) throw error;
+  }, []);
+
+  const requestEmailOtp = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: {
+        emailRedirectTo: authRedirectUrl(),
+        shouldCreateUser: false,
+      },
+    });
+
+    if (error) throw error;
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
@@ -61,19 +216,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authUser = (data as AuthUser | null) ?? null;
     if (!authUser) return null;
 
-    sessionStorage.setItem(MERYL_USER_STORAGE_KEY, JSON.stringify(authUser));
+    writeStoredUser(authUser);
     setUser(authUser);
     return authUser;
   }, []);
 
   const logout = useCallback(() => {
     sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
+    supabase.auth.signOut();
     setUser(null);
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, logout }),
-    [user, loading, login, logout],
+    () => ({ user, loading, login, signInWithGoogle, requestEmailOtp, completeExternalAuth, logout }),
+    [user, loading, login, signInWithGoogle, requestEmailOtp, completeExternalAuth, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -86,3 +242,5 @@ export function useAuth() {
   }
   return context;
 }
+
+export { getPostLoginPath };
