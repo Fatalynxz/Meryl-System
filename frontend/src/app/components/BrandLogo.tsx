@@ -1,4 +1,4 @@
-import logo from "../assets/Meryl_Logo_Red.svg";
+import logo from "../../assets/Meryl_Logo_Red.svg";
 
 type BrandLogoProps = {
   size?: 'sm' | 'md' | 'lg';
