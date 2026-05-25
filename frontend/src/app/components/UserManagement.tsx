@@ -59,6 +59,10 @@ function normalizeStatus(value: unknown): UserStatus {
   return String(value ?? 'Active').trim().toLowerCase() === 'inactive' ? 'Inactive' : 'Active';
 }
 
+function toDbUserStatus(value: UserStatus): "active" | "inactive" {
+  return String(value).toLowerCase() === "inactive" ? "inactive" : "active";
+}
+
 function formatDate(value: unknown) {
   const date = new Date(String(value ?? ''));
   if (Number.isNaN(date.getTime())) return 'N/A';
@@ -151,7 +155,7 @@ export function UserManagement() {
       username: source.username.trim() || existing?.username,
       password: source.password.trim(),
       role_id: roleId,
-      status: source.status,
+      status: toDbUserStatus(source.status),
       email: source.email.trim() || null,
     };
   };
