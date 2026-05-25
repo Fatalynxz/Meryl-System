@@ -242,5 +242,3 @@ export function useAuth() {
   }
   return context;
 }
-
-export { getPostLoginPath };
