@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useCustomers, useProducts, usePromotions, usePromotionsMutations, useSales } from '../../lib/hooks';
 import { useAuth } from '../../lib/auth-context';
 import { writeAuditLog } from '../../lib/audit';
+import { supabase } from '../../lib/supabase';
 
 type Promotion = {
   promo_id: string;
@@ -181,6 +182,22 @@ function recommendationSignature(type: string | undefined, target: string | unde
   return `${String(type ?? '').toLowerCase()}::${normalizeRecommendationTarget(target)}`;
 }
 
+function deriveTargetProductsFromLinks(row: any) {
+  const links = Array.isArray(row?.promo_product) ? row.promo_product : [];
+  if (!links.length) return 'All Products';
+  const categories = new Set<string>();
+  const products = new Set<string>();
+  links.forEach((link: any) => {
+    const product = Array.isArray(link?.product) ? link.product[0] : link?.product;
+    const productName = String(product?.product_name ?? '').trim();
+    const categoryName = String(product?.category?.[0]?.category_name ?? product?.category?.category_name ?? '').trim();
+    if (productName) products.add(productName);
+    if (categoryName) categories.add(categoryName);
+  });
+  if (!categories.size && !products.size) return 'All Products';
+  return formatTargetProducts(Array.from(categories), Array.from(products));
+}
+
 function normalizeRecommendationTitle(value: string | undefined) {
   return String(value ?? '')
     .replace(/\s+/g, ' ')
@@ -273,6 +290,41 @@ export function PromotionManagement() {
   const [isSavingPromotion, setIsSavingPromotion] = useState(false);
   const [isUpdatingPromotion, setIsUpdatingPromotion] = useState(false);
 
+  const syncPromotionProductLinks = async (promoId: string, targetProducts: string | undefined) => {
+    const promo_id = String(promoId ?? '').trim();
+    if (!promo_id) return;
+
+    const parsed = parseTargetProducts(targetProducts);
+    const wantsAll = !parsed.categories.length && !parsed.products.length;
+    const productRowsForLink = (productsQuery.data as any[]) ?? [];
+    const normalizedCategories = new Set(parsed.categories.map((c) => c.toLowerCase()));
+    const normalizedProducts = new Set(parsed.products.map((p) => p.toLowerCase()));
+
+    const targetProductIds = productRowsForLink
+      .filter((row: any) => {
+        const productName = String(row?.product_name ?? '').trim();
+        const categoryName = String(row?.category?.[0]?.category_name ?? row?.category?.category_name ?? '').trim();
+        if (!productName) return false;
+        if (wantsAll) return false;
+        if (normalizedProducts.size > 0) {
+          if (!normalizedProducts.has(productName.toLowerCase())) return false;
+          if (normalizedCategories.size > 0 && !normalizedCategories.has(categoryName.toLowerCase())) return false;
+          return true;
+        }
+        return normalizedCategories.has(categoryName.toLowerCase());
+      })
+      .map((row: any) => String(row?.product_id ?? '').trim())
+      .filter(Boolean);
+
+    await supabase.from('promo_product').delete().eq('promo_id', promo_id);
+    if (!targetProductIds.length) return;
+
+    const uniqueIds = Array.from(new Set(targetProductIds));
+    const rows = uniqueIds.map((product_id) => ({ promo_id, product_id }));
+    const { error } = await supabase.from('promo_product').insert(rows as any);
+    if (error) throw error;
+  };
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('promotions.hiddenRecommendationIds');
@@ -353,7 +405,7 @@ export function PromotionManagement() {
         promo_name: stripPromoTypeMarker(String(row.promo_name ?? 'Promotion')),
         discount_type,
         discount_value: Number(row.discount_value ?? 0),
-        targetProducts: String(row.target_products ?? row.targetProducts ?? 'All Products'),
+        targetProducts: String(row.target_products ?? row.targetProducts ?? deriveTargetProductsFromLinks(row)),
         start_date: String(row.start_date ?? '').slice(0, 10),
         end_date: String(row.end_date ?? '').slice(0, 10),
         status,
@@ -561,6 +613,7 @@ export function PromotionManagement() {
       }
 
       const createdPromoId = String(createdPromotion?.promo_id || newPromotionPayload.promo_id || '').trim();
+      await syncPromotionProductLinks(createdPromoId, formData.targetProducts || 'All Products');
       await writeAuditLog({
         actorUserId: user?.user_id,
         actionType: "create_promotion",
@@ -661,6 +714,7 @@ export function PromotionManagement() {
           payload: fallbackPayload,
         } as any);
       }
+      await syncPromotionProductLinks(editingPromotion.promo_id, formData.targetProducts);
       await promotionsQuery.refetch();
       await writeAuditLog({
         actorUserId: user?.user_id,
