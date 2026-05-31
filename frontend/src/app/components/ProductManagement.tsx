@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Edit, Info, Package, Plus, Search, Settings, Warehouse } from "lucide-react";
+import { Edit, Eye, Info, Package, Plus, Search, Settings, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { useCategories, useInventory, useProducts, useProductsMutations } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
@@ -729,44 +729,43 @@ function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit:
 }
 
 function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onConfigure: (product: UiProduct) => void }) {
+  const [selectedProduct, setSelectedProduct] = useState<UiProduct | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const openDetails = (product: UiProduct) => {
+    setSelectedProduct(product);
+    setIsDetailsOpen(true);
+  };
+
   return (
     <div className="border border-red-800 rounded-lg overflow-x-auto">
-      <Table className="w-full min-w-[1180px]">
+      <Table className="w-full min-w-[760px]">
         <TableHeader>
           <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-            {['SKU', 'Product', 'Brand', 'Category', 'Variant', 'Price', 'On Hand', 'Held', 'Available', 'Reorder', 'Status', 'Condition', 'Actions'].map((head) => (
+            {["Product", "Variant", "Price", "Available", "Status", "Actions"].map((head) => (
               <TableHead key={head} className="text-yellow-300 text-center whitespace-nowrap">{head}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {products.map((product) => {
-            const expired = isExpiredProduct(product);
-            const condition = stockCondition(product.available_stock, product.reorder_level, expired);
             return (
               <TableRow key={product.product_id} className="border-red-800">
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.name}</TableCell>
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.brand}</TableCell>
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.category}</TableCell>
+                <TableCell className="text-yellow-200 text-center whitespace-nowrap font-medium">{product.name}</TableCell>
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap" title={variantLabel(product)}>{variantLabel(product)}</TableCell>
                 <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatMoney(product.srp)}</TableCell>
-                <TableCell className="text-center whitespace-nowrap"><Badge className="bg-yellow-400 text-red-900">{product.stock} units</Badge></TableCell>
-                <TableCell className="text-center whitespace-nowrap">
-                  <Badge className={product.reserved_stock > 0 ? "bg-amber-700 text-yellow-100" : "bg-gray-700 text-gray-200"}>
-                    {product.reserved_stock} held
-                  </Badge>
-                </TableCell>
                 <TableCell className="text-center whitespace-nowrap">
                   <Badge className={product.available_stock > 0 ? "bg-green-700 text-white" : "bg-red-800 text-yellow-100"}>
                     {product.available_stock} available
                   </Badge>
                 </TableCell>
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.reorder_level}</TableCell>
                 <TableCell className="text-center whitespace-nowrap"><Badge className={product.status === 'Active' ? 'bg-green-600 text-white' : 'bg-gray-600 text-white'}>{product.status}</Badge></TableCell>
-                <TableCell className="text-center whitespace-nowrap"><Badge className={condition.className}>{condition.label}</Badge></TableCell>
                 <TableCell className="text-center whitespace-nowrap">
-                  <div className="flex justify-center gap-1">
+                  <div className="flex justify-center gap-2">
+                    <Button size="sm" variant="outline" title="View details" className="border-yellow-500/40 text-yellow-200 hover:bg-yellow-500/10 hover:text-yellow-100" onClick={() => openDetails(product)}>
+                      <Eye className="w-4 h-4 mr-1" />
+                      View
+                    </Button>
                     <Button size="sm" variant="ghost" title="Product settings" className="text-yellow-400 hover:bg-red-600" onClick={() => onConfigure(product)}>
                       <Settings className="w-4 h-4" />
                     </Button>
@@ -777,6 +776,32 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
           })}
         </TableBody>
       </Table>
+
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="max-w-xl border-[#2d2d3a] bg-[#15151d] text-yellow-100">
+          <DialogHeader>
+            <DialogTitle className="text-yellow-300">Inventory Details</DialogTitle>
+          </DialogHeader>
+          {selectedProduct && (
+            <div className="grid gap-3 text-sm md:grid-cols-2">
+              <DetailPill label="SKU" value={shortId(selectedProduct.sku, 12, 8)} />
+              <DetailPill label="Product" value={selectedProduct.name} />
+              <DetailPill label="Brand" value={selectedProduct.brand} />
+              <DetailPill label="Category" value={selectedProduct.category} />
+              <DetailPill label="Variant" value={variantLabel(selectedProduct)} />
+              <DetailPill label="Price" value={formatMoney(selectedProduct.srp)} />
+              <DetailPill label="On Hand" value={`${selectedProduct.stock} units`} />
+              <DetailPill label="Held" value={`${selectedProduct.reserved_stock} units`} />
+              <DetailPill label="Available" value={`${selectedProduct.available_stock} units`} />
+              <DetailPill label="Reorder" value={`${selectedProduct.reorder_level}`} />
+              <DetailPill label="Status" value={selectedProduct.status} />
+              <DetailPill label="Condition" value={stockCondition(selectedProduct.available_stock, selectedProduct.reorder_level, isExpiredProduct(selectedProduct)).label} />
+              <DetailPill label="Manufacturer Date" value={selectedProduct.manufacturer_date ? selectedProduct.manufacturer_date.slice(0, 10) : "N/A"} />
+              <DetailPill label="Expiration Date" value={selectedProduct.expiration_date ? selectedProduct.expiration_date.slice(0, 10) : "N/A"} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
