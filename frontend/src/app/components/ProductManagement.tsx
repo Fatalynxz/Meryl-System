@@ -30,9 +30,13 @@ type UiProduct = {
   unit_price: number;
   inventory_id: string;
   stock: number;
+  reserved_stock: number;
+  available_stock: number;
   reorder_level: number;
   srp: number;
   status: InventoryStatus;
+  manufacturer_date: string;
+  expiration_date: string;
   hasInventory: boolean;
   isArchived: boolean;
 };
@@ -50,6 +54,7 @@ type ProductFormData = {
 type StockFormData = {
   product_id: string;
   stock_in: number;
+  reserved_quantity: number;
   srp: number;
   reorder_level: number;
   status: InventoryStatus;
@@ -70,6 +75,7 @@ const defaultProductForm: ProductFormData = {
 const defaultStockForm: StockFormData = {
   product_id: "",
   stock_in: 0,
+  reserved_quantity: 0,
   srp: 0,
   reorder_level: 10,
   status: "Active",
@@ -100,12 +106,21 @@ function toUiStatus(value: string | null | undefined): InventoryStatus {
 function getProductStatusMeta(product?: UiProduct) {
   if (!product) return { label: "Not Selected", className: "border-slate-500/30 bg-slate-500/15 text-slate-200" };
   if (product.status !== "Active") return { label: "Inactive", className: "border-slate-500/30 bg-slate-500/15 text-slate-200" };
-  if (Number(product.stock || 0) <= 0) return { label: "Out of Stock", className: "border-red-500/40 bg-red-500/15 text-red-200" };
-  if (Number(product.stock || 0) <= Number(product.reorder_level || 0)) return { label: "Low Stock", className: "border-yellow-400/40 bg-yellow-400/15 text-yellow-100" };
+  if (isExpiredProduct(product)) return { label: "Expired", className: "border-red-500/40 bg-red-500/15 text-red-200" };
+  if (Number(product.available_stock || 0) <= 0) return { label: "Out of Stock", className: "border-red-500/40 bg-red-500/15 text-red-200" };
+  if (Number(product.available_stock || 0) <= Number(product.reorder_level || 0)) return { label: "Low Stock", className: "border-yellow-400/40 bg-yellow-400/15 text-yellow-100" };
   return { label: "Active", className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-200" };
 }
 
-function stockCondition(stock: number, reorder: number) {
+function isExpiredProduct(product?: Pick<UiProduct, "expiration_date">) {
+  const expirationDate = String(product?.expiration_date ?? "").slice(0, 10);
+  if (!expirationDate) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return expirationDate < today;
+}
+
+function stockCondition(stock: number, reorder: number, expired = false) {
+  if (expired) return { label: "Expired", className: "bg-red-800 text-yellow-100" };
   if (stock <= 0) return { label: "Out of Stock", className: "bg-red-900 text-yellow-100" };
   if (stock <= reorder) return { label: "Critical", className: "bg-red-700 text-yellow-100" };
   if (stock <= reorder + 5) return { label: "Warning", className: "bg-yellow-600 text-red-950" };
@@ -178,6 +193,8 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       const unitPrice = Number(row.unit_price ?? row.cost_price ?? 0);
       const srp = Number(inventory?.srp ?? row.price ?? row.cost_price ?? unitPrice);
       const reorder = Number(inventory?.reorder_level ?? row.reorder_level ?? 10);
+      const stock = Number(inventory?.stock_quantity ?? 0);
+      const reserved = Math.min(Math.max(Number(inventory?.reserved_quantity ?? 0), 0), Math.max(stock, 0));
       const status = toUiStatus(inventory?.inventory_status ?? row.status);
       const isArchived = String(row.status ?? "").trim().toLowerCase() === "inactive";
       return {
@@ -193,10 +210,14 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         size: String(row.size ?? "N/A"),
         unit_price: unitPrice,
         inventory_id: inventory?.inventory_id ? String(inventory.inventory_id) : "",
-        stock: Number(inventory?.stock_quantity ?? 0),
+        stock,
+        reserved_stock: reserved,
+        available_stock: Math.max(stock - reserved, 0),
         reorder_level: reorder,
         srp,
         status,
+        manufacturer_date: String(inventory?.manufacturer_date ?? ""),
+        expiration_date: String(inventory?.expiration_date ?? ""),
         hasInventory: Boolean(inventory?.inventory_id),
         isArchived,
       };
@@ -250,11 +271,12 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     setStockForm({
       product_id: product.product_id,
       stock_in: 0,
+      reserved_quantity: product.reserved_stock || 0,
       srp: product.srp || product.unit_price,
       reorder_level: product.reorder_level || 10,
       status: product.status,
-      manufacturer_date: "",
-      expiration_date: "",
+      manufacturer_date: product.manufacturer_date ? product.manufacturer_date.slice(0, 10) : "",
+      expiration_date: product.expiration_date ? product.expiration_date.slice(0, 10) : "",
     });
   };
 
@@ -313,11 +335,19 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     }
 
     const nextStock = Number(product.stock || 0) + Number(stockForm.stock_in || 0);
+    const requestedReserved = Math.max(Number(stockForm.reserved_quantity || 0), 0);
+    if (requestedReserved > nextStock) {
+      return toast.error("Held stock cannot be greater than total on-hand stock.");
+    }
+    const nextReserved = requestedReserved;
     const inventoryPayload = {
       stock_quantity: nextStock,
+      reserved_quantity: nextReserved,
       reorder_level: Number(stockForm.reorder_level || 0),
       srp: Number(stockForm.srp || product.srp || product.unit_price || 0),
       inventory_status: toDbStatus(stockForm.status),
+      manufacturer_date: stockForm.manufacturer_date || null,
+      expiration_date: stockForm.expiration_date || null,
       last_updated: new Date().toISOString(),
     };
 
@@ -347,6 +377,19 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
           date_updated: new Date().toISOString(),
         });
         if (logError) throw logError;
+      }
+
+      const reservedDelta = nextReserved - Number(product.reserved_stock || 0);
+      if (reservedDelta !== 0) {
+        const { error: holdLogError } = await supabase.from("inventory_log").insert({
+          inventory_log_id: buildClientId("log"),
+          product_id: product.product_id,
+          quantity_change: Math.abs(reservedDelta),
+          transaction_type: reservedDelta > 0 ? "hold" : "release_hold",
+          reference_id: product.inventory_id || null,
+          date_updated: new Date().toISOString(),
+        });
+        if (holdLogError) throw holdLogError;
       }
 
       await queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -634,17 +677,18 @@ function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit:
 function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onConfigure: (product: UiProduct) => void }) {
   return (
     <div className="border border-red-800 rounded-lg overflow-x-auto">
-      <Table className="w-full min-w-[1040px]">
+      <Table className="w-full min-w-[1180px]">
         <TableHeader>
           <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-            {['SKU', 'Product', 'Brand', 'Category', 'Variant', 'Price', 'Stock', 'Reorder', 'Status', 'Condition', 'Actions'].map((head) => (
+            {['SKU', 'Product', 'Brand', 'Category', 'Variant', 'Price', 'On Hand', 'Held', 'Available', 'Reorder', 'Status', 'Condition', 'Actions'].map((head) => (
               <TableHead key={head} className="text-yellow-300 text-center whitespace-nowrap">{head}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {products.map((product) => {
-            const condition = stockCondition(product.stock, product.reorder_level);
+            const expired = isExpiredProduct(product);
+            const condition = stockCondition(product.available_stock, product.reorder_level, expired);
             return (
               <TableRow key={product.product_id} className="border-red-800">
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
@@ -654,10 +698,26 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap" title={variantLabel(product)}>{variantLabel(product)}</TableCell>
                 <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatMoney(product.srp)}</TableCell>
                 <TableCell className="text-center whitespace-nowrap"><Badge className="bg-yellow-400 text-red-900">{product.stock} units</Badge></TableCell>
+                <TableCell className="text-center whitespace-nowrap">
+                  <Badge className={product.reserved_stock > 0 ? "bg-amber-700 text-yellow-100" : "bg-gray-700 text-gray-200"}>
+                    {product.reserved_stock} held
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-center whitespace-nowrap">
+                  <Badge className={product.available_stock > 0 ? "bg-green-700 text-white" : "bg-red-800 text-yellow-100"}>
+                    {product.available_stock} available
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap">{product.reorder_level}</TableCell>
                 <TableCell className="text-center whitespace-nowrap"><Badge className={product.status === 'Active' ? 'bg-green-600 text-white' : 'bg-gray-600 text-white'}>{product.status}</Badge></TableCell>
                 <TableCell className="text-center whitespace-nowrap"><Badge className={condition.className}>{condition.label}</Badge></TableCell>
-                <TableCell className="text-center whitespace-nowrap"><Button size="sm" variant="ghost" className="text-yellow-400 hover:bg-red-600" onClick={() => onConfigure(product)}><Settings className="w-4 h-4" /></Button></TableCell>
+                <TableCell className="text-center whitespace-nowrap">
+                  <div className="flex justify-center gap-1">
+                    <Button size="sm" variant="ghost" title="Product settings" className="text-yellow-400 hover:bg-red-600" onClick={() => onConfigure(product)}>
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             );
           })}
@@ -723,9 +783,13 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
     setStockForm({
       ...stockForm,
       product_id: value,
+      stock_in: 0,
+      reserved_quantity: product?.reserved_stock || 0,
       srp: product?.srp || product?.unit_price || 0,
       reorder_level: product?.reorder_level || 10,
       status: product?.status || 'Active',
+      manufacturer_date: product?.manufacturer_date ? product.manufacturer_date.slice(0, 10) : "",
+      expiration_date: product?.expiration_date ? product.expiration_date.slice(0, 10) : "",
     });
   };
 
@@ -842,12 +906,16 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                   <DetailPill label="Variant" value={`${selectedProduct.color} / ${selectedProduct.size}`} />
                   <DetailPill label="Gender" value={selectedProduct.gender} />
                   <DetailPill label="Unit Price" value={formatMoney(selectedProduct.unit_price)} />
-                  <DetailPill label="Current Stock" value={`${selectedProduct.stock} units`} />
+                  <DetailPill label="On-Hand Stock" value={`${selectedProduct.stock} units`} />
+                  <DetailPill label="Held Stock" value={`${selectedProduct.reserved_stock} units`} />
+                  <DetailPill label="POS Available" value={`${selectedProduct.available_stock} units`} />
+                  <DetailPill label="Manufacturer Date" value={selectedProduct.manufacturer_date ? selectedProduct.manufacturer_date.slice(0, 10) : "N/A"} />
+                  <DetailPill label="Expiration Date" value={selectedProduct.expiration_date ? selectedProduct.expiration_date.slice(0, 10) : "N/A"} />
                   <DetailPill label="Inventory Status" value={selectedProduct.status} />
                 </div>
                 <div className="flex gap-2 rounded-lg border border-yellow-400/20 bg-yellow-400/10 p-2 text-xs text-yellow-100/80">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-yellow-300" />
-                  <span>Configure stock-in quantity, SRP, reorder level, and inventory status below before saving.</span>
+                  <span>Configure stock-in quantity, held stock, SRP, reorder level, and inventory status below before saving.</span>
                 </div>
               </div>
             ) : (
@@ -866,12 +934,39 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="font-semibold text-yellow-100">Inventory Configuration</p>
-              <p className="text-xs text-yellow-200/50">Set sellable stock, pricing, reorder threshold, and status.</p>
+              <p className="text-xs text-yellow-200/50">Review the current saved setup, then update stock, pricing, dates, and status.</p>
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <NumberField label="Stock-in Quantity" value={stockForm.stock_in} onChange={(value) => setStockForm({ ...stockForm, stock_in: value })} />
+          {selectedProduct ? (
+            <div className="mb-4 rounded-xl border border-[#2d2d3a] bg-[#15151d] p-3">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-yellow-100">Current Saved Configuration</p>
+                  <p className="text-xs text-yellow-200/50">Loaded from INVENTORY for the selected product.</p>
+                </div>
+                <Badge className={`w-fit border px-2.5 py-0.5 text-xs ${statusMeta.className}`}>{statusMeta.label}</Badge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <ConfigSnapshotPill label="On-Hand Stock" value={`${selectedProduct.stock} units`} />
+                <ConfigSnapshotPill label="Held Stock" value={`${selectedProduct.reserved_stock} units`} />
+                <ConfigSnapshotPill label="POS Available" value={`${selectedProduct.available_stock} units`} tone="good" />
+                <ConfigSnapshotPill label="Current SRP" value={formatMoney(selectedProduct.srp)} />
+                <ConfigSnapshotPill label="Reorder Level" value={`${selectedProduct.reorder_level} units`} />
+                <ConfigSnapshotPill label="Manufacturer Date" value={formatDateValue(selectedProduct.manufacturer_date)} />
+                <ConfigSnapshotPill label="Expiration Date" value={formatDateValue(selectedProduct.expiration_date)} tone={isExpiredProduct(selectedProduct) ? "danger" : "default"} />
+                <ConfigSnapshotPill label="Inventory Status" value={selectedProduct.status} />
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 rounded-xl border border-dashed border-[#343443] bg-[#15151d] px-3 py-4 text-center text-sm text-yellow-100/60">
+              Select a product above to load its current inventory configuration.
+            </div>
+          )}
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <NumberField label="Stock-in Quantity to Add" value={stockForm.stock_in} onChange={(value) => setStockForm({ ...stockForm, stock_in: value })} />
+            <NumberField label="Held / Reserved Stock" value={stockForm.reserved_quantity} onChange={(value) => setStockForm({ ...stockForm, reserved_quantity: value })} />
             <NumberField label="SRP / Selling Price" value={stockForm.srp} onChange={(value) => setStockForm({ ...stockForm, srp: value })} />
             <NumberField label="Reorder Level" value={stockForm.reorder_level} onChange={(value) => setStockForm({ ...stockForm, reorder_level: value })} />
           </div>
@@ -896,7 +991,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
 
           <div className="mt-4 flex flex-col gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100/80 lg:flex-row lg:items-center lg:justify-between">
             <p>
-              Saves SRP, stock, reorder level, and status to INVENTORY. Product List unit price stays unchanged.
+              Saves SRP, on-hand stock, held stock, reorder level, and status to INVENTORY. Held stock is excluded from POS availability.
             </p>
             <div className="flex shrink-0 gap-2">
               <Button variant="outline" onClick={() => setStockForm(defaultStockForm)} className="h-9 border-[#3a3a46] bg-transparent px-4 text-yellow-100 hover:bg-[#1d1d27] hover:text-yellow-300">Clear</Button>
@@ -950,6 +1045,27 @@ function DetailPill({ label, value }: { label: string; value: string }) {
       <p className="mt-0.5 truncate text-sm font-semibold leading-tight text-yellow-50">{value || "N/A"}</p>
     </div>
   );
+}
+
+function ConfigSnapshotPill({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "good" | "danger" }) {
+  const toneClass =
+    tone === "good"
+      ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-100"
+      : tone === "danger"
+        ? "border-red-500/30 bg-red-500/10 text-red-100"
+        : "border-[#2d2d3a] bg-[#1d1d27] text-yellow-50";
+
+  return (
+    <div className={`rounded-lg border px-3 py-2 ${toneClass}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-yellow-300/60">{label}</p>
+      <p className="mt-1 truncate text-sm font-bold">{value || "Not set"}</p>
+    </div>
+  );
+}
+
+function formatDateValue(value?: string) {
+  const date = String(value ?? "").slice(0, 10);
+  return date || "Not set";
 }
 
 function TextField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
