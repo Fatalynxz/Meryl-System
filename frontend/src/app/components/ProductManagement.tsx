@@ -762,9 +762,8 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
                 <TableCell className="text-center whitespace-nowrap"><Badge className={product.status === 'Active' ? 'bg-green-600 text-white' : 'bg-gray-600 text-white'}>{product.status}</Badge></TableCell>
                 <TableCell className="text-center whitespace-nowrap">
                   <div className="flex justify-center gap-2">
-                    <Button size="sm" variant="outline" title="View details" className="border-yellow-500/40 text-yellow-200 hover:bg-yellow-500/10 hover:text-yellow-100" onClick={() => openDetails(product)}>
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
+                    <Button size="sm" variant="ghost" title="View details" className="text-yellow-300 hover:bg-red-600" onClick={() => openDetails(product)}>
+                      <Eye className="w-4 h-4" />
                     </Button>
                     <Button size="sm" variant="ghost" title="Product settings" className="text-yellow-400 hover:bg-red-600" onClick={() => onConfigure(product)}>
                       <Settings className="w-4 h-4" />
