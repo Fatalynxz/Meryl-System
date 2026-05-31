@@ -154,6 +154,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
   const [searchTerm, setSearchTerm] = useState("");
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<UiProduct | null>(null);
+  const [deleteTargetProductId, setDeleteTargetProductId] = useState<string>("");
   const [productForm, setProductForm] = useState<ProductFormData>(defaultProductForm);
   const [editScope, setEditScope] = useState<ProductEditScope>("this_variant");
   const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
@@ -258,6 +259,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
 
   const openAddProduct = () => {
     setEditingProduct(null);
+    setDeleteTargetProductId("");
     setEditScope("this_variant");
     setSelectedVariantIds([]);
     setProductForm(defaultProductForm);
@@ -266,6 +268,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
 
   const openEditProduct = (product: UiProduct) => {
     setEditingProduct(product);
+    setDeleteTargetProductId(product.product_id);
     setProductForm({
       name: product.name,
       brand: product.brand === "N/A" ? "" : product.brand,
@@ -347,6 +350,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       setIsProductDialogOpen(false);
       setEditingProduct(null);
+      setDeleteTargetProductId("");
       setEditScope("this_variant");
       setSelectedVariantIds([]);
       setProductForm(defaultProductForm);
@@ -439,13 +443,18 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     }
   };
 
-  const deleteProduct = async (product: UiProduct) => {
+  const deleteProduct = async (productId: string) => {
+    const product = productMap.get(productId);
+    if (!product) {
+      toast.error("Selected product was not found.");
+      return;
+    }
     if (product.isArchived) {
       try {
         const { error: restoreProductError } = await supabase
           .from("product")
           .update({ status: "active" } as any)
-          .eq("product_id", product.product_id);
+          .eq("product_id", productId);
         if (restoreProductError) throw restoreProductError;
 
         const { error: restoreInventoryError } = await supabase
@@ -454,13 +463,14 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
             inventory_status: "active",
             last_updated: new Date().toISOString(),
           } as any)
-          .eq("product_id", product.product_id);
+          .eq("product_id", productId);
         if (restoreInventoryError) throw restoreInventoryError;
 
         await queryClient.invalidateQueries({ queryKey: ["products"] });
         await queryClient.invalidateQueries({ queryKey: ["inventory"] });
         setIsProductDialogOpen(false);
         setEditingProduct(null);
+        setDeleteTargetProductId("");
         toast.success("Product restored.");
         return;
       } catch (error: any) {
@@ -474,22 +484,23 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       const { error: logDeleteError } = await supabase
         .from("inventory_log")
         .delete()
-        .eq("product_id", product.product_id);
+        .eq("product_id", productId);
       if (logDeleteError) throw logDeleteError;
 
       const { error: inventoryDeleteError } = await supabase
         .from("inventory")
         .delete()
-        .eq("product_id", product.product_id);
+        .eq("product_id", productId);
       if (inventoryDeleteError) throw inventoryDeleteError;
 
-      await productMutations.removeMutation.mutateAsync(product.product_id);
+      await productMutations.removeMutation.mutateAsync(productId);
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       await queryClient.invalidateQueries({ queryKey: ["inventoryLog"] });
       await queryClient.invalidateQueries({ queryKey: ["returns"] });
       setIsProductDialogOpen(false);
       setEditingProduct(null);
+      setDeleteTargetProductId("");
       toast.success("Product deleted from Product List.");
     } catch (error: any) {
       const message = String(error?.message ?? "").toLowerCase();
@@ -504,7 +515,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
           const { error: archiveProductError } = await supabase
             .from("product")
             .update({ status: "inactive" } as any)
-            .eq("product_id", product.product_id);
+            .eq("product_id", productId);
           if (archiveProductError) throw archiveProductError;
 
           const { error: archiveInventoryError } = await supabase
@@ -514,13 +525,14 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
               stock_quantity: 0,
               last_updated: new Date().toISOString(),
             } as any)
-            .eq("product_id", product.product_id);
+            .eq("product_id", productId);
           if (archiveInventoryError) throw archiveInventoryError;
 
           await queryClient.invalidateQueries({ queryKey: ["products"] });
           await queryClient.invalidateQueries({ queryKey: ["inventory"] });
           setIsProductDialogOpen(false);
           setEditingProduct(null);
+          setDeleteTargetProductId("");
           toast.success("Product is linked to sales history and was archived instead.");
           return;
         } catch (archiveError: any) {
@@ -640,7 +652,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                           <Button
                             type="button"
                             variant="ghost"
-                            onClick={() => void deleteProduct(editingProduct)}
+                            onClick={() => void deleteProduct(deleteTargetProductId || editingProduct.product_id)}
                             className="text-red-300 hover:bg-red-800/70 hover:text-red-100"
                           >
                             {editingProduct.isArchived ? "Restore Product" : "Delete / Archive Product"}
