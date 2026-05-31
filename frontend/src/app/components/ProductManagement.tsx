@@ -15,6 +15,7 @@ import { supabase } from "../../lib/supabase";
 
 type InventoryStatus = "Active" | "Inactive";
 type ProductTab = "list" | "settings" | "inventory";
+type ProductEditScope = "this_variant" | "selected_variants" | "all_variants_base";
 
 type UiProduct = {
   id: string;
@@ -154,6 +155,8 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
   const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<UiProduct | null>(null);
   const [productForm, setProductForm] = useState<ProductFormData>(defaultProductForm);
+  const [editScope, setEditScope] = useState<ProductEditScope>("this_variant");
+  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [stockForm, setStockForm] = useState<StockFormData>(defaultStockForm);
   const [showArchived, setShowArchived] = useState(false);
 
@@ -244,10 +247,19 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
   }, [activeTab, products, searchTerm, showArchived]);
 
   const selectedSettingsProduct = productMap.get(stockForm.product_id);
+  const editableVariantGroup = useMemo(() => {
+    if (!editingProduct) return [] as UiProduct[];
+    const key = productGroupKey(editingProduct);
+    return products
+      .filter((product) => productGroupKey(product) === key)
+      .sort((a, b) => `${a.color} ${a.size}`.localeCompare(`${b.color} ${b.size}`, undefined, { numeric: true }));
+  }, [editingProduct, products]);
   const isExternallyRouted = Boolean(view);
 
   const openAddProduct = () => {
     setEditingProduct(null);
+    setEditScope("this_variant");
+    setSelectedVariantIds([]);
     setProductForm(defaultProductForm);
     setIsProductDialogOpen(true);
   };
@@ -263,6 +275,11 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       size: product.size === "N/A" ? "" : product.size,
       unit_price: product.unit_price,
     });
+    const variantIds = products
+      .filter((candidate) => productGroupKey(candidate) === productGroupKey(product))
+      .map((candidate) => candidate.product_id);
+    setEditScope("this_variant");
+    setSelectedVariantIds(variantIds);
     setIsProductDialogOpen(true);
   };
 
@@ -292,27 +309,46 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     const validation = validateProductForm();
     if (validation) return toast.error(validation);
 
-    const payload = {
+    const basePayload = {
       product_name: productForm.name.trim(),
       brand: productForm.brand.trim(),
       category_id: productForm.category_id,
+      cost_price: Number(productForm.unit_price || 0),
+    } as any;
+
+    const thisVariantPayload = {
+      ...basePayload,
       size: productForm.size.trim() || null,
       color: productForm.color.trim() || null,
       gender: productForm.gender || null,
-      cost_price: Number(productForm.unit_price || 0),
     } as any;
 
     try {
       if (editingProduct) {
-        await productMutations.updateMutation.mutateAsync({ id: editingProduct.product_id, payload });
-        toast.success("Product master data updated.");
+        if (editScope === "this_variant") {
+          await productMutations.updateMutation.mutateAsync({ id: editingProduct.product_id, payload: thisVariantPayload });
+          toast.success("Product variant updated.");
+        } else {
+          const targetIds =
+            editScope === "all_variants_base"
+              ? editableVariantGroup.map((variant) => variant.product_id)
+              : selectedVariantIds.filter((id) => editableVariantGroup.some((variant) => variant.product_id === id));
+          if (!targetIds.length) {
+            return toast.error("Select at least one variant to update.");
+          }
+          const { error } = await supabase.from("product").update(basePayload as any).in("product_id", targetIds);
+          if (error) throw error;
+          toast.success(`Updated ${targetIds.length} variant${targetIds.length === 1 ? "" : "s"} (base fields only).`);
+        }
       } else {
-        await productMutations.createMutation.mutateAsync(payload);
+        await productMutations.createMutation.mutateAsync(thisVariantPayload);
         toast.success("Product added to Product List.");
       }
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       setIsProductDialogOpen(false);
       setEditingProduct(null);
+      setEditScope("this_variant");
+      setSelectedVariantIds([]);
       setProductForm(defaultProductForm);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to save product");
@@ -521,6 +557,15 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                   <DialogTitle className="text-yellow-300">{editingProduct ? "Edit Product Master" : "Add Product Master"}</DialogTitle>
                 </DialogHeader>
                 <ProductMasterForm formData={productForm} setFormData={setProductForm} categories={categories} />
+                {editingProduct && (
+                  <VariantUpdateScope
+                    editScope={editScope}
+                    setEditScope={setEditScope}
+                    editableVariantGroup={editableVariantGroup}
+                    selectedVariantIds={selectedVariantIds}
+                    setSelectedVariantIds={setSelectedVariantIds}
+                  />
+                )}
                 <DialogFooter>
                   <Button onClick={saveProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
                     {editingProduct ? "Update Product" : "Save Product"}
@@ -581,6 +626,15 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                         <DialogTitle className="text-yellow-300">{editingProduct ? "Edit Product Master" : "Add Product Master"}</DialogTitle>
                       </DialogHeader>
                       <ProductMasterForm formData={productForm} setFormData={setProductForm} categories={categories} />
+                      {editingProduct && (
+                        <VariantUpdateScope
+                          editScope={editScope}
+                          setEditScope={setEditScope}
+                          editableVariantGroup={editableVariantGroup}
+                          selectedVariantIds={selectedVariantIds}
+                          setSelectedVariantIds={setSelectedVariantIds}
+                        />
+                      )}
                       <DialogFooter className="flex items-center justify-between gap-2">
                         {editingProduct ? (
                           <Button
@@ -1034,6 +1088,95 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
         </div>
         <NumberField label="Unit Price" value={formData.unit_price} onChange={(value) => setFormData({ ...formData, unit_price: value })} />
       </div>
+    </div>
+  );
+}
+
+function VariantUpdateScope({
+  editScope,
+  setEditScope,
+  editableVariantGroup,
+  selectedVariantIds,
+  setSelectedVariantIds,
+}: {
+  editScope: ProductEditScope;
+  setEditScope: (scope: ProductEditScope) => void;
+  editableVariantGroup: UiProduct[];
+  selectedVariantIds: string[];
+  setSelectedVariantIds: (ids: string[]) => void;
+}) {
+  const toggleVariant = (productId: string) => {
+    if (selectedVariantIds.includes(productId)) {
+      setSelectedVariantIds(selectedVariantIds.filter((id) => id !== productId));
+      return;
+    }
+    setSelectedVariantIds([...selectedVariantIds, productId]);
+  };
+
+  return (
+    <div className="rounded-xl border border-[#2d2d3a] bg-[#12121a] p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-yellow-300/70">Update Scope</p>
+      <div className="mt-2 grid gap-2 md:grid-cols-3">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setEditScope("this_variant")}
+          className={editScope === "this_variant" ? "bg-yellow-400 text-red-900 hover:bg-yellow-500" : "border border-[#2d2d3a] text-yellow-100 hover:bg-[#1d1d27]"}
+        >
+          This variant only
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setEditScope("selected_variants")}
+          className={editScope === "selected_variants" ? "bg-yellow-400 text-red-900 hover:bg-yellow-500" : "border border-[#2d2d3a] text-yellow-100 hover:bg-[#1d1d27]"}
+        >
+          Selected variants
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setEditScope("all_variants_base")}
+          className={editScope === "all_variants_base" ? "bg-yellow-400 text-red-900 hover:bg-yellow-500" : "border border-[#2d2d3a] text-yellow-100 hover:bg-[#1d1d27]"}
+        >
+          All variants of base
+        </Button>
+      </div>
+
+      {editScope !== "this_variant" && (
+        <div className="mt-3 rounded-lg border border-[#2d2d3a] bg-[#15151d] p-2">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-xs text-yellow-200/80">Select which variants are affected:</p>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedVariantIds(editableVariantGroup.map((variant) => variant.product_id))}
+              className="h-7 px-2 text-xs text-yellow-200 hover:bg-[#1d1d27]"
+            >
+              Select all
+            </Button>
+          </div>
+          <div className="grid max-h-36 gap-1 overflow-y-auto pr-1">
+            {editableVariantGroup.map((variant) => (
+              <label key={variant.product_id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-yellow-100 hover:bg-[#1d1d27]">
+                <input
+                  type="checkbox"
+                  checked={selectedVariantIds.includes(variant.product_id)}
+                  onChange={() => toggleVariant(variant.product_id)}
+                  className="h-4 w-4 accent-yellow-400"
+                />
+                <span className="text-xs">
+                  {variant.color} / {variant.size} ({shortId(variant.sku)})
+                </span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-yellow-300/70">
+            Group updates change base fields only (name, brand, category, unit price). Variant attributes stay unchanged.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
