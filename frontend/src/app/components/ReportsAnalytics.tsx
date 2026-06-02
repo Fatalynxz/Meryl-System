@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
 import { useProducts, usePromotions, useReturns, useSales } from '../../lib/hooks';
 
@@ -862,7 +862,7 @@ export function ReportsAnalytics() {
             </CardHeader>
             <CardContent className="rounded-b-lg bg-[#07070a] pt-2">
               <ResponsiveContainer width="100%" height={320}>
-                <ComposedChart data={filteredSalesTrends} margin={{ top: 20, right: 18, left: 0, bottom: 12 }}>
+                <LineChart data={filteredSalesTrends} margin={{ top: 20, right: 18, left: 0, bottom: 12 }}>
                   <CartesianGrid strokeDasharray="4 8" stroke="#24242d" vertical={false} opacity={0.75} />
                   <XAxis
                     dataKey="date"
@@ -901,12 +901,14 @@ export function ReportsAnalytics() {
                     labelStyle={{ color: '#fef3c7', marginBottom: 8 }}
                     formatter={(value, name) => (String(name).includes('Revenue') || String(name).includes('Period') ? [money(Number(value)), name] : [Number(value).toLocaleString(), name])}
                   />
-                  <Bar
+                  <Line
                     yAxisId="units"
+                    type="monotone"
                     dataKey="sales"
-                    fill="#fef3c7"
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={34}
+                    stroke="#fef3c7"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: '#1f1b24', stroke: '#fef3c7', strokeWidth: 2 }}
+                    activeDot={{ r: 7, fill: '#fef3c7', stroke: '#1f1b24', strokeWidth: 3 }}
                     name="Units Sold"
                   />
                   <Line
@@ -919,7 +921,7 @@ export function ReportsAnalytics() {
                     activeDot={{ r: 7, fill: '#facc15', stroke: '#1f1b24', strokeWidth: 3 }}
                     name="Revenue (PHP)"
                   />
-                </ComposedChart>
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
