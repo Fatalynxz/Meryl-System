@@ -1525,7 +1525,7 @@ export function PredictiveAnalytics() {
           ) : null}
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.45fr)]">
+          <div className="space-y-4">
             <div className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -1607,9 +1607,13 @@ export function PredictiveAnalytics() {
             </div>
 
             <div className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
-              <p className="font-semibold text-white">How to Read</p>
-              <p className="mt-1 text-xs text-white/50">Use it like a retail size-curve report.</p>
-              <div className="mt-4 space-y-4 text-sm">
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-white">How to Read</p>
+                  <p className="mt-1 text-xs text-white/50">Use it like a retail size-curve report.</p>
+                </div>
+              </div>
+              <div className="grid gap-3 text-sm md:grid-cols-3">
                 <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
                   <p className="font-semibold text-emerald-200">Bright color + small bubble</p>
                   <p className="mt-1 text-xs text-white/60">Popular size is selling, but stock is low. Reorder first.</p>
