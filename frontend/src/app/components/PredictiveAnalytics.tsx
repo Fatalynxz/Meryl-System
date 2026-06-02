@@ -171,6 +171,44 @@ function getAgeRange(customer: any) {
   return "Seniors 60+";
 }
 
+function getEuSizeNumber(size: unknown) {
+  const match = String(size ?? "").match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function getEuSizeClass(size: unknown) {
+  const value = getEuSizeNumber(size);
+  if (!value) return "Unknown";
+  if (value <= 35) return "Kids EU";
+  if (value <= 39) return "Youth EU";
+  return "Adult EU";
+}
+
+function getExpectedEuSizeRange(ageRange: string) {
+  const age = String(ageRange ?? "").toLowerCase();
+  if (age.includes("kids")) return "EU 16-38";
+  if (age.includes("teens")) return "EU 39+";
+  if (age.includes("young adults") || age.includes("adults") || age.includes("seniors")) return "EU 39+";
+  return "N/A";
+}
+
+function getAgeSizeFit(ageRange: string, size: unknown) {
+  const value = getEuSizeNumber(size);
+  if (!value) return "Unknown";
+  const age = String(ageRange ?? "").toLowerCase();
+  if (age.includes("kids")) {
+    if (value <= 38) return "Fits age bracket";
+    return "Above age bracket";
+  }
+  if (age.includes("teens")) {
+    if (value >= 39) return "Fits age bracket";
+    return "Below teen bracket";
+  }
+  if (value >= 40) return "Fits adult curve";
+  if (value >= 36) return "Small adult/youth";
+  return "Kids-size purchase";
+}
+
 function movementBadgeClass(movement: string) {
   if (movement === "Fast") return "bg-green-600 text-white";
   if (movement === "Slow") return "bg-orange-500 text-white";
@@ -742,6 +780,7 @@ export function PredictiveAnalytics() {
     const segmentRows = Array.from(customerSegments.values())
       .map((segment) => {
         const topCategory = getTopKey(segment.topCategories);
+        const topSize = getTopKey(segment.topSizes);
         return {
           segment: segment.segment,
           gender: segment.gender,
@@ -752,7 +791,10 @@ export function PredictiveAnalytics() {
           revenue: segment.revenue,
           topCategory,
           topBrand: getTopKey(segment.topBrands),
-          topSize: getTopKey(segment.topSizes),
+          topSize,
+          topSizeClass: getEuSizeClass(topSize),
+          expectedEuSizeRange: getExpectedEuSizeRange(segment.ageRange),
+          sizeFit: getAgeSizeFit(segment.ageRange, topSize),
           topProduct: getTopKey(segment.topProducts),
         };
       })
@@ -760,6 +802,7 @@ export function PredictiveAnalytics() {
 
     const formatCustomerSegment = (segment: any) => {
       const topCategory = getTopKey(segment.topCategories);
+      const topSize = getTopKey(segment.topSizes);
       return {
         label: segment.label,
         customers: segment.customers.size,
@@ -768,7 +811,10 @@ export function PredictiveAnalytics() {
         revenue: segment.revenue,
         topCategory,
         topBrand: getTopKey(segment.topBrands),
-        topSize: getTopKey(segment.topSizes),
+        topSize,
+        topSizeClass: getEuSizeClass(topSize),
+        expectedEuSizeRange: getExpectedEuSizeRange(segment.label),
+        sizeFit: getAgeSizeFit(segment.label, topSize),
         topProduct: getTopKey(segment.topProducts),
       };
     };
@@ -1902,22 +1948,24 @@ export function PredictiveAnalytics() {
 
                 <div className="overflow-hidden rounded-2xl border border-[#2b2b36] bg-[#111118]">
                   <div className="overflow-x-auto">
-                  <Table className="table-fixed w-full min-w-[980px]">
+                  <Table className="table-fixed w-full min-w-[1080px]">
                     <colgroup>
+                      <col className="w-[10%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[9%]" />
                       <col className="w-[11%]" />
+                      <col className="w-[22%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[9%]" />
                       <col className="w-[11%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[24%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[18%]" />
                     </colgroup>
                     <TableHeader className="bg-[#1f1f28]">
                       <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Gender</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Brand</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Size</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Size Class</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Product</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Customers</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Orders</TableHead>
@@ -1931,6 +1979,7 @@ export function PredictiveAnalytics() {
                           <TableCell className="py-3 text-center align-middle font-semibold text-white">{row.label}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white/80">{row.topBrand}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white/80">{row.topSize}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white/80">{row.topSizeClass}</TableCell>
                           <TableCell className="py-3 text-center align-middle truncate text-white/80">{row.topProduct}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white">{row.customers}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white">{row.orders}</TableCell>
@@ -1992,22 +2041,28 @@ export function PredictiveAnalytics() {
 
                 <div className="overflow-hidden rounded-2xl border border-[#2b2b36] bg-[#111118]">
                   <div className="overflow-x-auto">
-                  <Table className="table-fixed w-full min-w-[980px]">
+                  <Table className="table-fixed w-full min-w-[1280px]">
                     <colgroup>
-                      <col className="w-[12%]" />
+                      <col className="w-[10%]" />
                       <col className="w-[11%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[23%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[9%]" />
-                      <col className="w-[9%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[12%]" />
                       <col className="w-[18%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[8%]" />
+                      <col className="w-[15%]" />
                     </colgroup>
                     <TableHeader className="bg-[#1f1f28]">
                       <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Age Range</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Expected EU Size</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Brand</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Size</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Size Class</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Age/Size Fit</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Product</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Customers</TableHead>
                         <TableHead className="py-3 text-center text-sm font-semibold text-white">Orders</TableHead>
@@ -2019,8 +2074,11 @@ export function PredictiveAnalytics() {
                       {analytics.ageRows.map((row: any) => (
                         <TableRow key={row.label} className="border-[#2b2b36] hover:bg-white/[0.03]">
                           <TableCell className="py-3 text-center align-middle font-semibold text-white">{row.label}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white/80">{row.expectedEuSizeRange}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white/80">{row.topBrand}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white/80">{row.topSize}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white/80">{row.topSizeClass}</TableCell>
+                          <TableCell className={`py-3 text-center align-middle font-semibold ${String(row.sizeFit).includes("Fits") ? "text-white/80" : "text-orange-300"}`}>{row.sizeFit}</TableCell>
                           <TableCell className="py-3 text-center align-middle truncate text-white/80">{row.topProduct}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white">{row.customers}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white">{row.orders}</TableCell>
