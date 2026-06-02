@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, BarChart, Bar, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
 import { useProducts, usePromotions, useReturns, useSales } from '../../lib/hooks';
 
@@ -16,7 +16,9 @@ function isCompletedSale(sale: any) {
 }
 
 function saleDate(sale: any) {
-  const date = new Date(sale.transaction_date ?? sale.created_at ?? '');
+  const raw = String(sale.transaction_date ?? sale.created_at ?? '').trim();
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  const date = new Date(hasTimezone ? raw : `${raw}Z`);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -130,31 +132,40 @@ export function ReportsAnalytics() {
   const filteredSalesTrends = useMemo(() => {
     const { now, start } = rangeWindow(timeRange, customStartDate, customEndDate);
     const grouped = new Map<string, { sales: number; revenue: number; customers: Set<string>; firstDate: Date }>();
-    const makeLabel = (date: Date) => {
-      if (timeRange === 'annually' || timeRange === 'quarterly' || timeRange === 'monthly') {
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+    const bucketForDate = (date: Date) => {
+      const bucket = new Date(date);
+      if (timeRange === 'annually') {
+        bucket.setDate(1);
+      } else if (timeRange === 'quarterly') {
+        const day = bucket.getDay();
+        bucket.setDate(bucket.getDate() - day);
       }
-      if (timeRange === 'weekly') return `W${Math.ceil(date.getDate() / 7)} ${date.toLocaleDateString('en-US', { month: 'short' })}`;
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      bucket.setHours(0, 0, 0, 0);
+      return bucket;
+    };
+    const makeLabel = (bucket: Date) => {
+      if (timeRange === 'annually') return bucket.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      if (timeRange === 'quarterly') return `Week of ${bucket.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      return bucket.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
     salesRows.forEach((sale) => {
       const date = saleDate(sale);
       if (!date || date < start || date > now) return;
-      const key = makeLabel(date);
-      const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: new Set<string>(), firstDate: date };
+      const bucket = bucketForDate(date);
+      const key = bucket.toISOString();
+      const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: new Set<string>(), firstDate: bucket };
       const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
       details.forEach((detail: any) => {
         prev.sales += Number(detail.quantity ?? 0);
       });
       prev.revenue += Number(sale.total_amount ?? 0);
       if (sale.customer_id) prev.customers.add(String(sale.customer_id));
-      if (date < prev.firstDate) prev.firstDate = date;
       grouped.set(key, prev);
     });
     return Array.from(grouped.entries())
-      .map(([date, agg], idx) => ({
+      .map(([, agg], idx) => ({
         id: `flt-${idx}`,
-        date,
+        date: makeLabel(agg.firstDate),
         sortDate: agg.firstDate.getTime(),
         sales: Math.round(agg.sales),
         revenue: Math.round(agg.revenue),
@@ -839,19 +850,19 @@ export function ReportsAnalytics() {
                 </div>
                 <div className="flex items-center gap-3 text-xs text-white/65">
                   <span className="inline-flex items-center gap-1">
-                    <span className="h-2 w-6 rounded-full bg-yellow-400" />
-                    Revenue
+                    <span className="h-2 w-6 rounded-full bg-amber-100" />
+                    Units Sold
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    <span className="h-2 w-6 rounded-full bg-amber-100" />
-                    Units
+                    <span className="h-2 w-6 rounded-full bg-yellow-400" />
+                    Revenue
                   </span>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="rounded-b-lg bg-[#07070a] pt-2">
               <ResponsiveContainer width="100%" height={320}>
-                <LineChart data={filteredSalesTrends} margin={{ top: 20, right: 18, left: 0, bottom: 12 }}>
+                <ComposedChart data={filteredSalesTrends} margin={{ top: 20, right: 18, left: 0, bottom: 12 }}>
                   <CartesianGrid strokeDasharray="4 8" stroke="#24242d" vertical={false} opacity={0.75} />
                   <XAxis
                     dataKey="date"
@@ -861,21 +872,22 @@ export function ReportsAnalytics() {
                     dy={10}
                   />
                   <YAxis
+                    yAxisId="units"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#e5e7eb', fontSize: 12 }}
+                    allowDecimals={false}
+                    label={{ value: 'Units Sold', angle: -90, position: 'insideLeft', fill: '#e5e7eb', fontSize: 12 }}
+                    width={48}
+                  />
+                  <YAxis
                     yAxisId="revenue"
+                    orientation="right"
                     axisLine={false}
                     tickLine={false}
                     tick={{ fill: '#facc15', fontSize: 12 }}
                     tickFormatter={(value) => money(Number(value)).replace('PHP ', '')}
                     width={64}
-                  />
-                  <YAxis
-                    yAxisId="units"
-                    orientation="right"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: '#e5e7eb', fontSize: 12 }}
-                    allowDecimals={false}
-                    width={34}
                   />
                   <Tooltip
                     cursor={{ stroke: '#facc15', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.35 }}
@@ -889,6 +901,14 @@ export function ReportsAnalytics() {
                     labelStyle={{ color: '#fef3c7', marginBottom: 8 }}
                     formatter={(value, name) => (String(name).includes('Revenue') || String(name).includes('Period') ? [money(Number(value)), name] : [Number(value).toLocaleString(), name])}
                   />
+                  <Bar
+                    yAxisId="units"
+                    dataKey="sales"
+                    fill="#fef3c7"
+                    radius={[6, 6, 0, 0]}
+                    maxBarSize={34}
+                    name="Units Sold"
+                  />
                   <Line
                     yAxisId="revenue"
                     type="monotone"
@@ -899,17 +919,7 @@ export function ReportsAnalytics() {
                     activeDot={{ r: 7, fill: '#facc15', stroke: '#1f1b24', strokeWidth: 3 }}
                     name="Revenue (PHP)"
                   />
-                  <Line
-                    yAxisId="units"
-                    type="monotone"
-                    dataKey="sales"
-                    stroke="#fef3c7"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: '#1f1b24', stroke: '#fef3c7', strokeWidth: 2 }}
-                    activeDot={{ r: 6, fill: '#fef3c7', stroke: '#1f1b24', strokeWidth: 3 }}
-                    name="Units Sold"
-                  />
-                </LineChart>
+                </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
