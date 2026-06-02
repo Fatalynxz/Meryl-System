@@ -684,6 +684,16 @@ export function PredictiveAnalytics() {
       ? Math.max(-0.25, Math.min(0.25, (secondHalfRevenue - firstHalfRevenue) / firstHalfRevenue))
       : 0;
     const hasReliableForecastHistory = dailyModelBase.filter((row) => row.revenue > 0 || row.units > 0).length >= 3 || forecastBase.length >= 2;
+    const scenarioSpread = hasReliableForecastHistory
+      ? Math.min(0.45, Math.max(0.12, Math.abs(dailyTrendRate) + 0.15))
+      : 0.35;
+    const trendProbabilitySwing = hasReliableForecastHistory
+      ? Math.min(30, Math.round(Math.abs(dailyTrendRate) * 100))
+      : 10;
+    const higherProbability = dailyTrendRate >= 0
+      ? Math.min(85, 50 + trendProbabilitySwing)
+      : Math.max(15, 50 - trendProbabilitySwing);
+    const lowerProbability = 100 - higherProbability;
     const forecastCountByPeriod: Record<RevenueTrendPeriod, number> = {
       daily: 7,
       weekly: 4,
@@ -697,10 +707,14 @@ export function PredictiveAnalytics() {
       const periodEnd = getPeriodEnd(date, salesForecastPeriod);
       const daysInPeriod = countDaysInclusive(date, periodEnd);
       const multiplier = Math.max(0.1, 1 + dailyTrendRate * ((index + 1) / 2));
+      const projectedRevenue = Math.round(averageDailyRevenue * daysInPeriod * multiplier);
+      const projectedUnits = Math.max(0, Math.round(averageDailyUnits * daysInPeriod * multiplier));
       return {
         date: labelForPeriodDate(date, salesForecastPeriod),
-        projectedRevenue: Math.round(averageDailyRevenue * daysInPeriod * multiplier),
-        projectedUnits: Math.max(0, Math.round(averageDailyUnits * daysInPeriod * multiplier)),
+        projectedRevenue,
+        projectedRevenueHigh: Math.round(projectedRevenue * (1 + scenarioSpread)),
+        projectedRevenueLow: Math.max(0, Math.round(projectedRevenue * (1 - scenarioSpread))),
+        projectedUnits,
       };
     });
     const visibleForecastHistory = forecastHistory.slice(-5);
@@ -712,6 +726,8 @@ export function PredictiveAnalytics() {
         date: row.label,
         actualRevenue: Math.round(row.revenue),
         projectedRevenue: index === lastVisibleActualIndex ? Math.round(lastActualRevenue) : null,
+        projectedRevenueHigh: index === lastVisibleActualIndex ? Math.round(lastActualRevenue) : null,
+        projectedRevenueLow: index === lastVisibleActualIndex ? Math.round(lastActualRevenue) : null,
         actualUnits: row.units,
         projectedUnits: index === lastVisibleActualIndex ? lastActualUnits : null,
       })),
@@ -719,6 +735,8 @@ export function PredictiveAnalytics() {
         date: row.date,
         actualRevenue: null,
         projectedRevenue: row.projectedRevenue,
+        projectedRevenueHigh: row.projectedRevenueHigh,
+        projectedRevenueLow: row.projectedRevenueLow,
         actualUnits: null,
         projectedUnits: row.projectedUnits,
       })),
@@ -920,6 +938,9 @@ export function PredictiveAnalytics() {
       forecastPeriodCount,
       forecastConfidence,
       forecastNote,
+      higherProbability,
+      lowerProbability,
+      scenarioSpread,
       hasReliableForecastHistory,
       salesForecastPeriodLabel,
       categoryChart,
@@ -1268,7 +1289,13 @@ export function PredictiveAnalytics() {
                       itemStyle={{ color: "#facc15" }}
                       formatter={(value: any, name: string) => [
                         money(Number(value ?? 0)),
-                        name === "actualRevenue" ? "Actual Revenue" : "Forecast Revenue",
+                        name === "actualRevenue"
+                          ? "Actual Revenue"
+                          : name === "projectedRevenueHigh"
+                            ? `Higher Case (${analytics.higherProbability}%)`
+                            : name === "projectedRevenueLow"
+                              ? `Lower Case (${analytics.lowerProbability}%)`
+                              : "Steady Forecast",
                       ]}
                     />
                     <Line
@@ -1282,17 +1309,37 @@ export function PredictiveAnalytics() {
                     <Line
                       type="monotone"
                       dataKey="projectedRevenue"
-                      stroke="#ffffff"
+                      stroke="#f8fafc"
                       strokeDasharray="7 6"
                       strokeWidth={3}
                       dot={{ r: 4, fill: "#ffffff", stroke: "#111118", strokeWidth: 2 }}
+                      connectNulls={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="projectedRevenueHigh"
+                      stroke="#22c55e"
+                      strokeDasharray="5 5"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: "#22c55e", stroke: "#111118", strokeWidth: 2 }}
+                      connectNulls={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="projectedRevenueLow"
+                      stroke="#fb7185"
+                      strokeDasharray="5 5"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: "#fb7185", stroke: "#111118", strokeWidth: 2 }}
                       connectNulls={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-white/55">
                   <span className="flex items-center gap-2"><span className="h-2 w-8 rounded-full bg-yellow-400" /> Actual sales</span>
-                  <span className="flex items-center gap-2"><span className="w-8 border-t-2 border-dashed border-white" /> Forecast</span>
+                  <span className="flex items-center gap-2"><span className="w-8 border-t-2 border-dashed border-white" /> Steady forecast</span>
+                  <span className="flex items-center gap-2"><span className="w-8 border-t-2 border-dashed border-emerald-500" /> Higher case</span>
+                  <span className="flex items-center gap-2"><span className="w-8 border-t-2 border-dashed border-rose-400" /> Lower case</span>
                   {!analytics.hasReliableForecastHistory && (
                     <span className="rounded-full border border-yellow-400/25 bg-yellow-400/10 px-3 py-1 text-yellow-200">
                       Limited history
@@ -1311,6 +1358,30 @@ export function PredictiveAnalytics() {
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Projected Units</p>
                   <p className="mt-2 text-2xl font-bold text-white">{analytics.forecastTotalUnits.toLocaleString("en-PH")}</p>
                   <p className="mt-1 text-xs text-emerald-300">Estimated items to prepare</p>
+                </div>
+                <div className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Direction Probability</p>
+                  <div className="mt-3 space-y-2">
+                    <div>
+                      <div className="mb-1 flex justify-between text-xs">
+                        <span className="font-semibold text-emerald-300">Higher</span>
+                        <span className="text-white">{analytics.higherProbability}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[#24242f]">
+                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${analytics.higherProbability}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 flex justify-between text-xs">
+                        <span className="font-semibold text-rose-300">Lower</span>
+                        <span className="text-white">{analytics.lowerProbability}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[#24242f]">
+                        <div className="h-full rounded-full bg-rose-400" style={{ width: `${analytics.lowerProbability}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-white/55">Scenario band: +/- {Math.round(analytics.scenarioSpread * 100)}% from steady forecast.</p>
                 </div>
                 <div className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Confidence</p>
