@@ -100,6 +100,15 @@ export function ReportsAnalytics() {
     return map;
   }, [productRows]);
 
+  const stockBySku = useMemo(() => {
+    const map = new Map<string, number>();
+    productRows.forEach((product: any) => {
+      const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
+      map.set(String(product.product_id ?? ''), Number(inventory?.stock_quantity ?? 0));
+    });
+    return map;
+  }, [productRows]);
+
   const currentMetrics = useMemo(() => {
     const { now, start, previousStart } = rangeWindow(timeRange, customStartDate, customEndDate);
     const compareEnd = new Date(start.getTime() - 1);
@@ -396,7 +405,7 @@ export function ReportsAnalytics() {
 
         return {
           id: String(product.product_id ?? ''),
-          itemId: String(product.product_id ?? '').slice(0, 8).toUpperCase(),
+          itemId: String(product.sku ?? product.product_id ?? '').slice(0, 8).toUpperCase(),
           name: `${product.brand ?? 'N/A'} ${product.product_name ?? 'Product'}`.trim(),
           size: product.size ?? 'N/A',
           color: product.color ?? 'N/A',
@@ -458,35 +467,57 @@ export function ReportsAnalytics() {
   }, [currentMetrics, customEndDate, customStartDate, productLookup, salesRows, timeRange]);
 
   const inventoryTurnover = useMemo(() => {
-    const stockByProduct = new Map<string, number>();
-    productRows.forEach((product: any) => {
-      const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
-      stockByProduct.set(String(product.product_id ?? ''), Number(inventory?.stock_quantity ?? 0));
-    });
-    const totalStock = Array.from(stockByProduct.values()).reduce((sum, value) => sum + value, 0);
-    return Array.from({ length: 6 }, (_, index) => {
-      const month = new Date();
-      month.setMonth(month.getMonth() - (5 - index));
-      const monthKey = month.toISOString().slice(0, 7);
-      let units = 0;
-      salesRows.forEach((sale) => {
-        const date = saleDate(sale);
-        if (!date || date.toISOString().slice(0, 7) !== monthKey) return;
-        const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
-        details.forEach((detail: any) => {
-          units += Number(detail.quantity ?? 0);
-        });
+    const { now, start, days } = rangeWindow(timeRange, customStartDate, customEndDate);
+    const bucketCount = timeRange === 'daily' ? 1 : timeRange === 'weekly' ? 7 : timeRange === 'monthly' ? 6 : timeRange === 'quarterly' ? 13 : 12;
+    const bucketDays = Math.max(1, Math.ceil(days / bucketCount));
+    const buckets = Array.from({ length: bucketCount }, (_, index) => {
+      const bucketStart = new Date(start);
+      bucketStart.setDate(start.getDate() + (index * bucketDays));
+      const bucketEnd = new Date(bucketStart);
+      bucketEnd.setDate(bucketStart.getDate() + bucketDays - 1);
+      bucketEnd.setHours(23, 59, 59, 999);
+      return {
+        start: bucketStart,
+        end: bucketEnd > now ? now : bucketEnd,
+        unitsBySku: new Map<string, number>(),
+      };
+    }).filter((bucket) => bucket.start <= now);
+
+    salesRows.forEach((sale) => {
+      const date = saleDate(sale);
+      if (!date || date < start || date > now) return;
+      const bucket = buckets.find((item) => date >= item.start && date <= item.end);
+      if (!bucket) return;
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      details.forEach((detail: any) => {
+        const sku = String(detail.product_id ?? '');
+        bucket.unitsBySku.set(sku, (bucket.unitsBySku.get(sku) ?? 0) + Number(detail.quantity ?? 0));
       });
-      const turnover = totalStock > 0 ? Number((units / totalStock).toFixed(2)) : 0;
-      const avgDays = units > 0 ? Math.max(1, Math.round((totalStock / units) * 30)) : 0;
+    });
+
+    return buckets.map((bucket, index) => {
+      let units = 0;
+      let avgInventory = 0;
+      stockBySku.forEach((endingStock, sku) => {
+        const soldUnits = bucket.unitsBySku.get(sku) ?? 0;
+        units += soldUnits;
+        avgInventory += (endingStock + endingStock + soldUnits) / 2;
+      });
+      const turnover = avgInventory > 0 ? Number((units / avgInventory).toFixed(2)) : 0;
+      const bucketSpanDays = Math.max(1, Math.ceil((bucket.end.getTime() - bucket.start.getTime()) / 86400000) + 1);
+      const avgDays = units > 0 ? Math.max(1, Math.round((avgInventory / units) * bucketSpanDays)) : 0;
+      const label = timeRange === 'quarterly'
+        ? `W${index + 1}`
+        : bucket.start.toLocaleDateString('en-US', { month: 'short', day: timeRange === 'annually' ? undefined : 'numeric' });
       return {
         id: `it${index}`,
-        month: month.toLocaleDateString('en-US', { month: 'short' }),
+        month: label,
+        units,
         turnover,
         avgDays,
       };
     });
-  }, [productRows, salesRows]);
+  }, [customEndDate, customStartDate, salesRows, stockBySku, timeRange]);
 
   const totalInventoryStock = useMemo(() => productRows.reduce((sum, product: any) => {
     const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
@@ -616,17 +647,19 @@ export function ReportsAnalytics() {
   const revenueChange = percentChange(currentMetrics.current.revenue, currentMetrics.previous.revenue);
   const unitsChange = percentChange(currentMetrics.current.units, currentMetrics.previous.units);
   const selectedWindow = rangeWindow(timeRange, customStartDate, customEndDate);
-  const latestTurnover = totalInventoryStock > 0
-    ? Number((currentMetrics.current.units / totalInventoryStock).toFixed(2))
+  const latestAverageInventory = totalInventoryStock + (currentMetrics.current.units / 2);
+  const previousAverageInventory = totalInventoryStock + (currentMetrics.previous.units / 2);
+  const latestTurnover = latestAverageInventory > 0
+    ? Number((currentMetrics.current.units / latestAverageInventory).toFixed(2))
     : 0;
-  const previousTurnover = totalInventoryStock > 0
-    ? Number((currentMetrics.previous.units / totalInventoryStock).toFixed(2))
+  const previousTurnover = previousAverageInventory > 0
+    ? Number((currentMetrics.previous.units / previousAverageInventory).toFixed(2))
     : 0;
   const latestAvgDays = currentMetrics.current.units > 0
-    ? Math.max(1, Math.round((totalInventoryStock / currentMetrics.current.units) * selectedWindow.days))
+    ? Math.max(1, Math.round((latestAverageInventory / currentMetrics.current.units) * selectedWindow.days))
     : 0;
   const previousAvgDays = currentMetrics.previous.units > 0
-    ? Math.max(1, Math.round((totalInventoryStock / currentMetrics.previous.units) * selectedWindow.days))
+    ? Math.max(1, Math.round((previousAverageInventory / currentMetrics.previous.units) * selectedWindow.days))
     : 0;
   const turnoverChange = percentChange(latestTurnover, previousTurnover);
   const avgDaysChange = previousAvgDays ? previousAvgDays - latestAvgDays : 0;
