@@ -40,6 +40,7 @@ type ReturnRow = {
   additional_payment: number;
   adjustment_amount: number;
   processedBy: string;
+  staffCode: string;
   salesStatus: string;
   returnDetails: ReturnDetail[];
 };
@@ -79,6 +80,16 @@ const defaultForm: ExchangeForm = {
   return_action: "Replacement",
   inventory_action: "Defective / Not Sellable",
 };
+
+const REPLACEMENT_REASON_OPTIONS = [
+  "Wrong size",
+  "Damaged item",
+  "Defective item",
+  "Wrong item received",
+  "Customer requested exchange",
+  "Customer changed preference",
+  "Others",
+];
 
 function buildClientId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -169,12 +180,15 @@ export function ReturnManagement() {
   const [selectedReturnedDetailIds, setSelectedReturnedDetailIds] = useState<string[]>([]);
   const [returnedItemQtyByDetail, setReturnedItemQtyByDetail] = useState<Record<string, number>>({});
   const [replacementLines, setReplacementLines] = useState<ReplacementLine[]>([]);
+  const [reasonOption, setReasonOption] = useState("");
+  const [customReason, setCustomReason] = useState("");
 
   const sales = (salesQuery.data as any[]) ?? [];
   const productRows = (productsQuery.data as any[]) ?? [];
   const inventoryRows = (inventoryQuery.data as any[]) ?? [];
   const returnRows = (returnsQuery.data as any[]) ?? [];
   const isAdmin = String(user?.role_name ?? "").trim().toLowerCase().includes("admin");
+  const selectedReplacementReason = reasonOption === "Others" ? customReason.trim() : reasonOption.trim();
 
   const salesDisplayMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -298,7 +312,6 @@ export function ReturnManagement() {
   const priceDifference = replacementTotal - originalTotal;
   const customerPays = Math.max(0, priceDifference);
   const totalAdditionalPayment = replacementLines.reduce((sum, line) => sum + Math.max(0, line.price_difference), 0);
-  const totalCreditIssued = replacementLines.reduce((sum, line) => sum + Math.max(0, -line.price_difference), 0);
   const hasSaleSelected = Boolean(selectedSale);
   const hasReturnedSelected = selectedReturnedItems.length > 0;
   const hasReplacementSelected = Boolean(replacementProduct);
@@ -393,7 +406,7 @@ export function ReturnManagement() {
 
   const addReplacementLine = () => {
     if (!selectedSale || selectedReturnedItemsWithQty.length === 0 || !replacementProduct) {
-      toast.error("Select sale, returned item(s), and replacement item first");
+      toast.error("Select sale, replaced item(s), and replacement item first");
       return;
     }
     const duplicate = selectedReturnedItemsWithQty.find((item) =>
@@ -458,7 +471,7 @@ export function ReturnManagement() {
     });
     const returnDisplayMap = new Map<string, string>();
     sortedAsc.forEach((row, index) => {
-      returnDisplayMap.set(String(row.return_id ?? ""), formatSequence("RET", index + 1));
+      returnDisplayMap.set(String(row.return_id ?? ""), formatSequence("REP", index + 1));
     });
 
     return returnRows.map((row: any) => {
@@ -474,7 +487,7 @@ export function ReturnManagement() {
       const rowAdditionalPayment = Number(row.additional_payment ?? row.total_replacement_payments ?? 0);
       return {
         return_id: String(row.return_id ?? ""),
-        display_return_id: returnDisplayMap.get(String(row.return_id ?? "")) ?? "RET-000",
+        display_return_id: returnDisplayMap.get(String(row.return_id ?? "")) ?? "REP-000",
         sales_id: String(row.sales_id ?? ""),
         display_sales_id: salesDisplayMap.get(String(row.sales_id ?? "")) ?? "SALES-000",
         user_id: String(row.user_id ?? sale?.user_id ?? ""),
@@ -486,6 +499,7 @@ export function ReturnManagement() {
         additional_payment: rowAdditionalPayment > 0 ? rowAdditionalPayment : paymentFromDetails,
         adjustment_amount: Number(row.adjustment_amount ?? 0),
         processedBy: processedUser?.name ?? processedUser?.username ?? "Staff",
+        staffCode: String(processedUser?.staff_code ?? processedUser?.staffCode ?? "N/A"),
         salesStatus: normalizeSaleStatus(sale?.sales_status ?? sale?.status),
         returnDetails: details.map((detail: any) => {
           const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
@@ -599,8 +613,8 @@ export function ReturnManagement() {
       toast.error("Add at least one replacement line");
       return;
     }
-    if (!formData.reason.trim()) {
-      toast.error("Please add a return reason");
+    if (!selectedReplacementReason) {
+      toast.error("Please add a replacement reason");
       return;
     }
 
@@ -618,7 +632,7 @@ export function ReturnManagement() {
         const alreadyQueued = returnedQtyIncrementByDetail.get(line.sales_detail_id) ?? 0;
         const maxQty = Number(saleDetail.returnable_quantity ?? saleDetail.quantity ?? 0);
         if (line.quantity + alreadyQueued > maxQty) {
-          throw new Error(`Return quantity exceeded for ${line.returned_product_name}`);
+          throw new Error(`Replacement quantity exceeded for ${line.returned_product_name}`);
         }
         returnedQtyIncrementByDetail.set(line.sales_detail_id, alreadyQueued + line.quantity);
 
@@ -637,16 +651,16 @@ export function ReturnManagement() {
         if (!saleDetail) continue;
 
         const additionalPayment = Math.max(0, line.price_difference);
-        const creditIssued = Math.max(0, -line.price_difference);
+        const creditIssued = 0;
         const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + additionalPayment);
         const replacementNote = [
           "Replacement",
-          `Returned: ${line.returned_product_name}`,
+          `Replaced: ${line.returned_product_name}`,
           `Replacement: ${line.replacement_product_name}`,
-          `Rule: ${line.price_difference > 0 ? `Customer adds ${formatCurrency(additionalPayment)}` : line.price_difference < 0 ? `Store credit issued ${formatCurrency(creditIssued)}` : "Even exchange"}`,
+          `Rule: ${line.price_difference > 0 ? `Customer adds ${formatCurrency(additionalPayment)}` : "No refund/store credit. Replacement only."}`,
           `Mode of payment: ${additionalPayment > 0 ? formData.mode_of_payment : "N/A"}`,
           `Inventory action: ${line.inventory_action}`,
-          `Reason: ${formData.reason.trim()}`,
+          `Reason: ${selectedReplacementReason}`,
         ].join(" | ");
 
         await tryInsertRow("returns", [
@@ -658,7 +672,7 @@ export function ReturnManagement() {
             return_date: new Date().toISOString(),
             return_type: "Replacement",
             return_status: "Completed",
-            total_refund: creditIssued,
+            total_refund: 0,
             additional_payment: additionalPayment,
             adjustment_amount: additionalPayment,
             mode_of_payment: additionalPayment > 0 ? formData.mode_of_payment : null,
@@ -666,7 +680,7 @@ export function ReturnManagement() {
             fulfilled_date: new Date().toISOString(),
             replacement_count: 1,
             total_replacement_payments: additionalPayment,
-            total_credits_issued: creditIssued,
+            total_credits_issued: 0,
             net_amount: adjustedTotal,
             last_activity_date: new Date().toISOString(),
             remarks: replacementNote,
@@ -676,7 +690,7 @@ export function ReturnManagement() {
             sales_id: selectedSale.sales_id,
             user_id: user?.user_id ?? selectedSale.user_id,
             return_date: new Date().toISOString(),
-            total_refund: creditIssued,
+            total_refund: 0,
           },
         ]);
 
@@ -687,7 +701,7 @@ export function ReturnManagement() {
             product_id: line.returned_product_id,
             quantity_returned: line.quantity,
             reason: replacementNote,
-            refund_amount: creditIssued,
+            refund_amount: 0,
             replacement_product_id: line.replacement_product_id,
             replacement_quantity: line.quantity,
             price_difference: line.price_difference,
@@ -706,7 +720,7 @@ export function ReturnManagement() {
             product_id: line.returned_product_id,
             quantity_returned: line.quantity,
             reason: replacementNote,
-            refund_amount: creditIssued,
+            refund_amount: 0,
           },
         ]);
 
@@ -717,7 +731,7 @@ export function ReturnManagement() {
             {
               returned_quantity: nextReturnedQty,
               replacement_product_id: line.replacement_product_id,
-              item_status: isFullyReturnedItem ? "Replaced" : "Partially Returned",
+              item_status: isFullyReturnedItem ? "Replaced" : "Partially Replaced",
             },
           ]);
         } catch {
@@ -749,53 +763,7 @@ export function ReturnManagement() {
 
       await recordAdditionalPayment(selectedSale.sales_id, totalAdditionalPayment);
 
-      if (totalCreditIssued > 0 && selectedSale.customer_id) {
-        const creditTable = await resolveExistingTableName(["customer_credits", "customer_credit"]);
-        const creditTxnTable = await resolveExistingTableName(["customer_credit_transactions", "customer_credit_transaction"]);
-        const customerId = String(selectedSale.customer_id);
-        const { data: existingCredit, error: creditFetchError } = await supabase
-          .from(creditTable as any)
-          .select("customer_credit_id, total_issued, total_used, available_credit")
-          .eq("customer_id", customerId)
-          .maybeSingle();
-        if (creditFetchError) throw creditFetchError;
-
-        if (existingCredit?.customer_credit_id) {
-          const nextTotalIssued = Number(existingCredit.total_issued ?? 0) + totalCreditIssued;
-          const nextAvailableCredit = Number(existingCredit.available_credit ?? 0) + totalCreditIssued;
-          const { error: updateCreditError } = await supabase
-            .from(creditTable as any)
-            .update({
-              total_issued: nextTotalIssued,
-              available_credit: nextAvailableCredit,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("customer_credit_id", existingCredit.customer_credit_id);
-          if (updateCreditError) throw updateCreditError;
-        } else {
-          const { error: insertCreditError } = await supabase.from(creditTable as any).insert({
-            customer_credit_id: buildClientId(),
-            customer_id: customerId,
-            total_issued: totalCreditIssued,
-            total_used: 0,
-            available_credit: totalCreditIssued,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
-          if (insertCreditError) throw insertCreditError;
-        }
-
-        const { error: creditTxnError } = await supabase.from(creditTxnTable as any).insert({
-          customer_credit_txn_id: buildClientId(),
-          customer_id: customerId,
-          return_id: null,
-          txn_type: "issue",
-          amount: totalCreditIssued,
-          notes: `Replacement credit batch issued for ${selectedSale.sales_id}`,
-          created_at: new Date().toISOString(),
-        });
-        if (creditTxnError) throw creditTxnError;
-      }
+      // Policy: Replacement only. No store credit issuance and no cash refund.
 
       await queryClient.invalidateQueries({ queryKey: ["returns"] });
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });
@@ -806,9 +774,11 @@ export function ReturnManagement() {
       setIsAddDialogOpen(false);
       setFormData(defaultForm);
       setReplacementLines([]);
+      setReasonOption("");
+      setCustomReason("");
       toast.success(`${replacementLines.length} replacement item(s) recorded successfully.`);
     } catch (error: any) {
-      toast.error(error?.message ?? "Failed to record replacement return");
+      toast.error(error?.message ?? "Failed to record replacement");
     } finally {
       setIsSaving(false);
     }
@@ -829,20 +799,20 @@ export function ReturnManagement() {
     item.returnDetails.some((detail) => detail.reason.toLowerCase().includes("even exchange")),
   ).length;
 
+  const setReplacementDialogOpen = (open: boolean) => {
+    setIsAddDialogOpen(open);
+    if (open) return;
+    setFormData(defaultForm);
+    setReplacementLines([]);
+    setSelectedReturnedDetailIds([]);
+    setReturnedItemQtyByDetail({});
+    setReasonOption("");
+    setCustomReason("");
+  };
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-red-700 border-red-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-yellow-200">Store Credits Issued</p>
-                <p className="text-2xl text-yellow-300">{formatCurrency(0)}</p>
-              </div>
-              <RotateCcw className="h-8 w-8 text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-red-700 border-red-800">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -883,9 +853,9 @@ export function ReturnManagement() {
           <div className="flex justify-between items-center">
             <CardTitle className="text-yellow-300 flex items-center gap-2">
               <RotateCcw className="w-5 h-5" />
-              Return Management
+              Replacement Management
             </CardTitle>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={setReplacementDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
                   <Plus className="w-4 h-4 mr-2" />
@@ -914,7 +884,7 @@ export function ReturnManagement() {
                         <p className="text-sm text-zinc-100">{selectedSale?.display_sales_id ?? "Not selected"}</p>
                       </div>
                       <div className={`rounded-lg border p-2 ${hasReturnedSelected ? "border-emerald-600 bg-emerald-900/20" : "border-zinc-700 bg-zinc-950"}`}>
-                        <p className="text-[11px] text-zinc-400">2. Returned Item</p>
+                        <p className="text-[11px] text-zinc-400">2. Replaced Item</p>
                         <p className="text-sm text-zinc-100">{selectedOriginalItem?.productName ?? "Not selected"}</p>
                       </div>
                       <div className={`rounded-lg border p-2 ${hasReplacementSelected ? "border-emerald-600 bg-emerald-900/20" : "border-zinc-700 bg-zinc-950"}`}>
@@ -1003,7 +973,7 @@ export function ReturnManagement() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-yellow-300">Returned Item Inventory Action *</Label>
+                      <Label className="text-yellow-300">Replaced Item Inventory Action *</Label>
                       <Select
                         value={formData.inventory_action}
                         onValueChange={(value) =>
@@ -1015,7 +985,7 @@ export function ReturnManagement() {
                         </SelectTrigger>
                         <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
                           <SelectItem value="Defective / Not Sellable">Defective / Not Sellable</SelectItem>
-                          <SelectItem value="Return to Stock">Return to Stock</SelectItem>
+                          <SelectItem value="Return to Stock">Back to Stock</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1027,7 +997,7 @@ export function ReturnManagement() {
                       <p className="text-sm text-yellow-200">{selectedSale?.display_sales_id ?? "Not selected"}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-yellow-300">Returned Item</p>
+                      <p className="text-xs text-yellow-300">Replaced Item</p>
                       <p className="text-sm text-yellow-200">
                         {selectedReturnedItems.length
                           ? `${selectedReturnedItems.length} item(s) selected`
@@ -1042,7 +1012,7 @@ export function ReturnManagement() {
 
                   <div className={`space-y-3 rounded-xl border border-zinc-800 bg-zinc-950 p-4 ${!hasSaleSelected ? "opacity-50" : ""}`}>
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <Label className="text-yellow-300">Step 2: Select Returned Product</Label>
+                        <Label className="text-yellow-300">Step 2: Select Replaced Product</Label>
                         <div className="relative md:w-80">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                           <Input
@@ -1062,8 +1032,8 @@ export function ReturnManagement() {
                               <TableHead className="text-yellow-300 text-center">SKU</TableHead>
                               <TableHead className="text-yellow-300 text-center">Product</TableHead>
                               <TableHead className="text-yellow-300 text-center">Sold</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Returnable</TableHead>
-                              <TableHead className="text-yellow-300 text-center">Return Qty</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Replaceable</TableHead>
+                              <TableHead className="text-yellow-300 text-center">Replace Qty</TableHead>
                               <TableHead className="text-yellow-300 text-center">Price</TableHead>
                               <TableHead className="text-yellow-300 text-center">Action</TableHead>
                             </TableRow>
@@ -1190,7 +1160,7 @@ export function ReturnManagement() {
                           </DialogContent>
                         </Dialog>
                       </div>
-                      {!hasReturnedSelected && <p className="text-xs text-zinc-300">Select the returned product first.</p>}
+                      {!hasReturnedSelected && <p className="text-xs text-zinc-300">Select the replaced product first.</p>}
                       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
                         <p className="text-xs text-yellow-300">Selected Replacement Product</p>
                         <p className="text-sm text-yellow-200">
@@ -1208,7 +1178,7 @@ export function ReturnManagement() {
                       <Table className="w-full text-sm">
                         <TableHeader>
                           <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                            <TableHead className="text-yellow-300 text-center">Returned</TableHead>
+                            <TableHead className="text-yellow-300 text-center">Replaced</TableHead>
                             <TableHead className="text-yellow-300 text-center">Replacement</TableHead>
                             <TableHead className="text-yellow-300 text-center">Qty</TableHead>
                             <TableHead className="text-yellow-300 text-center">Difference</TableHead>
@@ -1258,7 +1228,7 @@ export function ReturnManagement() {
                         className="bg-red-600 border-red-800 text-yellow-200"
                       />
                       {selectedReturnedItems.length > 1 && (
-                        <p className="text-xs text-yellow-300">Tip: Set exact qty per selected item in Step 2 (Return Qty column).</p>
+                        <p className="text-xs text-yellow-300">Tip: Set exact qty per selected item in Step 2 (Replace Qty column).</p>
                       )}
                     </div>
                     <div className="space-y-2">
@@ -1273,18 +1243,44 @@ export function ReturnManagement() {
 
                   <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
                     <p className="text-zinc-200 text-sm">
-                      Added payment total: {formatCurrency(totalAdditionalPayment)} | Store credit total: {formatCurrency(totalCreditIssued)}
+                      Added payment total: {formatCurrency(totalAdditionalPayment)} | Replacement-only policy (no store credit/refund)
                     </p>
                   </div>
 
                   <div className="space-y-2">
                     <Label className="text-yellow-300">Reason *</Label>
-                    <Input
-                      value={formData.reason}
-                      onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                      className="bg-red-600 border-red-800 text-yellow-200"
-                      placeholder="e.g., wrong size, damaged item, customer requested exchange"
-                    />
+                    <Select
+                      value={reasonOption}
+                      onValueChange={(value) => {
+                        setReasonOption(value);
+                        if (value !== "Others") {
+                          setCustomReason("");
+                          setFormData({ ...formData, reason: value });
+                        } else {
+                          setFormData({ ...formData, reason: customReason });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                        <SelectValue placeholder="Select replacement reason" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                        {REPLACEMENT_REASON_OPTIONS.map((reason) => (
+                          <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {reasonOption === "Others" && (
+                      <Input
+                        value={customReason}
+                        onChange={(e) => {
+                          setCustomReason(e.target.value);
+                          setFormData({ ...formData, reason: e.target.value });
+                        }}
+                        className="bg-red-600 border-red-800 text-yellow-200"
+                        placeholder="Specify the replacement reason"
+                      />
+                    )}
                   </div>
 
                     <div className="flex items-center justify-between gap-3">
@@ -1319,7 +1315,7 @@ export function ReturnManagement() {
           <div className="mb-4 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-yellow-400" />
             <Input
-              placeholder="Search by return ID, sales ID, or customer..."
+              placeholder="Search by replacement ID, sales ID, or customer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
@@ -1327,14 +1323,16 @@ export function ReturnManagement() {
           </div>
 
           <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
-            <Table className="w-full min-w-[840px]">
+            <Table className="w-full min-w-[980px]">
               <TableHeader>
                 <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return ID</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Replacement ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Sales ID</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Customer</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Status</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Return Date</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Staff Code</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Processed By</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Replacement Status</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Replacement Date</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1345,6 +1343,8 @@ export function ReturnManagement() {
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.display_return_id}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.display_sales_id}</TableCell>
                     <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.customerName}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.staffCode}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{returnItem.processedBy}</TableCell>
                     <TableCell className="whitespace-nowrap text-center">
                       <Badge className="bg-green-600 text-white">{returnItem.return_status}</Badge>
                     </TableCell>
@@ -1363,7 +1363,7 @@ export function ReturnManagement() {
                         </DialogTrigger>
                         <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-3xl">
                           <DialogHeader>
-                            <DialogTitle className="text-zinc-100">Return Details - {returnItem.display_return_id}</DialogTitle>
+                            <DialogTitle className="text-zinc-100">Replacement Details - {returnItem.display_return_id}</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
@@ -1378,15 +1378,19 @@ export function ReturnManagement() {
                                   <p className="text-zinc-100">{returnItem.display_sales_id}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-zinc-400">Return Type</p>
+                                  <p className="text-sm text-zinc-400">Replacement Type</p>
                                   <p className="text-zinc-100">{returnItem.return_type}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-zinc-400">Staff Code</p>
+                                  <p className="text-zinc-100">{returnItem.staffCode}</p>
                                 </div>
                                 <div>
                                   <p className="text-sm text-zinc-400">Processed By</p>
                                   <p className="text-zinc-100">{returnItem.processedBy}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-zinc-400">Return Date</p>
+                                  <p className="text-sm text-zinc-400">Replacement Date</p>
                                   <p className="text-zinc-100">{returnItem.return_date}</p>
                                 </div>
                                 <div>
@@ -1400,7 +1404,7 @@ export function ReturnManagement() {
                               <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Financials</p>
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 <div>
-                                  <p className="text-sm text-zinc-400">Refund / Credit</p>
+                                  <p className="text-sm text-zinc-400">Refund (Disabled)</p>
                                   <p className="text-zinc-100">{formatCurrency(returnItem.total_refund)}</p>
                                 </div>
                                 <div>
@@ -1408,20 +1412,20 @@ export function ReturnManagement() {
                                   <p className="text-zinc-100">{formatCurrency(returnItem.additional_payment)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm text-zinc-400">Return Status</p>
+                                  <p className="text-sm text-zinc-400">Replacement Status</p>
                                   <p className="text-zinc-100">{returnItem.return_status}</p>
                                 </div>
                               </div>
                             </div>
 
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-                              <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Returned Items</p>
+                              <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Replaced Items</p>
                               <div className="space-y-2">
                                 {returnItem.returnDetails.map((detail) => (
                                   <div key={detail.return_detail_id} className="rounded-md border border-zinc-800 bg-zinc-900/80 p-3">
                                     <p className="text-zinc-100 font-medium">{detail.productName}</p>
                                     <p className="text-zinc-300 text-xs">
-                                      Qty: {detail.quantity_returned} | Refund/Credit: {formatCurrency(detail.refund_amount)}
+                                      Qty: {detail.quantity_returned} | Credit/Refund Applied: {formatCurrency(detail.refund_amount)}
                                     </p>
                                     <p className="text-zinc-300 text-xs">
                                       Replacement: {detail.replacementProductName} | Inventory: {detail.inventory_action}

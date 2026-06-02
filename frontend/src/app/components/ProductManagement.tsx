@@ -56,7 +56,7 @@ type StockFormData = {
   product_id: string;
   stock_in: number;
   reserved_quantity: number;
-  srp: number;
+  markup_rate: number;
   reorder_level: number;
   status: InventoryStatus;
   manufacturer_date: string;
@@ -77,12 +77,14 @@ const defaultStockForm: StockFormData = {
   product_id: "",
   stock_in: 0,
   reserved_quantity: 0,
-  srp: 0,
+  markup_rate: 0.9,
   reorder_level: 10,
   status: "Active",
   manufacturer_date: "",
   expiration_date: "",
 };
+
+const MARKUP_RATE_OPTIONS = [0.1, 0.2, 0.3, 0.5, 0.75, 0.9, 1];
 
 function buildClientId(prefix = "id") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -130,6 +132,36 @@ function stockCondition(stock: number, reorder: number, expired = false) {
 
 function formatMoney(value: number) {
   return `PHP ${Number(value || 0).toLocaleString()}`;
+}
+
+function calculateSrpFromMarkup(unitPrice: number, markupRate: number) {
+  const price = Number(unitPrice || 0);
+  const rate = Number(markupRate || 0);
+  return Math.round((price + price * rate) * 100) / 100;
+}
+
+function defaultMarkupRateForProduct(product?: Pick<UiProduct, "unit_price" | "srp">) {
+  if (!product || Number(product.unit_price || 0) <= 0) return 0.9;
+  const savedMarkup = (Number(product.srp || 0) - Number(product.unit_price || 0)) / Number(product.unit_price || 0);
+  if (!Number.isFinite(savedMarkup) || savedMarkup <= 0) return 0.9;
+
+  return MARKUP_RATE_OPTIONS.reduce((closest, option) => {
+    return Math.abs(option - savedMarkup) < Math.abs(closest - savedMarkup) ? option : closest;
+  }, MARKUP_RATE_OPTIONS[0]);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function productNameWithoutBrand(productName: string, brand: string) {
+  const name = String(productName ?? "").trim().replace(/\s+/g, " ");
+  const brandName = String(brand ?? "").trim().replace(/\s+/g, " ");
+  if (!name || !brandName || brandName.toLowerCase() === "n/a") return name;
+
+  return name
+    .replace(new RegExp(`^${escapeRegExp(brandName)}(?:\\s+|[-_/]+)+`, "i"), "")
+    .trim() || name;
 }
 
 function variantLabel(product: Pick<UiProduct, "color" | "gender" | "size">) {
@@ -194,6 +226,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     return ((productsQuery.data as any[]) ?? []).map((row: any) => {
       const category = Array.isArray(row.category) ? row.category[0] : row.category;
       const inventory = Array.isArray(row.inventory) ? row.inventory[0] : row.inventory ?? inventoryByProductId.get(String(row.product_id ?? ""));
+      const brand = String(row.brand ?? "N/A");
       const unitPrice = Number(row.unit_price ?? row.cost_price ?? 0);
       const srp = Number(inventory?.srp ?? row.price ?? row.cost_price ?? unitPrice);
       const reorder = Number(inventory?.reorder_level ?? row.reorder_level ?? 10);
@@ -205,8 +238,8 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         id: String(row.product_id ?? ""),
         product_id: String(row.product_id ?? ""),
         sku: String(row.sku ?? row.product_id ?? ""),
-        name: String(row.product_name ?? "Unnamed Product"),
-        brand: String(row.brand ?? "N/A"),
+        name: productNameWithoutBrand(String(row.product_name ?? "Unnamed Product"), brand),
+        brand,
         category: String(category?.category_name ?? "Uncategorized"),
         category_id: String(row.category_id ?? ""),
         color: String(row.color ?? "Default"),
@@ -292,7 +325,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       product_id: product.product_id,
       stock_in: 0,
       reserved_quantity: product.reserved_stock || 0,
-      srp: product.srp || product.unit_price,
+      markup_rate: defaultMarkupRateForProduct(product),
       reorder_level: product.reorder_level || 10,
       status: product.status,
       manufacturer_date: product.manufacturer_date ? product.manufacturer_date.slice(0, 10) : "",
@@ -303,6 +336,9 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
   const validateProductForm = () => {
     if (!productForm.name.trim()) return "Product name is required.";
     if (!productForm.brand.trim()) return "Brand is required.";
+    if (!productNameWithoutBrand(productForm.name, productForm.brand)) {
+      return "Product name should include the model/style, not only the brand.";
+    }
     if (!productForm.category_id) return "Category is required.";
     if (Number(productForm.unit_price) < 0) return "Unit price must be greater than or equal to 0.";
     return "";
@@ -312,8 +348,9 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     const validation = validateProductForm();
     if (validation) return toast.error(validation);
 
+    const cleanProductName = productNameWithoutBrand(productForm.name, productForm.brand);
     const basePayload = {
-      product_name: productForm.name.trim(),
+      product_name: cleanProductName,
       brand: productForm.brand.trim(),
       category_id: productForm.category_id,
       cost_price: Number(productForm.unit_price || 0),
@@ -366,8 +403,12 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     if (!product.hasInventory && Number(stockForm.stock_in) <= 0) {
       return toast.error("Stock-in quantity must be greater than 0 for new inventory.");
     }
-    if (Number(stockForm.srp) <= Number(product.unit_price)) {
-      return toast.error("SRP / selling price must be greater than unit price.");
+    const computedSrp = calculateSrpFromMarkup(product.unit_price, stockForm.markup_rate);
+    if (Number(product.unit_price) <= 0) {
+      return toast.error("Unit price must be greater than 0 before SRP can be calculated.");
+    }
+    if (computedSrp <= Number(product.unit_price)) {
+      return toast.error("Select a markup greater than 0 to calculate SRP.");
     }
     if (Number(stockForm.reorder_level) < 0) return toast.error("Reorder level must be greater than or equal to 0.");
     if (stockForm.manufacturer_date && stockForm.expiration_date && stockForm.expiration_date < stockForm.manufacturer_date) {
@@ -384,7 +425,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       stock_quantity: nextStock,
       reserved_quantity: nextReserved,
       reorder_level: Number(stockForm.reorder_level || 0),
-      srp: Number(stockForm.srp || product.srp || product.unit_price || 0),
+      srp: computedSrp,
       inventory_status: toDbStatus(stockForm.status),
       manufacturer_date: stockForm.manufacturer_date || null,
       expiration_date: stockForm.expiration_date || null,
@@ -443,6 +484,20 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     }
   };
 
+  const updateProductArchiveStatus = async (productId: string, status: "active" | "inactive") => {
+    const { data, error } = await supabase
+      .from("product")
+      .update({ status } as any)
+      .eq("product_id", productId)
+      .select("product_id, status")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      throw new Error(`No product row was updated for product_id=${productId}. Check RLS permissions and record id.`);
+    }
+    return data;
+  };
+
   const deleteProduct = async (productId: string) => {
     const product = productMap.get(productId);
     if (!product) {
@@ -451,11 +506,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     }
     if (product.isArchived) {
       try {
-        const { error: restoreProductError } = await supabase
-          .from("product")
-          .update({ status: "active" } as any)
-          .eq("product_id", productId);
-        if (restoreProductError) throw restoreProductError;
+        await updateProductArchiveStatus(productId, "active");
 
         const { error: restoreInventoryError } = await supabase
           .from("inventory")
@@ -507,16 +558,13 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       const blockedByHistory =
         message.includes("foreign key") ||
         message.includes("sales_details_product_id_fkey") ||
-        message.includes("violates");
+        message.includes("violates") ||
+        message.includes("no product row was deleted");
 
       if (blockedByHistory) {
         try {
           // Keep sales history intact: archive product instead of hard delete.
-          const { error: archiveProductError } = await supabase
-            .from("product")
-            .update({ status: "inactive" } as any)
-            .eq("product_id", productId);
-          if (archiveProductError) throw archiveProductError;
+          await updateProductArchiveStatus(productId, "inactive");
 
           const { error: archiveInventoryError } = await supabase
             .from("inventory")
@@ -821,6 +869,8 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
   const [settingsProductSearch, setSettingsProductSearch] = useState("");
   const [expandedGroupKey, setExpandedGroupKey] = useState("");
   const statusMeta = getProductStatusMeta(selectedProduct);
+  const computedSrp = selectedProduct ? calculateSrpFromMarkup(selectedProduct.unit_price, stockForm.markup_rate) : 0;
+  const markupAmount = selectedProduct ? computedSrp - Number(selectedProduct.unit_price || 0) : 0;
   const productGroups = useMemo(() => {
     const groupMap = new Map<string, { key: string; name: string; brand: string; category: string; variants: UiProduct[] }>();
     for (const product of products) {
@@ -875,7 +925,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
       product_id: value,
       stock_in: 0,
       reserved_quantity: product?.reserved_stock || 0,
-      srp: product?.srp || product?.unit_price || 0,
+      markup_rate: defaultMarkupRateForProduct(product),
       reorder_level: product?.reorder_level || 10,
       status: product?.status || 'Active',
       manufacturer_date: product?.manufacturer_date ? product.manufacturer_date.slice(0, 10) : "",
@@ -1054,11 +1104,31 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
             </div>
           )}
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <NumberField label="Stock-in Quantity to Add" value={stockForm.stock_in} onChange={(value) => setStockForm({ ...stockForm, stock_in: value })} />
             <NumberField label="Held / Reserved Stock" value={stockForm.reserved_quantity} onChange={(value) => setStockForm({ ...stockForm, reserved_quantity: value })} />
-            <NumberField label="SRP / Selling Price" value={stockForm.srp} onChange={(value) => setStockForm({ ...stockForm, srp: value })} />
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-yellow-300">Markup Rate</Label>
+              <Select value={String(stockForm.markup_rate)} onValueChange={(value) => setStockForm({ ...stockForm, markup_rate: Number(value) })}>
+                <SelectTrigger className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus:ring-yellow-400/50"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100">
+                  {MARKUP_RATE_OPTIONS.map((rate) => (
+                    <SelectItem key={rate} value={String(rate)}>{rate.toFixed(2)}x</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-yellow-300">Calculated SRP</Label>
+              <div className="flex h-9 items-center rounded-md border border-[#2d2d3a] bg-[#1d1d27] px-3 text-sm font-semibold text-yellow-100">
+                {formatMoney(computedSrp)}
+              </div>
+            </div>
             <NumberField label="Reorder Level" value={stockForm.reorder_level} onChange={(value) => setStockForm({ ...stockForm, reorder_level: value })} />
+          </div>
+
+          <div className="mt-2 text-xs text-yellow-200/55">
+            SRP is computed as {formatMoney(selectedProduct?.unit_price || 0)} unit price + {formatMoney(markupAmount)} markup.
           </div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-3">

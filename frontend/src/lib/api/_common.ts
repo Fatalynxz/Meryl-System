@@ -92,4 +92,16 @@ export async function removeRow<T extends TableName>(table: T, id: string) {
     .delete()
     .eq(idColumn as never, id);
   if (error) throw error;
+
+  const { data: remaining, error: verifyError } = await supabase
+    .from(table)
+    .select(idColumn)
+    .eq(idColumn as never, id)
+    .maybeSingle();
+  if (verifyError) throw verifyError;
+  if (remaining) {
+    throw new Error(
+      `No ${String(table)} row was deleted for ${idColumn}=${id}. Check RLS permissions and record id.`,
+    );
+  }
 }
