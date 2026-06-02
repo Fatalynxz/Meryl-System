@@ -668,7 +668,10 @@ export function PromotionManagement() {
           if (saleTime < startMs || saleTime > endMs) return sum;
           const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
           details.forEach((detail: any) => {
-            if (!productDetailMatchesPromotion(detail, basePromotion)) return;
+            const detailPromoId = String(detail?.promo_id ?? '').trim();
+            const hasExplicitPromo = Boolean(detailPromoId);
+            if (hasExplicitPromo && detailPromoId !== basePromotion.promo_id) return;
+            if (!hasExplicitPromo && !productDetailMatchesPromotion(detail, basePromotion)) return;
             const quantity = Number(detail.quantity ?? 0);
             const lineSubtotal = Number(detail.subtotal ?? 0);
             const fallbackSubtotal = Number(detail.price ?? 0) * quantity;

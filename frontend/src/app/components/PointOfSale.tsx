@@ -26,6 +26,7 @@ type CartItem = {
   quantity: number;
   discount: number;
   promotionType?: string;
+  promo_id?: string | null;
 };
 
 type ProductVariant = {
@@ -38,6 +39,9 @@ type ProductVariant = {
   size: string;
   price: number;
   stock_quantity: number;
+  on_hand_stock: number;
+  reserved_quantity: number;
+  expiration_date: string;
   status: string;
 };
 
@@ -49,6 +53,7 @@ type ProductGroup = {
 };
 
 type ActivePromotionRule = {
+  promoKey: string;
   discountType: string;
   discountValue: number;
   appliesToAll: boolean;
@@ -65,8 +70,18 @@ function productVariantLabel(product: Pick<ProductVariant, "color" | "gender" | 
     .join(" / ") || "Default";
 }
 
+function isExpiredInventoryDate(value?: string | null) {
+  const date = String(value ?? "").slice(0, 10);
+  if (!date) return false;
+  return date < new Date().toISOString().slice(0, 10);
+}
+
 function isSellableProduct(product: ProductVariant) {
-  return product.status.toLowerCase() === "active" && Number(product.stock_quantity || 0) > 0;
+  return (
+    product.status.toLowerCase() === "active" &&
+    Number(product.stock_quantity || 0) > 0 &&
+    !isExpiredInventoryDate(product.expiration_date)
+  );
 }
 
 const PROMO_TYPE_MARKERS = {
@@ -134,10 +149,15 @@ function derivePromotionTargetFromLinks(row: any) {
 }
 
 function resolveEffectiveDiscountType(discountType: string, promoName: string | undefined) {
+  const loweredType = String(discountType ?? "").toLowerCase();
   const loweredName = String(promoName ?? "").toLowerCase();
   if (loweredName.includes(PROMO_TYPE_MARKERS.bogo.toLowerCase())) return "bogo";
   if (loweredName.includes(PROMO_TYPE_MARKERS.bundle.toLowerCase())) return "bundle";
-  return String(discountType ?? "").toLowerCase();
+  if (loweredType.includes("buy one get one") || loweredType.includes("bogo")) return "bogo";
+  if (loweredType.includes("bundle")) return "bundle";
+  if (loweredType.includes("fixed")) return "fixed";
+  if (loweredType.includes("percent")) return "percentage";
+  return loweredType;
 }
 
 function promoToPercent(discountType: string, discountValue: number, unitPrice: number) {
@@ -148,7 +168,8 @@ function promoToPercent(discountType: string, discountValue: number, unitPrice: 
     return Math.max(0, Math.min(100, (discountValue / unitPrice) * 100));
   }
   if (type.includes("bogo")) return 50;
-  if (type.includes("bundle")) return Math.max(0, Math.min(100, discountValue || 10));
+  // Bundle defaults to a meaningful discount if source value is too small (e.g. analytics seed = 1).
+  if (type.includes("bundle")) return Math.max(0, Math.min(100, discountValue >= 5 ? discountValue : 10));
   return 0;
 }
 
@@ -159,6 +180,26 @@ function getPromotionTypePriority(discountType: string) {
   if (type.includes("fixed")) return 2;
   if (type.includes("percentage")) return 1;
   return 0;
+}
+
+function getPromoBadgeLabel(type?: string) {
+  const value = String(type ?? "").toLowerCase();
+  if (value.includes("bogo")) return "BOGO";
+  if (value.includes("bundle")) return "BUNDLE";
+  if (value.includes("fixed")) return "FIXED";
+  if (value.includes("percent")) return "PERCENT";
+  return "AUTO";
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+    .format(Number(value || 0))
+    .replace(/^₱/, "PHP ");
 }
 
 export function PointOfSale() {
@@ -178,6 +219,8 @@ export function PointOfSale() {
   const [saveWalkInDetails, setSaveWalkInDetails] = useState(false);
   const [walkInCustomerName, setWalkInCustomerName] = useState("");
   const [walkInCustomerPhone, setWalkInCustomerPhone] = useState("");
+  const [walkInGender, setWalkInGender] = useState("");
+  const [walkInAge, setWalkInAge] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
   const [cashReceived, setCashReceived] = useState<string>("");
   const [receiptData, setReceiptData] = useState<any>(null);
@@ -198,6 +241,9 @@ export function PointOfSale() {
         email: c.email,
         contact_number: c.contact_number,
         date_registered: c.date_registered,
+        gender: c.gender ?? null,
+        age: c.age ?? null,
+        birth_date: c.birth_date ?? null,
       })),
     ],
     [customers],
@@ -216,8 +262,15 @@ export function PointOfSale() {
     for (const row of rows) {
       const inventory = inventoryByProductId[String(row.product_id)] ?? null;
       if (!inventory) continue;
-      const stock = Number(inventory?.stock_quantity ?? 0);
+      const onHandStock = Number(inventory?.stock_quantity ?? 0);
+      const reservedQuantity = Math.min(
+        Math.max(Number(inventory?.reserved_quantity ?? 0), 0),
+        Math.max(onHandStock, 0),
+      );
+      const availableStock = Math.max(onHandStock - reservedQuantity, 0);
       const status = String(inventory?.inventory_status ?? row.status ?? "inactive").trim().toLowerCase();
+      const expirationDate = String(inventory?.expiration_date ?? "");
+      const expired = isExpiredInventoryDate(expirationDate);
       variants.push({
         product_id: row.product_id,
         product_name: row.product_name,
@@ -227,8 +280,11 @@ export function PointOfSale() {
         gender: row.gender ?? "N/A",
         size: row.size ?? "N/A",
         price: Number(inventory?.srp ?? row.cost_price ?? 0),
-        stock_quantity: stock,
-        status: status === "active" || status === "available" ? "Active" : "Inactive",
+        stock_quantity: availableStock,
+        on_hand_stock: onHandStock,
+        reserved_quantity: reservedQuantity,
+        expiration_date: expirationDate,
+        status: expired ? "Expired" : status === "active" || status === "available" ? "Active" : "Inactive",
       });
     }
     return variants;
@@ -241,8 +297,9 @@ export function PointOfSale() {
 
   const filteredProductInventory = useMemo(() => {
     const term = productSearch.trim().toLowerCase();
-    if (!term) return productInventory;
-    return productInventory.filter((product) =>
+    const sourceProducts = sellableProductInventory;
+    if (!term) return sourceProducts;
+    return sourceProducts.filter((product) =>
       [
         product.product_id,
         product.product_name,
@@ -251,15 +308,18 @@ export function PointOfSale() {
         product.color,
         product.gender,
         product.size,
+        productVariantLabel(product),
         String(product.price),
         String(product.stock_quantity),
+        String(product.on_hand_stock),
+        String(product.reserved_quantity),
         product.status,
       ]
         .join(" ")
         .toLowerCase()
         .includes(term),
     );
-  }, [productInventory, productSearch]);
+  }, [sellableProductInventory, productSearch]);
 
   const filteredCustomerOptions = useMemo(() => {
     const term = customerSearch.trim().toLowerCase();
@@ -308,7 +368,12 @@ export function PointOfSale() {
         const startDate = String(row.start_date ?? "").slice(0, 10);
         const endDate = String(row.end_date ?? "").slice(0, 10);
         const withinWindow = (!startDate || startDate <= today) && (!endDate || endDate >= today);
-        if (!(status === "active" && withinWindow)) return null;
+        // Match Promotions page behavior: a promo is effectively active when:
+        // 1) status is explicitly active, or
+        // 2) current date is inside start/end window.
+        const isEffectivelyActive = status.includes("active") || withinWindow;
+        const isExpired = status.includes("expired") || (Boolean(endDate) && endDate < today);
+        if (!isEffectivelyActive || isExpired) return null;
 
         const parsedTarget = parsePromotionTarget(
           row.target_products ??
@@ -316,6 +381,7 @@ export function PointOfSale() {
             derivePromotionTargetFromLinks(row),
         );
         return {
+          promoKey: String(row.promo_id ?? row.id ?? row.promo_name ?? `${startDate}-${endDate}-${Math.random()}`),
           discountType: resolveEffectiveDiscountType(
             String(row.discount_type ?? "percentage"),
             String(row.promo_name ?? ""),
@@ -357,6 +423,82 @@ export function PointOfSale() {
         .map((v) => ({ ...v }))
     : [];
 
+  const productMatchesPromotion = (promo: ActivePromotionRule, productNameLower: string, categoryLower: string) => {
+    const matchesProduct = promo.products.includes(productNameLower);
+    const matchesCategory = categoryLower ? promo.categories.includes(categoryLower) : false;
+    return promo.appliesToAll || matchesProduct || matchesCategory;
+  };
+
+  const recalculatePromotions = (items: CartItem[]) => {
+    const withPromo = items.map((item) => {
+      const metaRow = productMetaById.get(String(item.product_id ?? ""));
+      const itemNameLc = String(metaRow?.productName ?? item.productName ?? "").toLowerCase();
+      const itemCategoryLc = String(metaRow?.categoryName ?? "").toLowerCase();
+
+      const matched = activePromotionRules
+        .map((promo) => {
+          const matchesProduct = promo.products.includes(itemNameLc);
+          const matchesCategory = itemCategoryLc ? promo.categories.includes(itemCategoryLc) : false;
+          const applies = productMatchesPromotion(promo, itemNameLc, itemCategoryLc);
+          if (!applies) return null;
+          const specificityScore = matchesProduct ? 3 : matchesCategory ? 2 : promo.appliesToAll ? 1 : 0;
+          return {
+            promo,
+            specificityScore,
+            typePriority: getPromotionTypePriority(promo.discountType),
+            effectivePercent: promoToPercent(promo.discountType, promo.discountValue, item.price),
+          };
+        })
+        .filter(Boolean)
+        .sort((a: any, b: any) => {
+          if (b.specificityScore !== a.specificityScore) return b.specificityScore - a.specificityScore;
+          if (b.typePriority !== a.typePriority) return b.typePriority - a.typePriority;
+          return b.effectivePercent - a.effectivePercent;
+        })?.[0] as any;
+
+      if (!matched?.promo) {
+        return { ...item, discount: 0, promotionType: undefined, promo_id: null, _promo: null };
+      }
+
+      const type = String(matched.promo.discountType).toLowerCase();
+      const isBogo = type.includes("bogo");
+      const isBundle = type.includes("bundle");
+      const percent = promoToPercent(type, matched.promo.discountValue, item.price);
+
+      return {
+        ...item,
+        discount: isBundle ? 0 : isBogo ? 50 : percent,
+        promotionType: isBogo ? "bogo" : isBundle ? "bundle" : (type.includes("fixed") ? "fixed" : type.includes("percentage") ? "percentage" : undefined),
+        promo_id: matched.promo.promoKey,
+        _promo: matched.promo as ActivePromotionRule,
+      };
+    });
+
+    const bundlePromoMap = new Map<string, ActivePromotionRule>();
+    withPromo.forEach((item: any) => {
+      const promo = item._promo as ActivePromotionRule | null;
+      if (!promo) return;
+      if (String(promo.discountType).toLowerCase().includes("bundle")) {
+        bundlePromoMap.set(promo.promoKey, promo);
+      }
+    });
+
+    bundlePromoMap.forEach((promo) => {
+      const matching = withPromo.filter((item: any) => item._promo?.promoKey === promo.promoKey);
+      const qualifyingQty = matching.reduce((sum: number, item: CartItem) => sum + Number(item.quantity ?? 0), 0);
+      const distinctProducts = new Set(matching.map((item: CartItem) => item.product_id)).size;
+      const qualifies = qualifyingQty >= 2 && distinctProducts >= 2;
+      if (!qualifies) return;
+      const bundlePercent = promoToPercent(promo.discountType, promo.discountValue, 100);
+      matching.forEach((target: any) => {
+        target.discount = bundlePercent;
+        target.promotionType = "bundle";
+      });
+    });
+
+    return withPromo.map(({ _promo, ...clean }: any) => clean as CartItem);
+  };
+
   const addVariantToCart = (selectedVariant: ProductVariant, requestedQuantity: number) => {
     if (!isSellableProduct(selectedVariant)) {
       toast.error("This product is not sellable. Set it to Active and make sure it has stock first.");
@@ -374,7 +516,7 @@ export function PointOfSale() {
       .map((promo) => {
         const matchesProduct = promo.products.includes(productNameLc);
         const matchesCategory = categoryLc ? promo.categories.includes(categoryLc) : false;
-        const applies = promo.appliesToAll || matchesProduct || matchesCategory;
+        const applies = productMatchesPromotion(promo, productNameLc, categoryLc);
         if (!applies) return null;
 
         const specificityScore = matchesProduct ? 3 : matchesCategory ? 2 : promo.appliesToAll ? 1 : 0;
@@ -396,40 +538,60 @@ export function PointOfSale() {
       : 0;
 
     const isBogoApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bogo"));
+    const isBundleApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bundle"));
     const quantityToAdd = isBogoApplied ? requestedQuantity * 2 : requestedQuantity;
-    const finalDiscount = isBogoApplied ? 50 : promoDiscount;
+    const shouldApplyBundleNow = (() => {
+      if (!isBundleApplied || !matchedPromotion) return false;
+      let qualifyingQty = requestedQuantity;
+      cart.forEach((item) => {
+        const metaRow = productMetaById.get(String(item.product_id ?? ""));
+        const itemNameLc = String(metaRow?.productName ?? item.productName ?? "").toLowerCase();
+        const itemCategoryLc = String(metaRow?.categoryName ?? "").toLowerCase();
+        if (productMatchesPromotion(matchedPromotion, itemNameLc, itemCategoryLc)) {
+          qualifyingQty += Number(item.quantity ?? 0);
+        }
+      });
+      return qualifyingQty >= 2;
+    })();
 
-    const existingItem = cart.find((item) => item.id === selectedVariant.product_id);
-    if (existingItem) {
-      setCart(
-        cart.map((item) =>
-          item.id === selectedVariant.product_id
-            ? {
-                ...item,
-                quantity: item.quantity + quantityToAdd,
-                discount: isBogoApplied ? 50 : item.discount,
-                promotionType: isBogoApplied ? "bogo" : item.promotionType,
-              }
-            : item,
-        ),
-      );
-    } else {
-      setCart([
-        ...cart,
-        {
-          id: selectedVariant.product_id,
-          product_id: selectedVariant.product_id,
-          productName: selectedVariant.product_name,
-          brand: selectedVariant.brand,
-          color: selectedVariant.color,
-          size: selectedVariant.size,
-          price: selectedVariant.price,
-          quantity: quantityToAdd,
-          discount: finalDiscount,
-          promotionType: isBogoApplied ? "bogo" : undefined,
-        },
-      ]);
-    }
+    const finalDiscount = isBogoApplied
+      ? 50
+      : isBundleApplied
+        ? (shouldApplyBundleNow ? promoDiscount : 0)
+        : promoDiscount;
+
+    setCart((prev) => {
+      const existingItem = prev.find((item) => item.id === selectedVariant.product_id);
+      const next = existingItem
+        ? prev.map((item) =>
+            item.id === selectedVariant.product_id
+              ? {
+                  ...item,
+                  quantity: item.quantity + quantityToAdd,
+                  discount: isBogoApplied ? 50 : finalDiscount,
+                  promotionType: isBogoApplied ? "bogo" : isBundleApplied ? "bundle" : item.promotionType,
+                  promo_id: matchedPromotion?.promoKey ?? item.promo_id ?? null,
+                }
+              : item,
+          )
+        : [
+            ...prev,
+            {
+              id: selectedVariant.product_id,
+              product_id: selectedVariant.product_id,
+              productName: selectedVariant.product_name,
+              brand: selectedVariant.brand,
+              color: selectedVariant.color,
+              size: selectedVariant.size,
+              price: selectedVariant.price,
+              quantity: quantityToAdd,
+              discount: finalDiscount,
+              promotionType: isBogoApplied ? "bogo" : isBundleApplied ? "bundle" : undefined,
+              promo_id: matchedPromotion?.promoKey ?? null,
+            },
+          ];
+      return recalculatePromotions(next);
+    });
 
     setSelectedProductKey("");
     setSelectedColor("");
@@ -437,6 +599,10 @@ export function PointOfSale() {
     setQuantity(1);
     if (isBogoApplied) {
       toast.success("BOGO applied: quantity doubled and charged as buy-1-get-1");
+    } else if (isBundleApplied && !shouldApplyBundleNow) {
+      toast.success("Bundle selected. Add at least 2 qualifying items to activate discount.");
+    } else if (isBundleApplied && shouldApplyBundleNow) {
+      toast.success("Bundle discount applied.");
     } else if (matchedPromotion) {
       toast.success("Product added with active promotion applied");
     } else {
@@ -465,16 +631,23 @@ export function PointOfSale() {
   };
 
   const selectProductVariant = (variant: ProductVariant) => {
-    const added = addVariantToCart(variant, 1, 0);
+    const added = addVariantToCart(variant, 1);
     if (!added) return;
     setIsProductGridOpen(false);
     setProductSearch("");
   };
 
-  const removeFromCart = (id: string) => setCart(cart.filter((item) => item.id !== id));
+  const removeFromCart = (id: string) =>
+    setCart((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      return recalculatePromotions(next);
+    });
 
   const updateQuantity = (id: string, newQuantity: number) =>
-    newQuantity >= 1 && setCart(cart.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item)));
+    newQuantity >= 1 &&
+    setCart((prev) =>
+      recalculatePromotions(prev.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item))),
+    );
 
   const updateDiscount = (id: string, newDiscount: number) =>
     newDiscount >= 0 &&
@@ -506,13 +679,28 @@ export function PointOfSale() {
 
     const { data: existing, error: selectError } = await supabase
       .from("customer")
-      .select("customer_id,name")
+      .select("customer_id,name,gender,age,birth_date")
       .eq("contact_number", phone)
       .limit(1);
     if (selectError) throw selectError;
 
     if (existing && existing.length > 0) {
+      const existingGender = String((existing[0] as any).gender ?? "").trim();
+      const existingAgeRaw = Number((existing[0] as any).age ?? NaN);
+      const existingAge = Number.isFinite(existingAgeRaw) ? existingAgeRaw : null;
+      const existingBirthDate = String((existing[0] as any).birth_date ?? "").trim();
+      if (!existingGender || (!existingBirthDate && existingAge === null)) {
+        throw new Error("This customer exists but is missing gender/age. Please update profile in Customers first.");
+      }
       return { customer_id: existing[0].customer_id as string, label: (existing[0].name as string) || name };
+    }
+
+    if (!walkInGender) {
+      throw new Error("Please provide gender for walk-in customer");
+    }
+    const parsedAge = Number(walkInAge);
+    if (!Number.isFinite(parsedAge) || parsedAge < 0 || parsedAge > 120) {
+      throw new Error("Please provide a valid age (0-120) for walk-in customer");
     }
 
     const fallbackEmail = `${phone.replace(/[^\d]/g, "") || Date.now()}@walkin.local`;
@@ -522,6 +710,8 @@ export function PointOfSale() {
         name,
         contact_number: phone,
         email: fallbackEmail,
+        gender: walkInGender,
+        age: parsedAge,
         status: "active",
         date_registered: new Date().toISOString().slice(0, 10),
       })
@@ -546,6 +736,16 @@ export function PointOfSale() {
     const selectedCustomer = customerOptions.find((c) => c.value === customerName);
     let p_customer_id = selectedCustomer?.customer_id ?? null;
     let receiptCustomerName = selectedCustomer?.label ?? "Walk-in Customer";
+
+    if (customerName !== "walk-in") {
+      const selectedGender = String((selectedCustomer as any)?.gender ?? "").trim();
+      const selectedAgeRaw = Number((selectedCustomer as any)?.age ?? NaN);
+      const selectedAge = Number.isFinite(selectedAgeRaw) ? selectedAgeRaw : null;
+      const selectedBirthDate = String((selectedCustomer as any)?.birth_date ?? "").trim();
+      if (!selectedGender || (!selectedBirthDate && selectedAge === null)) {
+        return toast.error("Selected customer is missing gender/age. Update profile in Customers first.");
+      }
+    }
 
     if (customerName === "walk-in" && saveWalkInDetails) {
       try {
@@ -575,6 +775,27 @@ export function PointOfSale() {
 
     if (error) return toast.error(error.message);
 
+    const completedSalesId = String(data?.sales_id ?? "").trim();
+    if (completedSalesId) {
+      await Promise.all(
+        cart
+          .filter((item) => item.promo_id)
+          .map(async (item) => {
+            const updateResult = await supabase
+              .from("sales_details")
+              .update({ promo_id: item.promo_id })
+              .eq("sales_id", completedSalesId)
+              .eq("product_id", item.product_id);
+            if (updateResult.error) {
+              const message = String(updateResult.error.message || "").toLowerCase();
+              if (!message.includes("promo_id") && !message.includes("column")) {
+                console.warn("Unable to tag sale detail with promotion:", updateResult.error);
+              }
+            }
+          }),
+      );
+    }
+
     const receipt = {
       receiptNumber: data?.sales_id ?? `RCP-${Date.now()}`,
       date: new Date().toLocaleString(),
@@ -594,6 +815,8 @@ export function PointOfSale() {
     setSaveWalkInDetails(false);
     setWalkInCustomerName("");
     setWalkInCustomerPhone("");
+    setWalkInGender("");
+    setWalkInAge("");
     setPaymentMethod("Cash");
     setCashReceived("");
     await queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -698,7 +921,7 @@ export function PointOfSale() {
                     </div>
                   </div>
                   <p className="mt-3 text-center text-xs text-yellow-200/70">
-                    Admin and Cashier see the same inventory records here. Only Active products with available stock can be added to the cart.
+                    Only active, non-expired products with POS-available stock are shown. Held stock is excluded from cashier availability.
                   </p>
                 </div>
               </DialogContent>
@@ -797,19 +1020,20 @@ export function PointOfSale() {
             {cart.length === 0 ? (
               <div className="text-center py-8 text-yellow-200">Cart is empty. Add products to begin transaction.</div>
             ) : (
-              <div className="border border-red-800 rounded-lg overflow-x-auto scrollbar-hide">
+              <div className="border border-red-800 rounded-lg overflow-x-hidden">
                 <Table className="w-full">
                   <TableHeader>
                   <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Product</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Brand</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Color</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Size</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Price</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Qty</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Discount</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Subtotal</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap">Action</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-left px-3">Product</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-left px-3">Brand</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Color</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Size</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-3">Price</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Qty</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Discount</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Promo</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-3">Subtotal</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -819,35 +1043,52 @@ export function PointOfSale() {
                       const itemTotal = itemSubtotal - itemDiscount;
                       return (
                         <TableRow key={item.id} className="border-red-800">
-                          <TableCell className="text-yellow-200 whitespace-nowrap">
+                          <TableCell className="text-yellow-200 whitespace-nowrap align-middle px-3 py-2 truncate">
                             {item.productName}
                           </TableCell>
-                          <TableCell className="text-yellow-200 whitespace-nowrap">{item.brand}</TableCell>
-                          <TableCell className="text-yellow-200 whitespace-nowrap">{item.color}</TableCell>
-                          <TableCell className="text-yellow-200 whitespace-nowrap">{item.size}</TableCell>
-                          <TableCell className="text-yellow-300 whitespace-nowrap">₱{item.price}</TableCell>
-                          <TableCell>
+                          <TableCell className="text-yellow-200 whitespace-nowrap align-middle px-3 py-2 truncate">{item.brand}</TableCell>
+                          <TableCell className="text-yellow-200 whitespace-nowrap text-center align-middle px-2 py-2">{item.color}</TableCell>
+                          <TableCell className="text-yellow-200 whitespace-nowrap text-center align-middle px-2 py-2">{item.size}</TableCell>
+                          <TableCell className="text-yellow-300 whitespace-nowrap text-center align-middle px-3 py-2">
+                            <span className="inline-block tabular-nums">
+                              {formatCurrency(item.price)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center align-middle px-2 py-2">
                             <Input
                               type="number"
                               min="1"
                               value={item.quantity}
                               onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
-                              className="w-20 bg-red-600 border-red-800 text-yellow-200"
+                              className="w-16 mx-auto bg-red-600 border-red-800 text-yellow-200 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center align-middle px-2 py-2">
                             <Input
                               type="number"
                               min="0"
                               max="100"
                               value={item.discount}
                               onChange={(e) => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
-                              className="w-20 bg-red-600 border-red-800 text-yellow-200"
+                              className="w-16 mx-auto bg-red-600 border-red-800 text-yellow-200 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               disabled={item.promotionType === "bogo"}
                             />
                           </TableCell>
-                          <TableCell className="text-yellow-300">₱{itemTotal.toFixed(2)}</TableCell>
-                          <TableCell>
+                          <TableCell className="text-center align-middle px-2 py-2">
+                            {item.promotionType ? (
+                              <Badge className="bg-yellow-400 text-red-900">
+                                {getPromoBadgeLabel(item.promotionType)}
+                              </Badge>
+                            ) : (
+                              <span className="text-yellow-200/60 text-xs">None</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-yellow-300 text-center align-middle px-3 py-2">
+                            <span className="inline-block tabular-nums">
+                              {formatCurrency(itemTotal)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center align-middle px-2 py-2">
                             <Button
                               size="sm"
                               variant="ghost"
@@ -1021,6 +1262,31 @@ export function PointOfSale() {
                           inputMode="numeric"
                           maxLength={11}
                           className="bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-yellow-300">Gender</Label>
+                        <Select value={walkInGender} onValueChange={setWalkInGender}>
+                          <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Kids (Boy)">Kids (Boy)</SelectItem>
+                            <SelectItem value="Kids (Girl)">Kids (Girl)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-yellow-300">Age</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={120}
+                          value={walkInAge}
+                          onChange={(e) => setWalkInAge(e.target.value)}
+                          className="bg-red-600 border-red-800 text-yellow-200"
                         />
                       </div>
                     </div>
