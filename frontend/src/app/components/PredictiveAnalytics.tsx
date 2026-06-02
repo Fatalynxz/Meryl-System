@@ -13,14 +13,10 @@ import {
   LineChart,
   Pie,
   PieChart,
-  ReferenceLine,
   ResponsiveContainer,
-  Scatter,
-  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
-  ZAxis,
 } from "recharts";
 import { useCustomers, useProducts, usePromotions, useSales } from "../../lib/hooks";
 import { productAnalyticsSnapshotsApi } from "../../lib/api";
@@ -1066,9 +1062,9 @@ export function PredictiveAnalytics() {
     stock: Number(product.stock ?? 0),
     turnover: Number(product.turnover ?? 0),
     movement: product.movement,
-    bubbleSize: Math.max(80, Number(product.unitsPeriod ?? 0) * 38 + Number(product.stock ?? 0)),
     fill: movementChartColor(product.movement),
   }));
+  const maxProductSold = Math.max(1, ...productMovementChart.map((product) => product.sold));
 
   const filterTabs = [
     { id: "product" as const, label: "Product Analytics", icon: Package, count: analytics.productMovement.length },
@@ -1513,82 +1509,43 @@ export function PredictiveAnalytics() {
                 <Badge className="bg-yellow-400 text-red-950">{productMovementChart.length} shown</Badge>
               </div>
               {productMovementChart.length ? (
-                <>
-                  <div className="h-[360px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ScatterChart margin={{ top: 18, right: 18, left: 0, bottom: 18 }}>
-                      <CartesianGrid stroke="#2b2b36" strokeDasharray="3 4" />
-                      <XAxis
-                        type="number"
-                        dataKey="sold"
-                        name="Sold"
-                        stroke="#a1a1aa"
-                        tick={{ fill: "#f4f4f5", fontSize: 12 }}
-                        tickLine={false}
-                        axisLine={{ stroke: "#71717a" }}
-                        allowDecimals={false}
-                        label={{ value: `Sold (${analytics.productPeriodLabel})`, position: "insideBottom", offset: -6, fill: "#e4e4e7", fontSize: 12 }}
-                      />
-                      <YAxis
-                        type="number"
-                        dataKey="stock"
-                        name="Stock"
-                        stroke="#a1a1aa"
-                        tick={{ fill: "#f4f4f5", fontSize: 12 }}
-                        tickLine={false}
-                        axisLine={{ stroke: "#71717a" }}
-                        allowDecimals={false}
-                        label={{ value: "Current Stock", angle: -90, position: "insideLeft", fill: "#e4e4e7", fontSize: 12 }}
-                      />
-                      <ZAxis dataKey="bubbleSize" range={[90, 520]} />
-                      <ReferenceLine x={0} stroke="#52525b" strokeDasharray="4 4" />
-                      <Tooltip
-                        cursor={{ stroke: "#facc15", strokeDasharray: "4 4" }}
-                        content={({ active, payload }) => {
-                          if (!active || !payload?.length) return null;
-                          const product = payload[0].payload;
-                          return (
-                            <div className="min-w-[190px] rounded-xl border border-yellow-400/50 bg-[#050509] p-3 shadow-2xl shadow-black/60">
-                              <p className="text-sm font-bold text-yellow-300">{product.fullName}</p>
-                              <div className="mt-2 space-y-1 text-xs">
-                                <p className="flex justify-between gap-4 text-white">
-                                  <span className="text-white/65">Sold</span>
-                                  <span className="font-semibold">{product.sold} units</span>
-                                </p>
-                                <p className="flex justify-between gap-4 text-white">
-                                  <span className="text-white/65">Stock</span>
-                                  <span className="font-semibold">{product.stock} units</span>
-                                </p>
-                                <p className="flex justify-between gap-4 text-white">
-                                  <span className="text-white/65">Turnover</span>
-                                  <span className="font-semibold">{product.turnover.toFixed(2)}x</span>
-                                </p>
-                                <p className="flex justify-between gap-4 text-white">
-                                  <span className="text-white/65">Movement</span>
-                                  <span className="font-semibold" style={{ color: product.fill }}>{product.movement}</span>
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }}
-                      />
-                      <Scatter name="Products" data={productMovementChart}>
-                        {productMovementChart.map((row) => (
-                          <Cell key={`movement-${row.fullName}`} fill={row.fill} fillOpacity={0.9} stroke="#f8fafc" strokeOpacity={0.35} />
-                        ))}
-                      </Scatter>
-                      </ScatterChart>
-                    </ResponsiveContainer>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-[minmax(120px,1fr)_minmax(180px,1.2fr)_80px_92px_96px] gap-3 border-b border-[#2b2b36] pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-white/45">
+                    <span>Product</span>
+                    <span>Sold Units</span>
+                    <span className="text-right">Stock</span>
+                    <span className="text-right">Turnover</span>
+                    <span className="text-right">Movement</span>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/70">
-                    {["Fast", "Steady", "Slow", "Dead Stock"].map((label) => (
-                      <span key={label} className="inline-flex items-center gap-1.5">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: movementChartColor(label) }} />
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </>
+                  {productMovementChart.map((product) => {
+                    const soldPercent = Math.max(3, Math.round((product.sold / maxProductSold) * 100));
+                    return (
+                      <div key={product.fullName} className="grid grid-cols-[minmax(120px,1fr)_minmax(180px,1.2fr)_80px_92px_96px] items-center gap-3 rounded-xl border border-[#24242f] bg-[#15151d] p-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white" title={product.fullName}>{product.fullName}</p>
+                          <p className="text-xs text-white/40">{product.name}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                            <span className="font-semibold text-yellow-300">{product.sold} sold</span>
+                            <span className="text-white/40">{analytics.productPeriodLabel}</span>
+                          </div>
+                          <div className="h-3 overflow-hidden rounded-full bg-[#252532]">
+                            <div
+                              className="h-full rounded-full"
+                              style={{ width: `${soldPercent}%`, backgroundColor: product.fill }}
+                            />
+                          </div>
+                        </div>
+                        <p className="text-right text-sm font-semibold text-white">{product.stock}</p>
+                        <p className="text-right text-sm text-white/75">{product.turnover.toFixed(2)}x</p>
+                        <div className="text-right">
+                          <Badge className={movementBadgeClass(product.movement)}>{product.movement}</Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-[#2b2b36] text-sm text-white/50">
                   No product movement data yet.
