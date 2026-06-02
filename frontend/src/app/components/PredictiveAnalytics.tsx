@@ -178,11 +178,19 @@ function movementBadgeClass(movement: string) {
   return "bg-yellow-400 text-red-950";
 }
 
-function movementChartColor(movement: string) {
-  if (movement === "Fast") return "#22c55e";
-  if (movement === "Slow") return "#f97316";
-  if (movement === "Dead Stock") return "#b91c1c";
-  return "#facc15";
+function salesVelocityColor(units: number, maxUnits: number) {
+  if (maxUnits <= 0 || units <= 0) return "rgba(63, 63, 70, 0.58)";
+  const intensity = Math.max(0.25, units / maxUnits);
+  if (intensity >= 0.75) return "rgba(34, 197, 94, 0.92)";
+  if (intensity >= 0.45) return "rgba(250, 204, 21, 0.9)";
+  return "rgba(249, 115, 22, 0.88)";
+}
+
+function sortSizeLabels(a: string, b: string) {
+  const aNum = Number(a);
+  const bNum = Number(b);
+  if (Number.isFinite(aNum) && Number.isFinite(bNum)) return aNum - bNum;
+  return a.localeCompare(b, undefined, { numeric: true });
 }
 
 function stockBadgeClass(stock: number, reorder: number) {
@@ -1055,16 +1063,34 @@ export function PredictiveAnalytics() {
   const showPromotion = analyticsView === "promotion";
   const hasActivePromotionPerformance = analytics.activePromotionChart.some((promo) => promo.revenue > 0 || promo.units > 0);
   const categoryUnitsTotal = analytics.categoryChart.reduce((sum, row) => sum + Number(row.units ?? 0), 0);
-  const productMovementChart = analytics.productMovement.slice(0, 8).map((product) => ({
-    name: shortLabel(product.name, 14),
-    fullName: product.name,
-    sold: Number(product.unitsPeriod ?? 0),
-    stock: Number(product.stock ?? 0),
-    turnover: Number(product.turnover ?? 0),
-    movement: product.movement,
-    fill: movementChartColor(product.movement),
-  }));
-  const maxProductSold = Math.max(1, ...productMovementChart.map((product) => product.sold));
+  const sizeCurveProducts = analytics.productMovement.slice(0, 40);
+  const sizeCurveSizes = Array.from(
+    new Set(sizeCurveProducts.map((product) => String(product.size ?? "N/A"))),
+  ).sort(sortSizeLabels);
+  const sizeCurveRows = Array.from(
+    sizeCurveProducts.reduce((map, product) => {
+      const key = [product.brand, product.name, product.category].join("::");
+      const row = map.get(key) ?? {
+        key,
+        productName: product.name,
+        brand: product.brand,
+        category: product.category,
+        totalSold: 0,
+        totalStock: 0,
+        sizes: new Map<string, any>(),
+      };
+      const size = String(product.size ?? "N/A");
+      row.totalSold += Number(product.unitsPeriod ?? 0);
+      row.totalStock += Number(product.stock ?? 0);
+      row.sizes.set(size, product);
+      map.set(key, row);
+      return map;
+    }, new Map<string, any>()).values(),
+  )
+    .sort((a, b) => b.totalSold - a.totalSold || b.totalStock - a.totalStock)
+    .slice(0, 8);
+  const maxSizeCurveSold = Math.max(1, ...sizeCurveProducts.map((product) => Number(product.unitsPeriod ?? 0)));
+  const maxSizeCurveStock = Math.max(1, ...sizeCurveProducts.map((product) => Number(product.stock ?? 0)));
 
   const filterTabs = [
     { id: "product" as const, label: "Product Analytics", icon: Package, count: analytics.productMovement.length },
@@ -1503,78 +1529,99 @@ export function PredictiveAnalytics() {
             <div className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-white">Product Movement Graph</p>
-                  <p className="mt-1 text-xs text-white/50">Top products by sold units with current stock for the selected {analytics.productPeriodLabel.toLowerCase()} view.</p>
+                  <p className="font-semibold text-white">Size Curve Bubble Heatmap</p>
+                  <p className="mt-1 text-xs text-white/50">Rows are product styles, columns are sizes. Color shows sales velocity; bubble size shows stock depth.</p>
                 </div>
-                <Badge className="bg-yellow-400 text-red-950">{productMovementChart.length} shown</Badge>
+                <Badge className="bg-yellow-400 text-red-950">{sizeCurveRows.length} styles</Badge>
               </div>
-              {productMovementChart.length ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-[minmax(120px,1fr)_minmax(180px,1.2fr)_80px_92px_96px] gap-3 border-b border-[#2b2b36] pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-white/45">
-                    <span>Product</span>
-                    <span>Sold Units</span>
-                    <span className="text-right">Stock</span>
-                    <span className="text-right">Turnover</span>
-                    <span className="text-right">Movement</span>
-                  </div>
-                  {productMovementChart.map((product) => {
-                    const soldPercent = Math.max(3, Math.round((product.sold / maxProductSold) * 100));
-                    return (
-                      <div key={product.fullName} className="grid grid-cols-[minmax(120px,1fr)_minmax(180px,1.2fr)_80px_92px_96px] items-center gap-3 rounded-xl border border-[#24242f] bg-[#15151d] p-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-white" title={product.fullName}>{product.fullName}</p>
-                          <p className="text-xs text-white/40">{product.name}</p>
+              {sizeCurveRows.length ? (
+                <div className="overflow-x-auto rounded-xl border border-[#24242f] bg-[#15151d]">
+                  <div
+                    className="grid min-w-max items-stretch"
+                    style={{ gridTemplateColumns: `180px repeat(${sizeCurveSizes.length}, 88px) 92px 92px` }}
+                  >
+                    <div className="sticky left-0 z-10 border-b border-r border-[#2b2b36] bg-[#1b1b26] px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white/55">
+                      Style
+                    </div>
+                    {sizeCurveSizes.map((size) => (
+                      <div key={size} className="border-b border-r border-[#2b2b36] bg-[#1b1b26] px-2 py-2 text-center text-xs font-semibold text-yellow-300">
+                        {size}
+                      </div>
+                    ))}
+                    <div className="border-b border-r border-[#2b2b36] bg-[#1b1b26] px-2 py-2 text-center text-xs font-semibold uppercase tracking-[0.08em] text-white/55">
+                      Sold
+                    </div>
+                    <div className="border-b border-[#2b2b36] bg-[#1b1b26] px-2 py-2 text-center text-xs font-semibold uppercase tracking-[0.08em] text-white/55">
+                      Stock
+                    </div>
+
+                    {sizeCurveRows.map((row) => (
+                      <div key={row.key} className="contents">
+                        <div className="sticky left-0 z-10 border-b border-r border-[#2b2b36] bg-[#15151d] px-3 py-3">
+                          <p className="truncate text-sm font-semibold text-white" title={row.productName}>{row.productName}</p>
+                          <p className="truncate text-xs text-white/45">{row.brand} - {row.category}</p>
                         </div>
-                        <div className="min-w-0">
-                          <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-                            <span className="font-semibold text-yellow-300">{product.sold} sold</span>
-                            <span className="text-white/40">{analytics.productPeriodLabel}</span>
-                          </div>
-                          <div className="h-3 overflow-hidden rounded-full bg-[#252532]">
+                        {sizeCurveSizes.map((size) => {
+                          const product = row.sizes.get(size);
+                          const sold = Number(product?.unitsPeriod ?? 0);
+                          const stock = Number(product?.stock ?? 0);
+                          const diameter = product ? Math.max(12, Math.min(36, 10 + (stock / maxSizeCurveStock) * 26)) : 0;
+                          const backgroundColor = salesVelocityColor(sold, maxSizeCurveSold);
+                          return (
                             <div
-                              className="h-full rounded-full"
-                              style={{ width: `${soldPercent}%`, backgroundColor: product.fill }}
-                            />
-                          </div>
+                              key={`${row.key}-${size}`}
+                              className="flex min-h-[68px] items-center justify-center border-b border-r border-[#2b2b36] px-2 py-2"
+                              title={product ? `${row.productName} / Size ${size}: ${sold} sold, ${stock} stock` : `${row.productName} / Size ${size}: no variant`}
+                            >
+                              {product ? (
+                                <div className="flex flex-col items-center gap-1">
+                                  <span
+                                    className="inline-flex items-center justify-center rounded-full border border-white/25 text-[10px] font-bold text-white shadow-sm"
+                                    style={{ width: `${diameter}px`, height: `${diameter}px`, backgroundColor }}
+                                  >
+                                    {stock}
+                                  </span>
+                                  <span className="text-[10px] font-semibold text-white/60">{sold} sold</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-white/20">-</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                        <div className="flex items-center justify-center border-b border-r border-[#2b2b36] px-2 py-3 text-sm font-semibold text-yellow-300">
+                          {row.totalSold}
                         </div>
-                        <p className="text-right text-sm font-semibold text-white">{product.stock}</p>
-                        <p className="text-right text-sm text-white/75">{product.turnover.toFixed(2)}x</p>
-                        <div className="text-right">
-                          <Badge className={movementBadgeClass(product.movement)}>{product.movement}</Badge>
+                        <div className="flex items-center justify-center border-b border-[#2b2b36] px-2 py-3 text-sm font-semibold text-white">
+                          {row.totalStock}
                         </div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-[#2b2b36] text-sm text-white/50">
-                  No product movement data yet.
+                  No size-curve data yet.
                 </div>
               )}
             </div>
 
             <div className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
-              <p className="font-semibold text-white">Movement Mix</p>
-              <p className="mt-1 text-xs text-white/50">Count of products by movement label.</p>
-              <div className="mt-4 space-y-3">
-                {["Fast", "Steady", "Slow", "Dead Stock"].map((label) => {
-                  const count = analytics.productMovement.filter((product) => product.movement === label).length;
-                  const percent = analytics.productMovement.length ? Math.round((count / analytics.productMovement.length) * 100) : 0;
-                  return (
-                    <div key={label}>
-                      <div className="mb-1 flex items-center justify-between gap-3 text-xs">
-                        <span className="font-semibold text-white/75">{label}</span>
-                        <span className="text-white/50">{count} products</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-[#24242f]">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${percent}%`, backgroundColor: movementChartColor(label) }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+              <p className="font-semibold text-white">How to Read</p>
+              <p className="mt-1 text-xs text-white/50">Use it like a retail size-curve report.</p>
+              <div className="mt-4 space-y-4 text-sm">
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3">
+                  <p className="font-semibold text-emerald-200">Bright color + small bubble</p>
+                  <p className="mt-1 text-xs text-white/60">Popular size is selling, but stock is low. Reorder first.</p>
+                </div>
+                <div className="rounded-xl border border-orange-500/25 bg-orange-500/10 p-3">
+                  <p className="font-semibold text-orange-200">Light/gray color + large bubble</p>
+                  <p className="mt-1 text-xs text-white/60">Stock is deep but sales are weak. Consider markdown or promo.</p>
+                </div>
+                <div className="rounded-xl border border-yellow-400/25 bg-yellow-400/10 p-3">
+                  <p className="font-semibold text-yellow-200">Number inside bubble</p>
+                  <p className="mt-1 text-xs text-white/60">Current stock for that size. Text below is units sold.</p>
+                </div>
               </div>
             </div>
           </div>
