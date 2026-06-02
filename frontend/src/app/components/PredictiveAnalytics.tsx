@@ -684,15 +684,29 @@ export function PredictiveAnalytics() {
       ? Math.max(-0.25, Math.min(0.25, (secondHalfRevenue - firstHalfRevenue) / firstHalfRevenue))
       : 0;
     const hasReliableForecastHistory = dailyModelBase.filter((row) => row.revenue > 0 || row.units > 0).length >= 3 || forecastBase.length >= 2;
+    const recentWindowSize = Math.min(14, Math.max(1, Math.floor(dailyModelBase.length / 3)));
+    const recentWindow = dailyModelBase.slice(-recentWindowSize);
+    const previousWindow = dailyModelBase.slice(-recentWindowSize * 2, -recentWindowSize);
+    const recentWindowRevenue = recentWindow.reduce((sum, row) => sum + row.revenue, 0) / Math.max(1, recentWindow.length);
+    const previousWindowRevenue = previousWindow.reduce((sum, row) => sum + row.revenue, 0) / Math.max(1, previousWindow.length);
+    const recentMomentumRate = previousWindowRevenue > 0
+      ? Math.max(-0.25, Math.min(0.25, (recentWindowRevenue - previousWindowRevenue) / previousWindowRevenue))
+      : dailyTrendRate;
+    const activeRevenueDays = dailyModelBase.filter((row) => row.revenue > 0).length;
+    const revenueVariance = dailyModelBase.reduce((sum, row) => sum + Math.pow(row.revenue - averageDailyRevenue, 2), 0) / Math.max(1, dailyModelBase.length);
+    const revenueVolatility = averageDailyRevenue > 0 ? Math.min(1, Math.sqrt(revenueVariance) / averageDailyRevenue) : 1;
+    const historyQuality = hasReliableForecastHistory ? Math.min(1, activeRevenueDays / 12) : 0.35;
+    const probabilitySignal = (dailyTrendRate * 0.6) + (recentMomentumRate * 0.4);
+    const probabilityConfidence = historyQuality * Math.max(0.35, 1 - revenueVolatility * 0.35);
     const scenarioSpread = hasReliableForecastHistory
       ? Math.min(0.45, Math.max(0.12, Math.abs(dailyTrendRate) + 0.15))
       : 0.35;
-    const trendProbabilitySwing = hasReliableForecastHistory
-      ? Math.min(30, Math.round(Math.abs(dailyTrendRate) * 100))
-      : 10;
-    const higherProbability = dailyTrendRate >= 0
-      ? Math.min(85, 50 + trendProbabilitySwing)
-      : Math.max(15, 50 - trendProbabilitySwing);
+    const probabilityForHorizon = (horizonIndex = 0) => {
+      const horizonDecay = Math.max(0.45, 1 - horizonIndex * 0.08);
+      const directionalSwing = Math.round(probabilitySignal * 140 * probabilityConfidence * horizonDecay);
+      return Math.max(20, Math.min(80, 50 + directionalSwing));
+    };
+    const higherProbability = probabilityForHorizon(0);
     const lowerProbability = 100 - higherProbability;
     const forecastCountByPeriod: Record<RevenueTrendPeriod, number> = {
       daily: 7,
@@ -714,6 +728,8 @@ export function PredictiveAnalytics() {
         projectedRevenue,
         projectedRevenueHigh: Math.round(projectedRevenue * (1 + scenarioSpread)),
         projectedRevenueLow: Math.max(0, Math.round(projectedRevenue * (1 - scenarioSpread))),
+        higherProbability: probabilityForHorizon(index),
+        lowerProbability: 100 - probabilityForHorizon(index),
         projectedUnits,
       };
     });
@@ -728,6 +744,8 @@ export function PredictiveAnalytics() {
         projectedRevenue: index === lastVisibleActualIndex ? Math.round(lastActualRevenue) : null,
         projectedRevenueHigh: index === lastVisibleActualIndex ? Math.round(lastActualRevenue) : null,
         projectedRevenueLow: index === lastVisibleActualIndex ? Math.round(lastActualRevenue) : null,
+        higherProbability: index === lastVisibleActualIndex ? higherProbability : null,
+        lowerProbability: index === lastVisibleActualIndex ? lowerProbability : null,
         actualUnits: row.units,
         projectedUnits: index === lastVisibleActualIndex ? lastActualUnits : null,
       })),
@@ -737,6 +755,8 @@ export function PredictiveAnalytics() {
         projectedRevenue: row.projectedRevenue,
         projectedRevenueHigh: row.projectedRevenueHigh,
         projectedRevenueLow: row.projectedRevenueLow,
+        higherProbability: row.higherProbability,
+        lowerProbability: row.lowerProbability,
         actualUnits: null,
         projectedUnits: row.projectedUnits,
       })),
@@ -1288,11 +1308,13 @@ export function PredictiveAnalytics() {
                         if (!active || !payload?.length) return null;
                         const point = payload[0]?.payload ?? {};
                         const isAnchorPoint = point.actualRevenue != null && point.projectedRevenue != null;
+                        const pointHigherProbability = typeof point.higherProbability === "number" ? point.higherProbability : analytics.higherProbability;
+                        const pointLowerProbability = typeof point.lowerProbability === "number" ? point.lowerProbability : analytics.lowerProbability;
                         const rows = [
                           point.actualRevenue != null ? { label: "Actual Revenue", value: point.actualRevenue, color: "#facc15" } : null,
                           point.projectedRevenue != null ? { label: isAnchorPoint ? "Forecast starts here" : "Steady Forecast", value: point.projectedRevenue, color: "#f8fafc" } : null,
-                          !isAnchorPoint && point.projectedRevenueHigh != null ? { label: `Higher Case (${analytics.higherProbability}%)`, value: point.projectedRevenueHigh, color: "#22c55e" } : null,
-                          !isAnchorPoint && point.projectedRevenueLow != null ? { label: `Lower Case (${analytics.lowerProbability}%)`, value: point.projectedRevenueLow, color: "#fb7185" } : null,
+                          !isAnchorPoint && point.projectedRevenueHigh != null ? { label: `Higher Case (${pointHigherProbability}%)`, value: point.projectedRevenueHigh, color: "#22c55e" } : null,
+                          !isAnchorPoint && point.projectedRevenueLow != null ? { label: `Lower Case (${pointLowerProbability}%)`, value: point.projectedRevenueLow, color: "#fb7185" } : null,
                         ].filter(Boolean) as Array<{ label: string; value: number; color: string }>;
 
                         return (
