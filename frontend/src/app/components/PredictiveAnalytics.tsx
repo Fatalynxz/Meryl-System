@@ -1284,19 +1284,34 @@ export function PredictiveAnalytics() {
                     <XAxis dataKey="date" stroke="#a3a3a3" fontSize={12} interval={0} />
                     <YAxis stroke="#a3a3a3" fontSize={12} />
                     <Tooltip
-                      contentStyle={{ backgroundColor: "#18181f", border: "1px solid #3a3a45", borderRadius: "12px", color: "#fff" }}
-                      labelStyle={{ color: "#facc15" }}
-                      itemStyle={{ color: "#facc15" }}
-                      formatter={(value: any, name: string) => [
-                        money(Number(value ?? 0)),
-                        name === "actualRevenue"
-                          ? "Actual Revenue"
-                          : name === "projectedRevenueHigh"
-                            ? `Higher Case (${analytics.higherProbability}%)`
-                            : name === "projectedRevenueLow"
-                              ? `Lower Case (${analytics.lowerProbability}%)`
-                              : "Steady Forecast",
-                      ]}
+                      content={({ active, label, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const point = payload[0]?.payload ?? {};
+                        const isAnchorPoint = point.actualRevenue != null && point.projectedRevenue != null;
+                        const rows = [
+                          point.actualRevenue != null ? { label: "Actual Revenue", value: point.actualRevenue, color: "#facc15" } : null,
+                          point.projectedRevenue != null ? { label: isAnchorPoint ? "Forecast starts here" : "Steady Forecast", value: point.projectedRevenue, color: "#f8fafc" } : null,
+                          !isAnchorPoint && point.projectedRevenueHigh != null ? { label: `Higher Case (${analytics.higherProbability}%)`, value: point.projectedRevenueHigh, color: "#22c55e" } : null,
+                          !isAnchorPoint && point.projectedRevenueLow != null ? { label: `Lower Case (${analytics.lowerProbability}%)`, value: point.projectedRevenueLow, color: "#fb7185" } : null,
+                        ].filter(Boolean) as Array<{ label: string; value: number; color: string }>;
+
+                        return (
+                          <div className="min-w-[230px] rounded-xl border border-[#3a3a45] bg-[#18181f] p-3 shadow-2xl shadow-black/60">
+                            <p className="text-sm font-semibold text-yellow-300">{label}</p>
+                            <div className="mt-2 space-y-1.5">
+                              {rows.map((row) => (
+                                <p key={row.label} className="flex justify-between gap-4 text-sm">
+                                  <span style={{ color: row.color }}>{row.label}</span>
+                                  <span className="font-semibold text-white">{money(Number(row.value ?? 0))}</span>
+                                </p>
+                              ))}
+                            </div>
+                            {isAnchorPoint ? (
+                              <p className="mt-2 text-xs text-white/45">Scenarios begin from the latest actual value and spread in future periods.</p>
+                            ) : null}
+                          </div>
+                        );
+                      }}
                     />
                     <Line
                       type="monotone"
