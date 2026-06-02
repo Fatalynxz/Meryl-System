@@ -1932,7 +1932,7 @@ export function PredictiveAnalytics() {
                           <TableCell className="py-3 text-center align-middle text-white/80">{row.topBrand}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white/80">{row.topSize}</TableCell>
                           <TableCell className="py-3 text-center align-middle truncate text-white/80">{row.topProduct}</TableCell>
-                          <TableCell className="py-3 text-center align-middle"><Badge className="bg-green-700 text-white">{row.customers}</Badge></TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white">{row.customers}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white">{row.orders}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-yellow-300">{row.units}</TableCell>
                           <TableCell className="py-3 text-center align-middle font-semibold text-yellow-300">{money(row.revenue)}</TableCell>
@@ -2022,7 +2022,7 @@ export function PredictiveAnalytics() {
                           <TableCell className="py-3 text-center align-middle text-white/80">{row.topBrand}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white/80">{row.topSize}</TableCell>
                           <TableCell className="py-3 text-center align-middle truncate text-white/80">{row.topProduct}</TableCell>
-                          <TableCell className="py-3 text-center align-middle"><Badge className="bg-green-700 text-white">{row.customers}</Badge></TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white">{row.customers}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-white">{row.orders}</TableCell>
                           <TableCell className="py-3 text-center align-middle text-yellow-300">{row.units}</TableCell>
                           <TableCell className="py-3 text-center align-middle font-semibold text-yellow-300">{money(row.revenue)}</TableCell>
