@@ -23,11 +23,12 @@ type Promotion = {
   targetProducts: string;
   start_date: string;
   end_date: string;
-  status: 'Active' | 'Scheduled' | 'Ended';
+  status: 'Active' | 'Upcoming' | 'Ended';
   salesGenerated: number;
   unitsAffected: number;
   effectiveness: number;
   targetSalesGoal: number;
+  targetProductIds: string[];
 };
 
 type Notification = {
@@ -108,12 +109,46 @@ function toDbDiscountType(value: Promotion['discount_type'] | string | undefined
   return 'percentage';
 }
 
-function toDbStatus(value: Promotion['status'] | string | undefined, startDate?: string) {
-  const normalized = String(value ?? '').toLowerCase();
-  if (normalized.includes('ended')) return 'expired';
-  if (normalized.includes('scheduled')) return 'inactive';
-  if (normalized.includes('active')) return 'active';
+function getPromotionStatusForWindow(startDate?: string, endDate?: string): Promotion['status'] {
+  const now = Date.now();
+  const startMs = promotionTimeMs(startDate, 'start');
+  const endMs = promotionTimeMs(endDate, 'end');
+  if (endMs < now) return 'Ended';
+  if (startMs <= now && now <= endMs) return 'Active';
+  return 'Upcoming';
+}
+
+function toDbStatusForWindow(startDate?: string, endDate?: string) {
+  const status = getPromotionStatusForWindow(startDate, endDate);
+  if (status === 'Ended') return 'expired';
+  if (status === 'Active') return 'active';
   return 'inactive';
+}
+
+function toLocalDateTimeInput(date = new Date()) {
+  const offset = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function normalizePromotionDateTime(value: string | undefined, boundary: 'start' | 'end') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (raw.includes('T')) return raw.slice(0, 16);
+  return `${raw.slice(0, 10)}T${boundary === 'start' ? '00:00' : '23:59'}`;
+}
+
+function promotionTimeMs(value: string | undefined, boundary: 'start' | 'end') {
+  const normalized = normalizePromotionDateTime(value, boundary);
+  if (!normalized) return boundary === 'start' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+  const time = new Date(normalized).getTime();
+  if (Number.isNaN(time)) return boundary === 'start' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+  return time;
+}
+
+function formatPromotionDateTime(value: string | undefined, boundary: 'start' | 'end') {
+  const normalized = normalizePromotionDateTime(value, boundary);
+  if (!normalized) return 'N/A';
+  return normalized.replace('T', ' ');
 }
 
 function isMissingTargetProductsColumnError(error: any) {
@@ -122,19 +157,17 @@ function isMissingTargetProductsColumnError(error: any) {
 }
 
 function todayDateInput() {
-  const today = new Date();
-  const offset = today.getTimezoneOffset() * 60 * 1000;
-  return new Date(today.getTime() - offset).toISOString().slice(0, 10);
+  return toLocalDateTimeInput();
 }
 
 function validatePromotionDates(startDate?: string, endDate?: string) {
-  const today = todayDateInput();
-  const start = String(startDate || '').slice(0, 10);
-  const end = String(endDate || '').slice(0, 10);
+  const now = Date.now();
+  const start = normalizePromotionDateTime(startDate, 'start');
+  const end = normalizePromotionDateTime(endDate, 'end');
   if (!start || !end) return 'Please choose both start and end dates.';
-  if (start < today) return 'Start date cannot be in the past.';
-  if (end < today) return 'End date cannot be in the past.';
-  if (end < start) return 'End date cannot be earlier than the start date.';
+  if (promotionTimeMs(start, 'start') < now - 120000) return 'Start date/time cannot be in the past.';
+  if (promotionTimeMs(end, 'end') < now) return 'End date/time cannot be in the past.';
+  if (promotionTimeMs(end, 'end') < promotionTimeMs(start, 'start')) return 'End date/time cannot be earlier than the start date/time.';
   return '';
 }
 
@@ -202,11 +235,11 @@ function recommendationSignature(type: string | undefined, target: string | unde
 }
 
 function rangesOverlap(startA?: string, endA?: string, startB?: string, endB?: string) {
-  const aStart = String(startA ?? "").slice(0, 10);
-  const aEnd = String(endA ?? "").slice(0, 10);
-  const bStart = String(startB ?? "").slice(0, 10);
-  const bEnd = String(endB ?? "").slice(0, 10);
-  if (!aStart || !aEnd || !bStart || !bEnd) return false;
+  const aStart = promotionTimeMs(startA, 'start');
+  const aEnd = promotionTimeMs(endA, 'end');
+  const bStart = promotionTimeMs(startB, 'start');
+  const bEnd = promotionTimeMs(endB, 'end');
+  if (!Number.isFinite(aStart) || !Number.isFinite(aEnd) || !Number.isFinite(bStart) || !Number.isFinite(bEnd)) return false;
   return !(aEnd < bStart || bEnd < aStart);
 }
 
@@ -277,6 +310,9 @@ function saleIsCompleted(sale: any) {
 }
 
 function productDetailMatchesPromotion(detail: any, promotion: Promotion) {
+  const detailProductId = String(detail?.product_id ?? '').trim();
+  if (detailProductId && promotion.targetProductIds.includes(detailProductId)) return true;
+
   const product = Array.isArray(detail?.product) ? detail.product[0] : detail?.product;
   const productName = String(product?.product_name ?? '').trim().toLowerCase();
   const category = Array.isArray(product?.category) ? product.category[0] : product?.category;
@@ -470,7 +506,7 @@ export function PromotionManagement() {
     targetProducts: '',
     start_date: '',
     end_date: '',
-    status: 'Scheduled'
+    status: 'Upcoming'
   });
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -583,37 +619,46 @@ export function PromotionManagement() {
     return rows.map((row) => {
       const rawType = String(row.discount_type ?? 'Percentage').toLowerCase();
       const discount_type: Promotion['discount_type'] = decodeDisplayType(rawType, row.promo_name);
-      const rawStatus = String(row.status ?? 'Scheduled').toLowerCase();
-      const today = new Date().toISOString().slice(0, 10);
-      const start = String(row.start_date ?? '').slice(0, 10);
-      const end = String(row.end_date ?? '').slice(0, 10);
+      const rawStatus = String(row.status ?? 'inactive').toLowerCase();
+      const nowMs = Date.now();
+      const start = normalizePromotionDateTime(String(row.start_date ?? ''), 'start');
+      const end = normalizePromotionDateTime(String(row.end_date ?? ''), 'end');
+      const startMs = promotionTimeMs(start, 'start');
+      const endMs = promotionTimeMs(end, 'end');
       const status: Promotion['status'] =
-        rawStatus.includes('expired') || (end && end < today)
+        rawStatus.includes('expired') || endMs < nowMs
           ? 'Ended'
-          : rawStatus.includes('active') || (start && start <= today && end && end >= today)
+          : startMs <= nowMs && nowMs <= endMs
             ? 'Active'
-            : 'Scheduled';
+            : 'Upcoming';
       const targetSalesGoal = Number(row.target_sales_goal ?? row.targetSalesGoal ?? 10000) || 10000;
+      const targetProductIds = (Array.isArray(row.promo_product) ? row.promo_product : [])
+        .map((link: any) => {
+          const product = Array.isArray(link?.product) ? link.product[0] : link?.product;
+          return String(link?.product_id ?? product?.product_id ?? '').trim();
+        })
+        .filter(Boolean);
       const basePromotion = {
         promo_id: String(row.promo_id ?? ''),
         promo_name: stripPromoTypeMarker(String(row.promo_name ?? 'Promotion')),
         discount_type,
         discount_value: Number(row.discount_value ?? 0),
         targetProducts: String(row.target_products ?? row.targetProducts ?? deriveTargetProductsFromLinks(row)),
-        start_date: String(row.start_date ?? '').slice(0, 10),
-        end_date: String(row.end_date ?? '').slice(0, 10),
+        start_date: start,
+        end_date: end,
         status,
         salesGenerated: 0,
         unitsAffected: 0,
         effectiveness: 0,
         targetSalesGoal,
+        targetProductIds,
       };
       const performance = sales.reduce(
         (sum, sale: any) => {
           if (!saleIsCompleted(sale)) return sum;
-          const saleDate = String(sale.transaction_date ?? sale.created_at ?? '').slice(0, 10);
-          if (start && saleDate && saleDate < start) return sum;
-          if (end && saleDate && saleDate > end) return sum;
+          const saleTime = new Date(sale.transaction_date ?? sale.created_at ?? '').getTime();
+          if (Number.isNaN(saleTime)) return sum;
+          if (saleTime < startMs || saleTime > endMs) return sum;
           const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
           details.forEach((detail: any) => {
             if (!productDetailMatchesPromotion(detail, basePromotion)) return;
@@ -802,16 +847,15 @@ export function PromotionManagement() {
     const start = new Date();
     const end = new Date();
     end.setDate(start.getDate() + 7);
-    const toDateInput = (d: Date) => d.toISOString().slice(0, 10);
     setFormData({
       promo_name: rec.title,
       discount_type: rec.discount_type,
       discount_value: rec.discount_value,
       targetSalesGoal: 10000,
       targetProducts: rec.targetProducts,
-      start_date: toDateInput(start),
-      end_date: toDateInput(end),
-      status: 'Scheduled',
+      start_date: toLocalDateTimeInput(start),
+      end_date: toLocalDateTimeInput(end),
+      status: 'Upcoming',
     });
     setPendingRecommendationId(rec.id);
     setIsAddDialogOpen(true);
@@ -880,7 +924,7 @@ export function PromotionManagement() {
         targetProducts: formData.targetProducts || 'All Products',
         start_date: formData.start_date!,
         end_date: formData.end_date!,
-        status: toDbStatus(formData.status, formData.start_date),
+        status: toDbStatusForWindow(formData.start_date, formData.end_date),
       };
 
       let createdPromotion: any;
@@ -912,7 +956,7 @@ export function PromotionManagement() {
           targetProducts: formData.targetProducts,
           start_date: formData.start_date,
           end_date: formData.end_date,
-          status: formData.status,
+          status: getPromotionStatusForWindow(formData.start_date, formData.end_date),
         },
       });
       let recipients: Notification[] = [];
@@ -989,8 +1033,8 @@ export function PromotionManagement() {
     }
     const dateError = validatePromotionDates(formData.start_date, formData.end_date);
     const isKeepingExistingPastStartDate =
-      dateError === 'Start date cannot be in the past.' &&
-      String(formData.start_date || '') === String(editingPromotion.start_date || '');
+      dateError === 'Start date/time cannot be in the past.' &&
+      normalizePromotionDateTime(formData.start_date, 'start') === normalizePromotionDateTime(editingPromotion.start_date, 'start');
     if (dateError) {
       if (!isKeepingExistingPastStartDate) {
         toast.error(dateError);
@@ -1015,7 +1059,7 @@ export function PromotionManagement() {
         targetProducts: formData.targetProducts,
         start_date: formData.start_date,
         end_date: formData.end_date,
-        status: toDbStatus(formData.status, formData.start_date),
+        status: toDbStatusForWindow(formData.start_date, formData.end_date),
       } as any;
 
       try {
@@ -1292,14 +1336,14 @@ export function PromotionManagement() {
                     </TableCell>
                     <TableCell className="text-yellow-200 text-sm text-center align-middle">
                       <div className="leading-tight">
-                        <p>{promotion.start_date}</p>
-                        <p className="text-yellow-300/80">to {promotion.end_date}</p>
+                        <p>{formatPromotionDateTime(promotion.start_date, 'start')}</p>
+                        <p className="text-yellow-300/80">to {formatPromotionDateTime(promotion.end_date, 'end')}</p>
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-center align-middle">
                       <Badge className={
                         promotion.status === 'Active' ? 'bg-green-600 text-white' :
-                        promotion.status === 'Scheduled' ? 'bg-yellow-600 text-red-900' :
+                        promotion.status === 'Upcoming' ? 'bg-yellow-600 text-red-900' :
                         'bg-gray-600 text-white'
                       }>
                         {promotion.status}
@@ -1769,19 +1813,19 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="start_date" className="text-yellow-300">Start Date *</Label>
+          <Label htmlFor="start_date" className="text-yellow-300">Start Date & Time *</Label>
           <Input
             id="start_date"
-            type="date"
+            type="datetime-local"
             min={minPromotionDate}
-            value={formData.start_date || ''}
+            value={normalizePromotionDateTime(formData.start_date, 'start')}
             onChange={(e) => {
               const nextStartDate = e.target.value;
               setFormData({
                 ...formData,
                 start_date: nextStartDate,
                 end_date:
-                  formData.end_date && formData.end_date < nextStartDate
+                  formData.end_date && promotionTimeMs(formData.end_date, 'end') < promotionTimeMs(nextStartDate, 'start')
                     ? nextStartDate
                     : formData.end_date,
               });
@@ -1790,29 +1834,16 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="end_date" className="text-yellow-300">End Date *</Label>
+          <Label htmlFor="end_date" className="text-yellow-300">End Date & Time *</Label>
           <Input
             id="end_date"
-            type="date"
-            min={formData.start_date || minPromotionDate}
-            value={formData.end_date || ''}
+            type="datetime-local"
+            min={normalizePromotionDateTime(formData.start_date, 'start') || minPromotionDate}
+            value={normalizePromotionDateTime(formData.end_date, 'end')}
             onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
             className="bg-red-600 border-red-800 text-yellow-200"
           />
         </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="status" className="text-yellow-300">Status</Label>
-        <Select value={formData.status || 'Scheduled'} onValueChange={(value) => setFormData({ ...formData, status: value as Promotion['status'] })}>
-          <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-            <SelectItem value="Active">Active</SelectItem>
-            <SelectItem value="Scheduled">Scheduled</SelectItem>
-            <SelectItem value="Ended">Ended</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
     </div>
   );
