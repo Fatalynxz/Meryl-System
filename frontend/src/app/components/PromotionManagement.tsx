@@ -27,6 +27,7 @@ type Promotion = {
   salesGenerated: number;
   unitsAffected: number;
   effectiveness: number;
+  targetSalesGoal: number;
 };
 
 type Notification = {
@@ -257,6 +258,30 @@ function resolvePromotionTargetProducts(targetProducts: string | undefined, prod
   });
 }
 
+function saleIsCompleted(sale: any) {
+  const payment = Array.isArray(sale?.payment) ? sale.payment[0] : sale?.payment;
+  const status = String(payment?.payment_status ?? sale?.payment_status ?? '').toLowerCase();
+  return status === 'completed' || status === 'paid' || !status;
+}
+
+function productDetailMatchesPromotion(detail: any, promotion: Promotion) {
+  const product = Array.isArray(detail?.product) ? detail.product[0] : detail?.product;
+  const productName = String(product?.product_name ?? '').trim().toLowerCase();
+  const category = Array.isArray(product?.category) ? product.category[0] : product?.category;
+  const categoryName = String(category?.category_name ?? '').trim().toLowerCase();
+  const parsed = parseTargetProducts(promotion.targetProducts);
+  const wantsAll = !parsed.categories.length && !parsed.products.length;
+  const categories = new Set(parsed.categories.map((item) => item.trim().toLowerCase()));
+  const products = new Set(parsed.products.map((item) => item.trim().toLowerCase()));
+
+  if (wantsAll) return true;
+  if (products.size > 0) {
+    if (!products.has(productName)) return false;
+    return !categories.size || categories.has(categoryName);
+  }
+  return categories.has(categoryName);
+}
+
 function sanitizeTargetProductsToSellable(
   targetProducts: string | undefined,
   categoryOptions: string[],
@@ -429,6 +454,7 @@ export function PromotionManagement() {
     promo_name: '',
     discount_type: 'Percentage',
     discount_value: 0,
+    targetSalesGoal: 10000,
     targetProducts: '',
     start_date: '',
     end_date: '',
@@ -541,6 +567,7 @@ export function PromotionManagement() {
 
   const promotions: Promotion[] = useMemo(() => {
     const rows = (promotionsQuery.data as any[]) ?? [];
+    const sales = (salesQuery.data as any[]) ?? [];
     return rows.map((row) => {
       const rawType = String(row.discount_type ?? 'Percentage').toLowerCase();
       const discount_type: Promotion['discount_type'] = decodeDisplayType(rawType, row.promo_name);
@@ -554,7 +581,8 @@ export function PromotionManagement() {
           : rawStatus.includes('active') || (start && start <= today && end && end >= today)
             ? 'Active'
             : 'Scheduled';
-      return {
+      const targetSalesGoal = Number(row.target_sales_goal ?? row.targetSalesGoal ?? 10000) || 10000;
+      const basePromotion = {
         promo_id: String(row.promo_id ?? ''),
         promo_name: stripPromoTypeMarker(String(row.promo_name ?? 'Promotion')),
         discount_type,
@@ -563,12 +591,38 @@ export function PromotionManagement() {
         start_date: String(row.start_date ?? '').slice(0, 10),
         end_date: String(row.end_date ?? '').slice(0, 10),
         status,
-        salesGenerated: Number(row.salesGenerated ?? row.sales_generated ?? 0),
-        unitsAffected: Number(row.unitsAffected ?? row.units_affected ?? 0),
-        effectiveness: Number(row.effectiveness ?? 0),
+        salesGenerated: 0,
+        unitsAffected: 0,
+        effectiveness: 0,
+        targetSalesGoal,
+      };
+      const performance = sales.reduce(
+        (sum, sale: any) => {
+          if (!saleIsCompleted(sale)) return sum;
+          const saleDate = String(sale.transaction_date ?? sale.created_at ?? '').slice(0, 10);
+          if (start && saleDate && saleDate < start) return sum;
+          if (end && saleDate && saleDate > end) return sum;
+          const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+          details.forEach((detail: any) => {
+            const discount = Number(detail.discount_applied ?? 0);
+            if (discount <= 0) return;
+            if (!productDetailMatchesPromotion(detail, basePromotion)) return;
+            sum.sales += Number(detail.subtotal ?? 0);
+            sum.units += Number(detail.quantity ?? 0);
+          });
+          return sum;
+        },
+        { sales: 0, units: 0 },
+      );
+
+      return {
+        ...basePromotion,
+        salesGenerated: Math.round(performance.sales),
+        unitsAffected: performance.units,
+        effectiveness: Math.min(100, Math.round((performance.sales / Math.max(1, targetSalesGoal)) * 100)),
       };
     });
-  }, [promotionsQuery.data]);
+  }, [promotionsQuery.data, salesQuery.data]);
 
   const productRecommendations = useMemo<PromotionRecommendation[]>(() => {
     const sales = (salesQuery.data as any[]) ?? [];
@@ -727,6 +781,7 @@ export function PromotionManagement() {
       promo_name: rec.title,
       discount_type: rec.discount_type,
       discount_value: rec.discount_value,
+      targetSalesGoal: 10000,
       targetProducts: rec.targetProducts,
       start_date: toDateInput(start),
       end_date: toDateInput(end),
@@ -754,6 +809,10 @@ export function PromotionManagement() {
   const handleAddPromotion = async () => {
     if (!formData.promo_name || !formData.targetProducts || !formData.start_date || !formData.end_date) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+    if (Number(formData.targetSalesGoal || 0) <= 0) {
+      toast.error('Please enter a target sales goal greater than zero.');
       return;
     }
     const draftType = String(formData.discount_type ?? "Percentage");
@@ -790,6 +849,7 @@ export function PromotionManagement() {
         discount_value: String(formData.discount_type ?? '').toLowerCase().includes('bogo')
           ? Number(formData.discount_value || 50)
           : Number(formData.discount_value || 0),
+        target_sales_goal: Number(formData.targetSalesGoal || 10000),
         target_products: formData.targetProducts || 'All Products',
         targetProducts: formData.targetProducts || 'All Products',
         start_date: formData.start_date!,
@@ -822,6 +882,7 @@ export function PromotionManagement() {
           promo_name: formData.promo_name,
           discount_type: formData.discount_type,
           discount_value: formData.discount_value,
+          targetSalesGoal: formData.targetSalesGoal,
           targetProducts: formData.targetProducts,
           start_date: formData.start_date,
           end_date: formData.end_date,
@@ -880,6 +941,10 @@ export function PromotionManagement() {
 
   const handleEditPromotion = async () => {
     if (!editingPromotion) return;
+    if (Number(formData.targetSalesGoal || 0) <= 0) {
+      toast.error('Please enter a target sales goal greater than zero.');
+      return;
+    }
     const draftType = String(formData.discount_type ?? "Percentage");
     const draftTarget = String(formData.targetProducts ?? "All Products");
     const duplicate = promotions.find((promo) => {
@@ -919,6 +984,7 @@ export function PromotionManagement() {
         discount_value: String(formData.discount_type ?? '').toLowerCase().includes('bogo')
           ? Number(formData.discount_value || 50)
           : formData.discount_value,
+        target_sales_goal: Number(formData.targetSalesGoal || 10000),
         target_products: formData.targetProducts,
         targetProducts: formData.targetProducts,
         start_date: formData.start_date,
@@ -1217,10 +1283,11 @@ export function PromotionManagement() {
                       <div className="space-y-1">
                         <div className="flex flex-wrap justify-center gap-3 text-xs text-yellow-200">
                           <span className="whitespace-nowrap">Sales: ₱{promotion.salesGenerated}</span>
+                          <span className="whitespace-nowrap">Goal: PHP {promotion.targetSalesGoal.toLocaleString()}</span>
                           <span className="whitespace-nowrap">{promotion.unitsAffected} units</span>
                         </div>
                         <Progress value={promotion.effectiveness} className="h-2 bg-red-600" />
-                        <p className="text-xs text-yellow-300">{promotion.effectiveness}% effective</p>
+                        <p className="text-xs text-yellow-300">{promotion.effectiveness}% of target</p>
                       </div>
                     </TableCell>
                     <TableCell className="text-center align-middle">
@@ -1517,6 +1584,19 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
             <p className="text-xs text-yellow-300/80">Example: enter <span className="text-yellow-300">500</span> to deduct <span className="text-yellow-300">₱500</span> from each qualifying item.</p>
           ) : null}
         </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="targetSalesGoal" className="text-yellow-300">Target Sales Goal (PHP) *</Label>
+        <Input
+          id="targetSalesGoal"
+          type="number"
+          min="1"
+          value={formData.targetSalesGoal || 10000}
+          onChange={(e) => setFormData({ ...formData, targetSalesGoal: Math.max(1, Number(e.target.value || 0)) })}
+          className="bg-red-600 border-red-800 text-yellow-200"
+          placeholder="e.g. 10000"
+        />
+        <p className="text-xs text-yellow-300/80">Promotion effectiveness is measured as sales generated during the promo period divided by this goal.</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="targetProducts" className="text-yellow-300">Target Products *</Label>
