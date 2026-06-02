@@ -55,6 +55,19 @@ type PromotionRecommendation = {
   targetProducts: string;
 };
 
+type PromotionMarginProduct = {
+  id: string;
+  name: string;
+  category: string;
+  srp: number;
+  unitCost: number;
+  stock: number;
+  reorderLevel: number;
+  sold30: number;
+  isSlowMover: boolean;
+};
+
+
 const PROMO_TYPE_MARKERS = {
   bundle: "__TYPE_BUNDLE__",
   bogo: "__TYPE_BOGO__",
@@ -187,6 +200,90 @@ function recommendationSignature(type: string | undefined, target: string | unde
   return `${String(type ?? '').toLowerCase()}::${normalizeRecommendationTarget(target)}`;
 }
 
+function rangesOverlap(startA?: string, endA?: string, startB?: string, endB?: string) {
+  const aStart = String(startA ?? "").slice(0, 10);
+  const aEnd = String(endA ?? "").slice(0, 10);
+  const bStart = String(startB ?? "").slice(0, 10);
+  const bEnd = String(endB ?? "").slice(0, 10);
+  if (!aStart || !aEnd || !bStart || !bEnd) return false;
+  return !(aEnd < bStart || bEnd < aStart);
+}
+
+function normalizeTargetSignature(target: string | undefined) {
+  const parsed = parseTargetProducts(target);
+  const categories = Array.from(new Set(parsed.categories.map((c) => c.trim().toLowerCase()))).sort();
+  const products = Array.from(new Set(parsed.products.map((p) => p.trim().toLowerCase()))).sort();
+  if (!categories.length && !products.length) return "all";
+  return `c:${categories.join(",")}|p:${products.join(",")}`;
+}
+
+function getPromoPriority(discountType: string | undefined) {
+  const type = String(discountType ?? "").toLowerCase();
+  if (type.includes("bogo")) return 4;
+  if (type.includes("bundle")) return 3;
+  if (type.includes("fixed")) return 2;
+  if (type.includes("percent")) return 1;
+  return 0;
+}
+
+function estimatePromotionPrice(srp: number, discountType: string | undefined, discountValue: number) {
+  const type = String(discountType ?? "").toLowerCase();
+  const value = Number(discountValue || 0);
+  if (srp <= 0) return 0;
+  if (type.includes("percent") || type.includes("bogo")) {
+    return Math.max(0, srp * (1 - value / 100));
+  }
+  if (type.includes("fixed") || type.includes("bundle")) {
+    return Math.max(0, srp - value);
+  }
+  return srp;
+}
+
+function resolvePromotionTargetProducts(targetProducts: string | undefined, products: PromotionMarginProduct[]) {
+  const parsed = parseTargetProducts(targetProducts);
+  const wantsAll = !parsed.categories.length && !parsed.products.length;
+  const categories = new Set(parsed.categories.map((c) => c.trim().toLowerCase()));
+  const names = new Set(parsed.products.map((p) => p.trim().toLowerCase()));
+
+  return products.filter((product) => {
+    const category = product.category.trim().toLowerCase();
+    const name = product.name.trim().toLowerCase();
+    if (wantsAll) return true;
+    if (names.size > 0) {
+      if (!names.has(name)) return false;
+      return !categories.size || categories.has(category);
+    }
+    return categories.has(category);
+  });
+}
+
+function sanitizeTargetProductsToSellable(
+  targetProducts: string | undefined,
+  categoryOptions: string[],
+  productOptions: Array<{ name: string; category: string; stock: number }>,
+) {
+  const parsed = parseTargetProducts(targetProducts);
+  const allowedCategories = new Set(categoryOptions.map((c) => c.trim().toLowerCase()));
+  const productByName = new Map(
+    productOptions.map((p) => [p.name.trim().toLowerCase(), { name: p.name, category: p.category }]),
+  );
+
+  const categories = parsed.categories.filter((c) => allowedCategories.has(c.trim().toLowerCase()));
+  const normalizedCategorySet = new Set(categories.map((c) => c.trim().toLowerCase()));
+
+  const products = parsed.products.filter((p) => {
+    const row = productByName.get(p.trim().toLowerCase());
+    if (!row) return false;
+    if (!normalizedCategorySet.size) return true;
+    return normalizedCategorySet.has(String(row.category || "").trim().toLowerCase());
+  });
+
+  return formatTargetProducts(
+    Array.from(new Set(categories)),
+    Array.from(new Set(products)),
+  );
+}
+
 function deriveTargetProductsFromLinks(row: any) {
   const links = Array.isArray(row?.promo_product) ? row.promo_product : [];
   if (!links.length) return 'All Products';
@@ -283,6 +380,48 @@ export function PromotionManagement() {
         .sort((a: any, b: any) => a.name.localeCompare(b.name)),
     [sellableProductRows],
   );
+  const promotionMarginProducts = useMemo<PromotionMarginProduct[]>(() => {
+    const sales = (salesQuery.data as any[]) ?? [];
+    const now = new Date();
+    const last30 = new Date(now);
+    last30.setDate(now.getDate() - 30);
+    const soldByProduct = new Map<string, number>();
+
+    sales.forEach((sale: any) => {
+      const txDate = new Date(sale.transaction_date ?? sale.created_at ?? '');
+      if (Number.isNaN(txDate.getTime()) || txDate < last30) return;
+      const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
+      const status = String(payment?.payment_status ?? '').toLowerCase();
+      if (status !== 'completed' && status !== 'paid') return;
+      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+      details.forEach((detail: any) => {
+        const productId = String(detail.product_id ?? '');
+        if (!productId) return;
+        soldByProduct.set(productId, (soldByProduct.get(productId) ?? 0) + Number(detail.quantity ?? 0));
+      });
+    });
+
+    return sellableProductRows
+      .map((p: any) => {
+        const inv = Array.isArray(p.inventory) ? p.inventory[0] : p.inventory;
+        const productId = String(p.product_id ?? '');
+        const stock = Number(inv?.stock_quantity ?? 0);
+        const reorderLevel = Number(p.reorder_level ?? inv?.reorder_level ?? 10);
+        const sold30 = soldByProduct.get(productId) ?? 0;
+        return {
+          id: productId,
+          name: String(p.product_name ?? 'Unknown Product').trim(),
+          category: String(p.category?.[0]?.category_name ?? p.category?.category_name ?? '').trim(),
+          srp: Number(inv?.srp ?? p.srp ?? p.selling_price ?? p.price ?? 0),
+          unitCost: Number(p.cost_price ?? p.unit_price ?? p.base_price ?? 0),
+          stock,
+          reorderLevel,
+          sold30,
+          isSlowMover: stock >= reorderLevel * 2 && sold30 <= 2,
+        };
+      })
+      .filter((p) => p.id && p.name && p.srp > 0 && p.unitCost > 0);
+  }, [salesQuery.data, sellableProductRows]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
@@ -311,7 +450,7 @@ export function PromotionManagement() {
 
     const parsed = parseTargetProducts(targetProducts);
     const wantsAll = !parsed.categories.length && !parsed.products.length;
-    const productRowsForLink = (productsQuery.data as any[]) ?? [];
+    const productRowsForLink = sellableProductRows;
     const normalizedCategories = new Set(parsed.categories.map((c) => c.toLowerCase()));
     const normalizedProducts = new Set(parsed.products.map((p) => p.toLowerCase()));
 
@@ -558,6 +697,27 @@ export function PromotionManagement() {
     [activeRecommendationSignatures, activeRecommendationTitles, hiddenRecommendationIds, productRecommendations],
   );
 
+  const validatePromotionMargin = (draft: Partial<Promotion>) => {
+    const type = String(draft.discount_type ?? 'Percentage');
+    const value = Number(draft.discount_value ?? 0);
+    if (value <= 0) return '';
+
+    const targets = resolvePromotionTargetProducts(draft.targetProducts, promotionMarginProducts);
+    if (!targets.length) return '';
+
+    const riskyProduct = targets.find((product) => {
+      const promoPrice = estimatePromotionPrice(product.srp, type, value);
+      const minimumPrice = product.isSlowMover ? product.unitCost * 1.03 : product.unitCost * 1.1;
+      return promoPrice < minimumPrice;
+    });
+    if (!riskyProduct) return '';
+
+    const promoPrice = estimatePromotionPrice(riskyProduct.srp, type, value);
+    const minimumPrice = riskyProduct.isSlowMover ? riskyProduct.unitCost * 1.03 : riskyProduct.unitCost * 1.1;
+    const marginLabel = riskyProduct.isSlowMover ? 'slow-mover floor' : 'regular margin floor';
+    return `${riskyProduct.name} would sell at ₱${promoPrice.toFixed(2)}, below the ${marginLabel} of ₱${minimumPrice.toFixed(2)}. Lower the discount or target only products that can still make profit.`;
+  };
+
   const applyRecommendation = (rec: PromotionRecommendation) => {
     const start = new Date();
     const end = new Date();
@@ -596,20 +756,39 @@ export function PromotionManagement() {
       toast.error('Please fill in all required fields');
       return;
     }
+    const draftType = String(formData.discount_type ?? "Percentage");
+    const draftTarget = String(formData.targetProducts ?? "All Products");
+    const duplicate = promotions.find((promo) => {
+      if (promo.status === "Ended") return false;
+      if (!rangesOverlap(formData.start_date, formData.end_date, promo.start_date, promo.end_date)) return false;
+      const sameType = String(promo.discount_type ?? "").toLowerCase() === String(formData.discount_type ?? "").toLowerCase();
+      if (!sameType) return false;
+      return normalizeTargetSignature(promo.targetProducts) === normalizeTargetSignature(draftTarget);
+    });
+    if (duplicate) {
+      const existingPriority = getPromoPriority(String(duplicate.discount_type ?? ""));
+      const incomingPriority = getPromoPriority(draftType);
+      const winner = incomingPriority >= existingPriority ? "new promotion" : `"${duplicate.promo_name}"`;
+      toast.warning(`Overlapping promo scope detected with "${duplicate.promo_name}". POS will apply a single winner by priority/specificity (current winner: ${winner}).`);
+    }
     const dateError = validatePromotionDates(formData.start_date, formData.end_date);
     if (dateError) {
       toast.error(dateError);
+      return;
+    }
+    const marginError = validatePromotionMargin(formData);
+    if (marginError) {
+      toast.error(marginError);
       return;
     }
 
     try {
       setIsSavingPromotion(true);
       const newPromotionPayload = {
-        promo_id: crypto.randomUUID(),
         promo_name: encodePromoNameWithType(formData.promo_name!, formData.discount_type),
         discount_type: toDbDiscountType(formData.discount_type),
         discount_value: String(formData.discount_type ?? '').toLowerCase().includes('bogo')
-          ? 0
+          ? Number(formData.discount_value || 50)
           : Number(formData.discount_value || 0),
         target_products: formData.targetProducts || 'All Products',
         targetProducts: formData.targetProducts || 'All Products',
@@ -627,7 +806,7 @@ export function PromotionManagement() {
         createdPromotion = await promotionsMutations.createMutation.mutateAsync(fallbackPayload);
       }
 
-      const createdPromoId = String(createdPromotion?.promo_id || newPromotionPayload.promo_id || '').trim();
+      const createdPromoId = String(createdPromotion?.promo_id || '').trim();
       try {
         await syncPromotionProductLinks(createdPromoId, formData.targetProducts || 'All Products');
       } catch (syncError: any) {
@@ -701,6 +880,22 @@ export function PromotionManagement() {
 
   const handleEditPromotion = async () => {
     if (!editingPromotion) return;
+    const draftType = String(formData.discount_type ?? "Percentage");
+    const draftTarget = String(formData.targetProducts ?? "All Products");
+    const duplicate = promotions.find((promo) => {
+      if (promo.promo_id === editingPromotion.promo_id) return false;
+      if (promo.status === "Ended") return false;
+      if (!rangesOverlap(formData.start_date, formData.end_date, promo.start_date, promo.end_date)) return false;
+      const sameType = String(promo.discount_type ?? "").toLowerCase() === String(formData.discount_type ?? "").toLowerCase();
+      if (!sameType) return false;
+      return normalizeTargetSignature(promo.targetProducts) === normalizeTargetSignature(draftTarget);
+    });
+    if (duplicate) {
+      const existingPriority = getPromoPriority(String(duplicate.discount_type ?? ""));
+      const incomingPriority = getPromoPriority(draftType);
+      const winner = incomingPriority >= existingPriority ? "edited promotion" : `"${duplicate.promo_name}"`;
+      toast.warning(`Overlapping promo scope detected with "${duplicate.promo_name}". POS will apply a single winner by priority/specificity (current winner: ${winner}).`);
+    }
     const dateError = validatePromotionDates(formData.start_date, formData.end_date);
     const isKeepingExistingPastStartDate =
       dateError === 'Start date cannot be in the past.' &&
@@ -711,13 +906,18 @@ export function PromotionManagement() {
         return;
       }
     }
+    const marginError = validatePromotionMargin(formData);
+    if (marginError) {
+      toast.error(marginError);
+      return;
+    }
     try {
       setIsUpdatingPromotion(true);
       const payload = {
         promo_name: encodePromoNameWithType(formData.promo_name, formData.discount_type),
         discount_type: toDbDiscountType(formData.discount_type),
         discount_value: String(formData.discount_type ?? '').toLowerCase().includes('bogo')
-          ? 0
+          ? Number(formData.discount_value || 50)
           : formData.discount_value,
         target_products: formData.targetProducts,
         targetProducts: formData.targetProducts,
@@ -772,21 +972,16 @@ export function PromotionManagement() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result?.ok === false) {
-        const reason = String(result?.error || '');
-        if (reason === 'authentication_required') {
-          // Fallback for React/Supabase-auth sessions that don't have Flask session cookie.
-          await promotionsMutations.removeMutation.mutateAsync(promo_id as any);
-          await promotionsQuery.refetch();
-          await writeAuditLog({
-            actorUserId: user?.user_id,
-            actionType: "delete_promotion",
-            entityType: "promotion",
-            entityId: promo_id,
-          });
-          toast.success('Promotion deleted successfully!');
-          return;
+        // Fallback for local/dev setups or missing Flask session:
+        // remove links first, then remove promotion row.
+        const linkDelete = await supabase.from("promo_product").delete().eq("promo_id", promo_id);
+        if (linkDelete.error) {
+          throw new Error(linkDelete.error.message || "Unable to delete promo-product links");
         }
-        throw new Error(reason || 'Unable to delete promotion');
+        const promoDelete = await supabase.from("promotion").delete().eq("promo_id", promo_id);
+        if (promoDelete.error) {
+          throw new Error(promoDelete.error.message || String(result?.error || "Unable to delete promotion"));
+        }
       }
       await promotionsQuery.refetch();
       await writeAuditLog({
@@ -1175,6 +1370,8 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
 }) {
   const minPromotionDate = todayDateInput();
   const isBogoType = String(formData.discount_type ?? '').toLowerCase().includes('bogo');
+  const isFixedAmountType = String(formData.discount_type ?? '').toLowerCase().includes('fixed');
+  const isPercentageType = String(formData.discount_type ?? '').toLowerCase().includes('percent');
   const parsed = useMemo(() => parseTargetProducts(formData.targetProducts), [formData.targetProducts]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(parsed.categories);
   const [selectedProducts, setSelectedProducts] = useState<string[]>(parsed.products);
@@ -1183,10 +1380,22 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
   const [productSearch, setProductSearch] = useState('');
 
   useEffect(() => {
-    const next = parseTargetProducts(formData.targetProducts);
+    const sanitizedTarget = sanitizeTargetProductsToSellable(
+      formData.targetProducts,
+      categoryOptions,
+      productOptions,
+    );
+    const next = parseTargetProducts(sanitizedTarget);
     setSelectedCategories(next.categories);
     setSelectedProducts(next.products);
-  }, [formData.targetProducts]);
+
+    if (String(formData.targetProducts ?? "").trim() !== sanitizedTarget) {
+      setFormData({
+        ...formData,
+        targetProducts: sanitizedTarget,
+      });
+    }
+  }, [formData.targetProducts, categoryOptions, productOptions]);
 
   const filteredProductOptions = useMemo(() => {
     if (!selectedCategories.length) return productOptions;
@@ -1284,16 +1493,29 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
           </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="discount_value" className="text-yellow-300">Discount Value *</Label>
+          <Label htmlFor="discount_value" className="text-yellow-300">
+            {isFixedAmountType ? 'Discount Value (PHP amount) *' : 'Discount Value *'}
+          </Label>
           <Input
             id="discount_value"
             type="number"
             value={formData.discount_value || ''}
             onChange={(e) => setFormData({ ...formData, discount_value: parseFloat(e.target.value) })}
             className="bg-red-600 border-red-800 text-yellow-200"
-            placeholder={isBogoType ? '0 (Auto for BOGO)' : formData.discount_type === 'Percentage' ? '25' : '20'}
+            placeholder={
+              isBogoType
+                ? 'Auto for BOGO (default 50)'
+                : isFixedAmountType
+                  ? 'e.g. 500 for ₱500 off'
+                  : isPercentageType
+                    ? 'e.g. 15 for 15% off'
+                    : 'Enter discount'
+            }
             disabled={isBogoType}
           />
+          {isFixedAmountType ? (
+            <p className="text-xs text-yellow-300/80">Example: enter <span className="text-yellow-300">500</span> to deduct <span className="text-yellow-300">₱500</span> from each qualifying item.</p>
+          ) : null}
         </div>
       </div>
       <div className="space-y-2">
@@ -1304,6 +1526,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
             value={formData.targetProducts || 'All Products'}
             readOnly
             onClick={() => {
+              if (isBogoType) return;
               setSelectedCategories([]);
               setSelectedProducts([]);
               setFormData({
@@ -1316,6 +1539,11 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
           <p className="text-xs text-yellow-300/80">
             Tip: Click <span className="text-yellow-300">All Products</span> button or click the field above to target all products.
           </p>
+          {isBogoType ? (
+            <p className="text-xs text-amber-300/90">
+              BOGO supports product-level, category-level, or all-products scope. POS applies one winning promo per item.
+            </p>
+          ) : null}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -1352,12 +1580,12 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                     ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-300'
                     : 'border-red-800 bg-red-600 text-yellow-200 hover:bg-red-500'
                 }`}
-                onClick={() => {
-                  setSelectedCategories([]);
-                  setSelectedProducts([]);
-                  setFormData({
-                    ...formData,
-                    targetProducts: 'All Products',
+              onClick={() => {
+                setSelectedCategories([]);
+                setSelectedProducts([]);
+                setFormData({
+                  ...formData,
+                  targetProducts: 'All Products',
                   });
                 }}
               >
