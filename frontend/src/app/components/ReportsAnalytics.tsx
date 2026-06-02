@@ -424,6 +424,8 @@ export function ReportsAnalytics() {
       store: 'Libertad St., Bacolod City Branch',
       preparedBy: 'Store Manager',
       atv,
+      bestBrandName: bestBrand?.[0] ?? 'N/A',
+      bestBrandUnits: bestBrand?.[1] ?? 0,
       bestBrand: bestBrand ? `${bestBrand[0]} (${bestBrand[1]} pairs)` : 'N/A',
       bestSize: bestSize ? `${bestSize[0]} (${bestSize[1]} pairs)` : 'N/A',
       grossRevenue,
@@ -777,20 +779,6 @@ export function ReportsAnalytics() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div className="rounded-lg border border-[#24242d] bg-[#07070a] p-5">
-                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Net Sales</p>
-                  <p className="mt-2 text-3xl text-white">{money(businessSummary.netSales)}</p>
-                  {showComparison && <p className={`mt-2 text-xs ${revenueChange >= 0 ? 'text-green-400' : 'text-red-300'}`}>
-                    {revenueChange >= 0 ? '+' : ''}{revenueChange.toFixed(1)}% vs comparison period
-                  </p>}
-                </div>
-                <div className="rounded-lg border border-[#24242d] bg-[#07070a] p-5">
-                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Pairs Sold</p>
-                  <p className="mt-2 text-3xl text-white">{currentMetrics.current.units.toLocaleString()}</p>
-                  {showComparison && <p className={`mt-2 text-xs ${unitsChange >= 0 ? 'text-green-400' : 'text-red-300'}`}>
-                    {unitsChange >= 0 ? '+' : ''}{unitsChange.toFixed(1)}% movement
-                  </p>}
-                </div>
-                <div className="rounded-lg border border-[#24242d] bg-[#07070a] p-5">
                   <p className="text-xs uppercase tracking-wide text-yellow-200/70">Average Transaction Value</p>
                   <p className="mt-2 text-3xl text-white">{money(businessSummary.atv)}</p>
                   <p className="mt-2 text-xs text-white/55">
@@ -798,28 +786,40 @@ export function ReportsAnalytics() {
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#24242d] bg-[#07070a] p-5">
-                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Discount Impact</p>
-                  <p className="mt-2 text-3xl text-white">{money(businessSummary.discounts)}</p>
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Discount Pressure</p>
+                  <p className="mt-2 text-3xl text-white">{businessSummary.discountRate.toFixed(1)}%</p>
                   <p className="mt-2 text-xs text-white/55">
-                    {businessSummary.discountRate.toFixed(1)}% of gross revenue
+                    {money(businessSummary.discounts)} discount impact
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#24242d] bg-[#07070a] p-5">
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Best Brand</p>
+                  <p className="mt-2 text-3xl text-white">{businessSummary.bestBrandName}</p>
+                  <p className="mt-2 text-xs text-white/55">
+                    {businessSummary.bestBrandUnits} pairs sold
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#24242d] bg-[#07070a] p-5">
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/70">Top Product</p>
+                  <p className="mt-2 text-3xl text-white">{topProducts[0]?.name ?? 'N/A'}</p>
+                  <p className="mt-2 text-xs text-white/55">
+                    {topProducts[0] ? `${topProducts[0].sales} units sold` : 'No product sales yet'}
                   </p>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 rounded-lg border border-[#24242d] bg-[#07070a] p-4">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-yellow-200/60">Best Brand</p>
-                  <p className="mt-1 text-white">{businessSummary.bestBrand}</p>
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/60">Gross Sales Before Discounts</p>
+                  <p className="mt-1 text-white">{money(businessSummary.grossRevenue)}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-yellow-200/60">Best Size</p>
                   <p className="mt-1 text-white">{businessSummary.bestSize}</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-yellow-200/60">Top Product</p>
-                  <p className="mt-1 text-white">
-                    {topProducts[0] ? `${topProducts[0].name} (${topProducts[0].sales} units)` : 'N/A'}
-                  </p>
+                  <p className="text-xs uppercase tracking-wide text-yellow-200/60">Net After Discounts</p>
+                  <p className="mt-1 text-white">{money(businessSummary.netSales)}</p>
                 </div>
               </div>
             </CardContent>
