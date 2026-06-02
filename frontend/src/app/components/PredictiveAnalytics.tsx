@@ -13,10 +13,14 @@ import {
   LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
+  ZAxis,
 } from "recharts";
 import { useCustomers, useProducts, usePromotions, useSales } from "../../lib/hooks";
 import { productAnalyticsSnapshotsApi } from "../../lib/api";
@@ -1062,6 +1066,7 @@ export function PredictiveAnalytics() {
     stock: Number(product.stock ?? 0),
     turnover: Number(product.turnover ?? 0),
     movement: product.movement,
+    bubbleSize: Math.max(80, Number(product.unitsPeriod ?? 0) * 38 + Number(product.stock ?? 0)),
     fill: movementChartColor(product.movement),
   }));
 
@@ -1508,40 +1513,82 @@ export function PredictiveAnalytics() {
                 <Badge className="bg-yellow-400 text-red-950">{productMovementChart.length} shown</Badge>
               </div>
               {productMovementChart.length ? (
-                <div className="h-[340px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={productMovementChart} margin={{ top: 12, right: 16, left: 0, bottom: 54 }}>
-                      <CartesianGrid stroke="#2b2b36" vertical={false} />
+                <>
+                  <div className="h-[360px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart margin={{ top: 18, right: 18, left: 0, bottom: 18 }}>
+                      <CartesianGrid stroke="#2b2b36" strokeDasharray="3 4" />
                       <XAxis
-                        dataKey="name"
+                        type="number"
+                        dataKey="sold"
+                        name="Sold"
                         stroke="#a1a1aa"
-                        tick={{ fill: "#d4d4d8", fontSize: 11 }}
-                        angle={-28}
-                        textAnchor="end"
-                        interval={0}
-                        height={64}
+                        tick={{ fill: "#f4f4f5", fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#71717a" }}
+                        allowDecimals={false}
+                        label={{ value: `Sold (${analytics.productPeriodLabel})`, position: "insideBottom", offset: -6, fill: "#e4e4e7", fontSize: 12 }}
                       />
-                      <YAxis stroke="#a1a1aa" tick={{ fill: "#d4d4d8", fontSize: 12 }} />
+                      <YAxis
+                        type="number"
+                        dataKey="stock"
+                        name="Stock"
+                        stroke="#a1a1aa"
+                        tick={{ fill: "#f4f4f5", fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: "#71717a" }}
+                        allowDecimals={false}
+                        label={{ value: "Current Stock", angle: -90, position: "insideLeft", fill: "#e4e4e7", fontSize: 12 }}
+                      />
+                      <ZAxis dataKey="bubbleSize" range={[90, 520]} />
+                      <ReferenceLine x={0} stroke="#52525b" strokeDasharray="4 4" />
                       <Tooltip
-                        cursor={{ fill: "rgba(250,204,21,0.08)" }}
-                        contentStyle={{ background: "#101017", border: "1px solid #2b2b36", borderRadius: 12 }}
-                        labelStyle={{ color: "#facc15" }}
-                        formatter={(value: any, name: string, item: any) => {
-                          if (name === "sold") return [`${Number(value)} units`, "Sold"];
-                          if (name === "stock") return [`${Number(value)} units`, "Stock"];
-                          return [value, name];
+                        cursor={{ stroke: "#facc15", strokeDasharray: "4 4" }}
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const product = payload[0].payload;
+                          return (
+                            <div className="min-w-[190px] rounded-xl border border-yellow-400/50 bg-[#050509] p-3 shadow-2xl shadow-black/60">
+                              <p className="text-sm font-bold text-yellow-300">{product.fullName}</p>
+                              <div className="mt-2 space-y-1 text-xs">
+                                <p className="flex justify-between gap-4 text-white">
+                                  <span className="text-white/65">Sold</span>
+                                  <span className="font-semibold">{product.sold} units</span>
+                                </p>
+                                <p className="flex justify-between gap-4 text-white">
+                                  <span className="text-white/65">Stock</span>
+                                  <span className="font-semibold">{product.stock} units</span>
+                                </p>
+                                <p className="flex justify-between gap-4 text-white">
+                                  <span className="text-white/65">Turnover</span>
+                                  <span className="font-semibold">{product.turnover.toFixed(2)}x</span>
+                                </p>
+                                <p className="flex justify-between gap-4 text-white">
+                                  <span className="text-white/65">Movement</span>
+                                  <span className="font-semibold" style={{ color: product.fill }}>{product.movement}</span>
+                                </p>
+                              </div>
+                            </div>
+                          );
                         }}
-                        labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ""}
                       />
-                      <Bar dataKey="sold" name="sold" radius={[8, 8, 0, 0]}>
+                      <Scatter name="Products" data={productMovementChart}>
                         {productMovementChart.map((row) => (
-                          <Cell key={`sold-${row.fullName}`} fill={row.fill} />
+                          <Cell key={`movement-${row.fullName}`} fill={row.fill} fillOpacity={0.9} stroke="#f8fafc" strokeOpacity={0.35} />
                         ))}
-                      </Bar>
-                      <Bar dataKey="stock" name="stock" radius={[8, 8, 0, 0]} fill="#52525b" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                      </Scatter>
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/70">
+                    {["Fast", "Steady", "Slow", "Dead Stock"].map((label) => (
+                      <span key={label} className="inline-flex items-center gap-1.5">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: movementChartColor(label) }} />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </>
               ) : (
                 <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-[#2b2b36] text-sm text-white/50">
                   No product movement data yet.
