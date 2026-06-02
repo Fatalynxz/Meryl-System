@@ -466,22 +466,58 @@ export function ReportsAnalytics() {
     };
   }, [currentMetrics, customEndDate, customStartDate, productLookup, salesRows, timeRange]);
 
+  const summarizeSkuTurnover = (unitsBySku: Map<string, number>, periodDays: number) => {
+    let units = 0;
+    let avgInventory = 0;
+    unitsBySku.forEach((soldUnits, sku) => {
+      const endingStock = stockBySku.get(sku) ?? 0;
+      const beginningStock = endingStock + soldUnits;
+      units += soldUnits;
+      avgInventory += (beginningStock + endingStock) / 2;
+    });
+    const turnover = avgInventory > 0 ? Number((units / avgInventory).toFixed(2)) : 0;
+    const avgDays = turnover > 0 ? Math.max(1, Math.round(periodDays / turnover)) : 0;
+    return { units, avgInventory, turnover, avgDays };
+  };
+
   const inventoryTurnover = useMemo(() => {
     const { now, start, days } = rangeWindow(timeRange, customStartDate, customEndDate);
     const bucketCount = timeRange === 'daily' ? 1 : timeRange === 'weekly' ? 7 : timeRange === 'monthly' ? 6 : timeRange === 'quarterly' ? 13 : 12;
     const bucketDays = Math.max(1, Math.ceil(days / bucketCount));
-    const buckets = Array.from({ length: bucketCount }, (_, index) => {
-      const bucketStart = new Date(start);
-      bucketStart.setDate(start.getDate() + (index * bucketDays));
-      const bucketEnd = new Date(bucketStart);
-      bucketEnd.setDate(bucketStart.getDate() + bucketDays - 1);
-      bucketEnd.setHours(23, 59, 59, 999);
-      return {
-        start: bucketStart,
-        end: bucketEnd > now ? now : bucketEnd,
-        unitsBySku: new Map<string, number>(),
-      };
-    }).filter((bucket) => bucket.start <= now);
+    const buckets: Array<{ start: Date; end: Date; unitsBySku: Map<string, number> }> = [];
+
+    if (timeRange === 'annually') {
+      const cursor = new Date(start);
+      cursor.setDate(1);
+      cursor.setHours(0, 0, 0, 0);
+      while (cursor <= now) {
+        const bucketStart = new Date(cursor);
+        if (bucketStart < start) bucketStart.setTime(start.getTime());
+        const bucketEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999);
+        buckets.push({
+          start: bucketStart,
+          end: bucketEnd > now ? now : bucketEnd,
+          unitsBySku: new Map<string, number>(),
+        });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    } else {
+      Array.from({ length: bucketCount }, (_, index) => {
+        const bucketStart = new Date(start);
+        bucketStart.setDate(start.getDate() + (index * bucketDays));
+        const bucketEnd = new Date(bucketStart);
+        bucketEnd.setDate(bucketStart.getDate() + bucketDays - 1);
+        bucketEnd.setHours(23, 59, 59, 999);
+        if (bucketStart <= now) {
+          buckets.push({
+            start: bucketStart,
+            end: bucketEnd > now ? now : bucketEnd,
+            unitsBySku: new Map<string, number>(),
+          });
+        }
+        return null;
+      });
+    }
 
     salesRows.forEach((sale) => {
       const date = saleDate(sale);
@@ -496,19 +532,13 @@ export function ReportsAnalytics() {
     });
 
     return buckets.map((bucket, index) => {
-      let units = 0;
-      let avgInventory = 0;
-      stockBySku.forEach((endingStock, sku) => {
-        const soldUnits = bucket.unitsBySku.get(sku) ?? 0;
-        units += soldUnits;
-        avgInventory += (endingStock + endingStock + soldUnits) / 2;
-      });
-      const turnover = avgInventory > 0 ? Number((units / avgInventory).toFixed(2)) : 0;
       const bucketSpanDays = Math.max(1, Math.ceil((bucket.end.getTime() - bucket.start.getTime()) / 86400000) + 1);
-      const avgDays = units > 0 ? Math.max(1, Math.round((avgInventory / units) * bucketSpanDays)) : 0;
-      const label = timeRange === 'quarterly'
+      const { units, turnover, avgDays } = summarizeSkuTurnover(bucket.unitsBySku, bucketSpanDays);
+      const label = timeRange === 'annually'
+        ? bucket.start.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+        : timeRange === 'quarterly'
         ? `W${index + 1}`
-        : bucket.start.toLocaleDateString('en-US', { month: 'short', day: timeRange === 'annually' ? undefined : 'numeric' });
+        : bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       return {
         id: `it${index}`,
         month: label,
@@ -518,11 +548,6 @@ export function ReportsAnalytics() {
       };
     });
   }, [customEndDate, customStartDate, salesRows, stockBySku, timeRange]);
-
-  const totalInventoryStock = useMemo(() => productRows.reduce((sum, product: any) => {
-    const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
-    return sum + Number(inventory?.stock_quantity ?? 0);
-  }, 0), [productRows]);
 
   const promotionEffectiveness = useMemo(() => {
     const totalUnits = Math.max(currentMetrics.current.units, 1);
@@ -644,23 +669,36 @@ export function ReportsAnalytics() {
     toast.success('Report exported successfully!');
   };
 
+  const inventoryPeriodMetrics = useMemo(() => {
+    const { now, start, previousStart, days } = rangeWindow(timeRange, customStartDate, customEndDate);
+    const compareEnd = new Date(start.getTime() - 1);
+    const collectUnitsBySku = (from: Date, to: Date) => {
+      const unitsBySku = new Map<string, number>();
+      salesRows.forEach((sale) => {
+        const date = saleDate(sale);
+        if (!date || date < from || date > to) return;
+        const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
+        details.forEach((detail: any) => {
+          const sku = String(detail.product_id ?? '');
+          unitsBySku.set(sku, (unitsBySku.get(sku) ?? 0) + Number(detail.quantity ?? 0));
+        });
+      });
+      return unitsBySku;
+    };
+
+    return {
+      current: summarizeSkuTurnover(collectUnitsBySku(start, now), days),
+      previous: summarizeSkuTurnover(collectUnitsBySku(previousStart, compareEnd), days),
+    };
+  }, [customEndDate, customStartDate, salesRows, stockBySku, timeRange]);
+
   const revenueChange = percentChange(currentMetrics.current.revenue, currentMetrics.previous.revenue);
   const unitsChange = percentChange(currentMetrics.current.units, currentMetrics.previous.units);
   const selectedWindow = rangeWindow(timeRange, customStartDate, customEndDate);
-  const latestAverageInventory = totalInventoryStock + (currentMetrics.current.units / 2);
-  const previousAverageInventory = totalInventoryStock + (currentMetrics.previous.units / 2);
-  const latestTurnover = latestAverageInventory > 0
-    ? Number((currentMetrics.current.units / latestAverageInventory).toFixed(2))
-    : 0;
-  const previousTurnover = previousAverageInventory > 0
-    ? Number((currentMetrics.previous.units / previousAverageInventory).toFixed(2))
-    : 0;
-  const latestAvgDays = currentMetrics.current.units > 0
-    ? Math.max(1, Math.round((latestAverageInventory / currentMetrics.current.units) * selectedWindow.days))
-    : 0;
-  const previousAvgDays = currentMetrics.previous.units > 0
-    ? Math.max(1, Math.round((previousAverageInventory / currentMetrics.previous.units) * selectedWindow.days))
-    : 0;
+  const latestTurnover = inventoryPeriodMetrics.current.turnover;
+  const previousTurnover = inventoryPeriodMetrics.previous.turnover;
+  const latestAvgDays = inventoryPeriodMetrics.current.avgDays;
+  const previousAvgDays = inventoryPeriodMetrics.previous.avgDays;
   const turnoverChange = percentChange(latestTurnover, previousTurnover);
   const avgDaysChange = previousAvgDays ? previousAvgDays - latestAvgDays : 0;
   const selectedRangeLabel = formatDateRange(selectedWindow.start, selectedWindow.now);
