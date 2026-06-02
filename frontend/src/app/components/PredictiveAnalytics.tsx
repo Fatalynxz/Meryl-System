@@ -1537,8 +1537,8 @@ export function PredictiveAnalytics() {
               {sizeCurveRows.length ? (
                 <div className="overflow-x-auto rounded-xl border border-[#24242f] bg-[#15151d]">
                   <div
-                    className="grid min-w-max items-stretch"
-                    style={{ gridTemplateColumns: `180px repeat(${sizeCurveSizes.length}, 88px) 92px 92px` }}
+                    className="grid w-full min-w-max items-stretch"
+                    style={{ gridTemplateColumns: `minmax(180px,1.35fr) repeat(${sizeCurveSizes.length}, minmax(76px,1fr)) minmax(84px,0.6fr) minmax(84px,0.6fr)` }}
                   >
                     <div className="sticky left-0 z-10 border-b border-r border-[#2b2b36] bg-[#1b1b26] px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white/55">
                       Style
