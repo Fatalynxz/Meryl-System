@@ -240,6 +240,18 @@ function estimatePromotionPrice(srp: number, discountType: string | undefined, d
   return srp;
 }
 
+function maxSafePercentageDiscount(product: { srp: number; unitCost: number; isSlowMover?: boolean }, fallback = 5) {
+  if (!product.srp || !product.unitCost || product.srp <= 0) return fallback;
+  const minimumPrice = product.unitCost * (product.isSlowMover ? 1.03 : 1.1);
+  const maxPercent = Math.floor(((product.srp - minimumPrice) / product.srp) * 100);
+  return Math.max(1, Math.min(30, maxPercent));
+}
+
+function roundedSafePercentage(product: { srp: number; unitCost: number; isSlowMover?: boolean }, requested: number) {
+  const safe = maxSafePercentageDiscount(product, Math.min(5, requested));
+  return Math.max(1, Math.min(requested, Math.floor(safe / 5) * 5 || safe));
+}
+
 function resolvePromotionTargetProducts(targetProducts: string | undefined, products: PromotionMarginProduct[]) {
   const parsed = parseTargetProducts(targetProducts);
   const wantsAll = !parsed.categories.length && !parsed.products.length;
@@ -604,11 +616,12 @@ export function PromotionManagement() {
           if (end && saleDate && saleDate > end) return sum;
           const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
           details.forEach((detail: any) => {
-            const discount = Number(detail.discount_applied ?? 0);
-            if (discount <= 0) return;
             if (!productDetailMatchesPromotion(detail, basePromotion)) return;
-            sum.sales += Number(detail.subtotal ?? 0);
-            sum.units += Number(detail.quantity ?? 0);
+            const quantity = Number(detail.quantity ?? 0);
+            const lineSubtotal = Number(detail.subtotal ?? 0);
+            const fallbackSubtotal = Number(detail.price ?? 0) * quantity;
+            sum.sales += lineSubtotal > 0 ? lineSubtotal : fallbackSubtotal;
+            sum.units += quantity;
           });
           return sum;
         },
@@ -652,14 +665,19 @@ export function PromotionManagement() {
       const reorder = Number(p.reorder_level ?? inventory?.reorder_level ?? 10);
       const sold30 = soldByProduct.get(String(p.product_id ?? '')) ?? 0;
       const velocity = sold30 / 30;
+      const srp = Number(inventory?.srp ?? p.srp ?? p.selling_price ?? p.price ?? 0);
+      const unitCost = Number(p.cost_price ?? p.unit_price ?? p.base_price ?? 0);
       return {
         id: String(p.product_id ?? ''),
         name: String(p.product_name ?? 'Unknown Product'),
         category: String(p.category?.[0]?.category_name ?? p.category?.category_name ?? 'General'),
+        srp,
+        unitCost,
         stock,
         reorder,
         sold30,
         velocity,
+        isSlowMover: stock >= reorder * 2 && sold30 <= 2,
       };
     });
 
@@ -685,7 +703,7 @@ export function PromotionManagement() {
         title: `Boost slow mover: ${slow.name}`,
         rationale: `${slow.sold30} sold in 30d with ${slow.stock} units on hand.`,
         discount_type: 'Percentage',
-        discount_value: 15,
+        discount_value: roundedSafePercentage(slow, 15),
         targetProducts: slow.name,
       });
     }
@@ -700,21 +718,29 @@ export function PromotionManagement() {
       });
     }
     if (weakCategory) {
+      const categoryProducts = rows.filter((row) => row.category === weakCategory.category && row.srp > 0 && row.unitCost > 0);
+      const safeCategoryDiscount = categoryProducts.length
+        ? Math.min(...categoryProducts.map((row) => roundedSafePercentage(row, 10)))
+        : 5;
       recs.push({
         id: `category-${weakCategory.category}`,
         title: `Category push: ${weakCategory.category}`,
         rationale: `Lowest sell-through ratio in last 30 days.`,
-        discount_type: 'BOGO',
-        discount_value: 50,
+        discount_type: 'Percentage',
+        discount_value: safeCategoryDiscount,
         targetProducts: `Categories: ${weakCategory.category}`,
       });
     }
+    const sellableRows = rows.filter((row) => row.srp > 0 && row.unitCost > 0);
+    const safeAllProductsDiscount = sellableRows.length
+      ? Math.min(...sellableRows.map((row) => roundedSafePercentage(row, 10)))
+      : 5;
     recs.push({
       id: 'weekend-traffic',
       title: 'Weekend traffic booster',
       rationale: 'Use short promo window to increase conversion without long margin impact.',
       discount_type: 'Percentage',
-      discount_value: 20,
+      discount_value: safeAllProductsDiscount,
       targetProducts: 'All Products',
     });
     return recs.slice(0, 4);
