@@ -294,8 +294,9 @@ export function ReportsAnalytics() {
     return rows.length ? rows : [{ id: 'cd-empty', name: 'No Sales', value: 100, color: '#fef9c3' }];
   }, [revenueByCategory]);
 
-  const salesBreakdownPeriod: 'daily' | 'weekly' | 'monthly' = useMemo(() => {
-    if (timeRange === 'monthly' || timeRange === 'quarterly' || timeRange === 'annually') return 'monthly';
+  const salesBreakdownPeriod: 'daily' | 'weekly' | 'monthly' | 'quarterly' = useMemo(() => {
+    if (timeRange === 'quarterly') return 'quarterly';
+    if (timeRange === 'monthly' || timeRange === 'annually') return 'monthly';
     if (timeRange === 'weekly') return 'weekly';
     return 'daily';
   }, [timeRange]);
@@ -310,6 +311,16 @@ export function ReportsAnalytics() {
           key: date.toISOString().slice(0, 7),
           label: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
           date: new Date(date.getFullYear(), date.getMonth(), 1),
+        };
+      }
+
+      if (salesBreakdownPeriod === 'quarterly') {
+        const quarter = Math.floor(date.getMonth() / 3) + 1;
+        const quarterStartMonth = (quarter - 1) * 3;
+        return {
+          key: `${date.getFullYear()}-Q${quarter}`,
+          label: `Q${quarter} ${date.getFullYear()}`,
+          date: new Date(date.getFullYear(), quarterStartMonth, 1),
         };
       }
 
