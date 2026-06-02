@@ -145,6 +145,13 @@ function promotionTimeMs(value: string | undefined, boundary: 'start' | 'end') {
   return time;
 }
 
+function saleTimestampMs(value: string | undefined) {
+  const raw = String(value || '').trim();
+  if (!raw) return Number.NaN;
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  return new Date(hasTimezone ? raw : `${raw}Z`).getTime();
+}
+
 function formatPromotionDateTime(value: string | undefined, boundary: 'start' | 'end') {
   const normalized = normalizePromotionDateTime(value, boundary);
   if (!normalized) return 'N/A';
@@ -656,7 +663,7 @@ export function PromotionManagement() {
       const performance = sales.reduce(
         (sum, sale: any) => {
           if (!saleIsCompleted(sale)) return sum;
-          const saleTime = new Date(sale.transaction_date ?? sale.created_at ?? '').getTime();
+          const saleTime = saleTimestampMs(sale.transaction_date ?? sale.created_at);
           if (Number.isNaN(saleTime)) return sum;
           if (saleTime < startMs || saleTime > endMs) return sum;
           const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
