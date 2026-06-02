@@ -1900,8 +1900,9 @@ export function PredictiveAnalytics() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-[#2b2b36] bg-[#111118]">
-                  <Table className="table-fixed w-full">
+                <div className="overflow-hidden rounded-2xl border border-[#2b2b36] bg-[#111118]">
+                  <div className="overflow-x-auto">
+                  <Table className="table-fixed w-full min-w-[980px]">
                     <colgroup>
                       <col className="w-[11%]" />
                       <col className="w-[11%]" />
@@ -1912,33 +1913,34 @@ export function PredictiveAnalytics() {
                       <col className="w-[9%]" />
                       <col className="w-[18%]" />
                     </colgroup>
-                    <TableHeader>
-                      <TableRow className="border-[#2b2b36] bg-[#1b1b26] hover:bg-[#1b1b26]">
-                        <TableHead className="py-2 text-[13px] font-semibold text-white">Gender</TableHead>
-                        <TableHead className="py-2 text-[13px] font-semibold text-white">Top Brand</TableHead>
-                        <TableHead className="py-2 text-[13px] font-semibold text-white">Top Size</TableHead>
-                        <TableHead className="py-2 text-[13px] font-semibold text-white">Top Product</TableHead>
-                        <TableHead className="py-2 text-center text-[13px] font-semibold text-white">Customers</TableHead>
-                        <TableHead className="py-2 text-center text-[13px] font-semibold text-white">Orders</TableHead>
-                        <TableHead className="py-2 text-center text-[13px] font-semibold text-white">Units</TableHead>
-                        <TableHead className="py-2 text-right text-[13px] font-semibold text-white">Revenue</TableHead>
+                    <TableHeader className="bg-[#1f1f28]">
+                      <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Gender</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Brand</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Size</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Product</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Customers</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Orders</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Units</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Revenue</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {analytics.genderRows.map((row: any) => (
-                        <TableRow key={row.label} className="border-[#2b2b36] hover:bg-[#151520]">
-                          <TableCell className="py-2.5 align-middle text-[13px] font-semibold text-white">{row.label}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-[13px] text-white/90">{row.topBrand}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-[13px] text-white/90">{row.topSize}</TableCell>
-                          <TableCell className="py-2.5 align-middle truncate text-[13px] text-white/90">{row.topProduct}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-center text-[13px] text-white/90">{row.customers}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-center text-[13px] text-white/90">{row.orders}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-center text-[13px] text-white/90">{row.units}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-right text-[13px] font-semibold text-yellow-300">{money(row.revenue)}</TableCell>
+                        <TableRow key={row.label} className="border-[#2b2b36] hover:bg-white/[0.03]">
+                          <TableCell className="py-3 text-center align-middle font-semibold text-white">{row.label}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white/80">{row.topBrand}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white/80">{row.topSize}</TableCell>
+                          <TableCell className="py-3 text-center align-middle truncate text-white/80">{row.topProduct}</TableCell>
+                          <TableCell className="py-3 text-center align-middle"><Badge className="bg-green-700 text-white">{row.customers}</Badge></TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white">{row.orders}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-yellow-300">{row.units}</TableCell>
+                          <TableCell className="py-3 text-center align-middle font-semibold text-yellow-300">{money(row.revenue)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1988,8 +1990,9 @@ export function PredictiveAnalytics() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-[#2b2b36] bg-[#111118]">
-                  <Table className="table-fixed w-full">
+                <div className="overflow-hidden rounded-2xl border border-[#2b2b36] bg-[#111118]">
+                  <div className="overflow-x-auto">
+                  <Table className="table-fixed w-full min-w-[980px]">
                     <colgroup>
                       <col className="w-[12%]" />
                       <col className="w-[11%]" />
@@ -2000,33 +2003,34 @@ export function PredictiveAnalytics() {
                       <col className="w-[9%]" />
                       <col className="w-[18%]" />
                     </colgroup>
-                    <TableHeader>
-                      <TableRow className="border-[#2b2b36] bg-[#1b1b26] hover:bg-[#1b1b26]">
-                        <TableHead className="py-2 text-[13px] font-semibold text-white">Age Range</TableHead>
-                        <TableHead className="py-2 text-[13px] font-semibold text-white">Top Brand</TableHead>
-                        <TableHead className="py-2 text-[13px] font-semibold text-white">Top Size</TableHead>
-                        <TableHead className="py-2 text-[13px] font-semibold text-white">Top Product</TableHead>
-                        <TableHead className="py-2 text-center text-[13px] font-semibold text-white">Customers</TableHead>
-                        <TableHead className="py-2 text-center text-[13px] font-semibold text-white">Orders</TableHead>
-                        <TableHead className="py-2 text-center text-[13px] font-semibold text-white">Units</TableHead>
-                        <TableHead className="py-2 text-right text-[13px] font-semibold text-white">Revenue</TableHead>
+                    <TableHeader className="bg-[#1f1f28]">
+                      <TableRow className="border-[#2b2b36] hover:bg-[#1f1f28]">
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Age Range</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Brand</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Size</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Top Product</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Customers</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Orders</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Units</TableHead>
+                        <TableHead className="py-3 text-center text-sm font-semibold text-white">Revenue</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {analytics.ageRows.map((row: any) => (
-                        <TableRow key={row.label} className="border-[#2b2b36] hover:bg-[#151520]">
-                          <TableCell className="py-2.5 align-middle text-[13px] font-semibold text-white">{row.label}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-[13px] text-white/90">{row.topBrand}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-[13px] text-white/90">{row.topSize}</TableCell>
-                          <TableCell className="py-2.5 align-middle truncate text-[13px] text-white/90">{row.topProduct}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-center text-[13px] text-white/90">{row.customers}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-center text-[13px] text-white/90">{row.orders}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-center text-[13px] text-white/90">{row.units}</TableCell>
-                          <TableCell className="py-2.5 align-middle text-right text-[13px] font-semibold text-yellow-300">{money(row.revenue)}</TableCell>
+                        <TableRow key={row.label} className="border-[#2b2b36] hover:bg-white/[0.03]">
+                          <TableCell className="py-3 text-center align-middle font-semibold text-white">{row.label}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white/80">{row.topBrand}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white/80">{row.topSize}</TableCell>
+                          <TableCell className="py-3 text-center align-middle truncate text-white/80">{row.topProduct}</TableCell>
+                          <TableCell className="py-3 text-center align-middle"><Badge className="bg-green-700 text-white">{row.customers}</Badge></TableCell>
+                          <TableCell className="py-3 text-center align-middle text-white">{row.orders}</TableCell>
+                          <TableCell className="py-3 text-center align-middle text-yellow-300">{row.units}</TableCell>
+                          <TableCell className="py-3 text-center align-middle font-semibold text-yellow-300">{money(row.revenue)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
                 </div>
               </div>
             ) : (
