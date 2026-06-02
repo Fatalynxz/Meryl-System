@@ -662,7 +662,7 @@ export function ReportsAnalytics() {
               </SelectTrigger>
               <SelectContent className="bg-[#0b0b0f] border-[#24242d] text-white">
                 <SelectItem value="overview">Overview Report</SelectItem>
-                <SelectItem value="sales">Sales Analysis</SelectItem>
+                <SelectItem value="sales">Sales Report</SelectItem>
                 <SelectItem value="revenue">Revenue Report</SelectItem>
                 <SelectItem value="inventory">Inventory Report</SelectItem>
                 <SelectItem value="promotions">Promotions Report</SelectItem>
