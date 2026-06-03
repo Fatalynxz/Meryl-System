@@ -68,29 +68,38 @@ export type Database = {
       }
       inventory: {
         Row: {
+          expiration_date: string | null
           inventory_id: string
           inventory_status: string | null
           last_updated: string | null
+          manufacturer_date: string | null
           product_id: string
           reorder_level: number | null
+          reserved_quantity: number | null
           srp: number | null
           stock_quantity: number
         }
         Insert: {
+          expiration_date?: string | null
           inventory_id: string
           inventory_status?: string | null
           last_updated?: string | null
+          manufacturer_date?: string | null
           product_id: string
           reorder_level?: number | null
+          reserved_quantity?: number | null
           srp?: number | null
           stock_quantity: number
         }
         Update: {
+          expiration_date?: string | null
           inventory_id?: string
           inventory_status?: string | null
           last_updated?: string | null
+          manufacturer_date?: string | null
           product_id?: string
           reorder_level?: number | null
+          reserved_quantity?: number | null
           srp?: number | null
           stock_quantity?: number
         }

@@ -37,5 +37,34 @@ SET size = (
 )
 WHERE size ~* '^\s*US\s*\d+(\.\d+)?\s*-\s*\d+(\.\d+)?\s*$';
 
-COMMIT;
+-- 4) Archive legacy range-size rows (e.g., "36-45") when single-size variants exist
+--    for the same brand + product name.
+WITH range_rows AS (
+  SELECT p.product_id, p.product_name, p.brand
+  FROM public.product p
+  WHERE COALESCE(p.size, '') ~ '^\d+\s*-\s*\d+$'
+),
+single_rows AS (
+  SELECT DISTINCT p.product_name, p.brand
+  FROM public.product p
+  WHERE COALESCE(p.size, '') ~ '^\d+$'
+)
+UPDATE public.product p
+SET status = 'inactive'
+FROM range_rows r
+JOIN single_rows s
+  ON LOWER(s.product_name) = LOWER(r.product_name)
+ AND LOWER(s.brand) = LOWER(r.brand)
+WHERE p.product_id = r.product_id;
 
+-- Keep inventory consistent for archived legacy range rows.
+UPDATE public.inventory i
+SET inventory_status = 'inactive',
+    stock_quantity = 0,
+    last_updated = NOW()
+FROM public.product p
+WHERE i.product_id = p.product_id
+  AND p.status = 'inactive'
+  AND COALESCE(p.size, '') ~ '^\d+\s*-\s*\d+$';
+
+COMMIT;

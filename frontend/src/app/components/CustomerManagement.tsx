@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Crown, Edit, Mail, MapPin, Phone, Search, Star, Trash2, Users, Gift } from "lucide-react";
+import { Crown, Edit, Mail, MapPin, Phone, Search, Star, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
-import { useCustomers, useCustomersMutations, useSales, useReturns } from "../../lib/hooks";
+import { useCustomers, useCustomersMutations, useSales } from "../../lib/hooks";
 
 type CustomerStatus = "Active" | "Inactive";
 
@@ -17,6 +18,8 @@ type CustomerFormData = {
   email: string;
   contact_number: string;
   address: string;
+  gender: string;
+  age: string;
   status: CustomerStatus;
 };
 
@@ -25,6 +28,8 @@ const defaultForm: CustomerFormData = {
   email: "",
   contact_number: "",
   address: "",
+  gender: "",
+  age: "",
   status: "Active",
 };
 
@@ -42,12 +47,10 @@ export function CustomerManagement() {
 
   const customersQuery = useCustomers();
   const salesQuery = useSales();
-  const returnsQuery = useReturns();
   const customerMutations = useCustomersMutations();
 
   const customers = customersQuery.data ?? [];
   const sales = salesQuery.data ?? [];
-  const returns = (returnsQuery.data as any[]) ?? [];
 
   const statsMap = useMemo(() => {
     const map = new Map<string, { count: number; lastDate: string | null }>();
@@ -65,46 +68,19 @@ export function CustomerManagement() {
     return map;
   }, [sales]);
 
-  const storeCreditsMap = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const returnRecord of returns) {
-      const sale = Array.isArray(returnRecord.sales_transaction)
-        ? returnRecord.sales_transaction[0]
-        : returnRecord.sales_transaction;
-      const customerId = sale?.customer_id ?? returnRecord.customer_id;
-      if (!customerId) continue;
-
-      const returnDetails = Array.isArray(returnRecord.return_details)
-        ? returnRecord.return_details
-        : [];
-
-      for (const detail of returnDetails) {
-        const priceDiff = Number(detail.price_difference ?? 0);
-        if (priceDiff < 0) {
-          // Negative price difference = store credit issued
-          const credit = Math.abs(priceDiff);
-          const prev = map.get(customerId) ?? 0;
-          map.set(customerId, prev + credit);
-        }
-      }
-    }
-    return map;
-  }, [returns]);
-
   const uiCustomers = useMemo(
     () =>
       (customers as any[]).map((customer) => {
         const stats = statsMap.get(customer.customer_id) ?? { count: 0, lastDate: null };
-        const credits = storeCreditsMap.get(customer.customer_id) ?? 0;
         return {
           ...customer,
           totalPurchases: stats.count,
           lastPurchaseDate: formatDate(stats.lastDate),
-          storeCredit: credits,
+          ageValue: Number.isFinite(Number(customer.age)) ? Number(customer.age) : null,
           loyaltyPoints: 0,
         };
       }),
-    [customers, statsMap, storeCreditsMap],
+    [customers, statsMap],
   );
 
   const filteredCustomers = useMemo(
@@ -119,7 +95,6 @@ export function CustomerManagement() {
   );
 
   const activeCustomers = uiCustomers.filter((c) => (c.status ?? "Active").toLowerCase() === "active").length;
-  const totalStoreCredits = uiCustomers.reduce((sum, c) => sum + (c.storeCredit ?? 0), 0);
   const topCustomer =
     uiCustomers.length > 0
       ? [...uiCustomers].sort((a, b) => b.totalPurchases - a.totalPurchases)[0]
@@ -132,6 +107,8 @@ export function CustomerManagement() {
       email: customer.email ?? "",
       contact_number: customer.contact_number ?? "",
       address: customer.address ?? "",
+      gender: customer.gender ?? "",
+      age: customer.age != null ? String(customer.age) : "",
       status: (customer.status ?? "Active") as CustomerStatus,
     });
   };
@@ -146,6 +123,8 @@ export function CustomerManagement() {
           email: formData.email,
           contact_number: formData.contact_number,
           address: formData.address || null,
+          gender: formData.gender || null,
+          age: formData.age ? Number(formData.age) : null,
           status: formData.status,
         } as any,
       });
@@ -168,7 +147,7 @@ export function CustomerManagement() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-red-700 border-red-800">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -203,18 +182,7 @@ export function CustomerManagement() {
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-red-700 border-red-800">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-yellow-200">Store Credits Issued</p>
-                <p className="text-2xl text-yellow-300">₽{totalStoreCredits.toFixed(2)}</p>
-              </div>
-              <Gift className="h-8 w-8 text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+</div>
 
       <Card className="bg-red-700 border-red-800">
         <CardHeader>
@@ -243,9 +211,10 @@ export function CustomerManagement() {
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Name</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Contact</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Address</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Gender</TableHead>
+                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Age</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Purchases</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Last Purchase</TableHead>
-                  <TableHead className="text-yellow-300 whitespace-nowrap text-center">Store Credit</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Status</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Actions</TableHead>
                 </TableRow>
@@ -272,16 +241,11 @@ export function CustomerManagement() {
                         <span>{customer.address || "N/A"}</span>
                       </div>
                     </TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{customer.gender ?? "N/A"}</TableCell>
+                    <TableCell className="text-yellow-200 whitespace-nowrap text-center">{customer.ageValue ?? "N/A"}</TableCell>
                     <TableCell className="text-yellow-300 text-center whitespace-nowrap">{customer.totalPurchases}</TableCell>
                     <TableCell className="text-yellow-200 text-sm whitespace-nowrap text-center">{customer.lastPurchaseDate}</TableCell>
-                    <TableCell className="whitespace-nowrap text-center">
-                      {customer.storeCredit > 0 ? (
-                        <Badge className="bg-yellow-500 text-red-900 font-bold">₽{customer.storeCredit.toFixed(2)}</Badge>
-                      ) : (
-                        <span className="text-yellow-200 text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-center">
+<TableCell className="whitespace-nowrap text-center">
                       <Badge className={(customer.status ?? "Active").toLowerCase() === "active" ? "bg-green-600 text-white" : "bg-gray-600 text-white"}>
                         {customer.status ?? "Active"}
                       </Badge>
@@ -376,6 +340,36 @@ function CustomerForm({
         />
       </div>
       <div className="space-y-2">
+        <Label htmlFor="gender" className="text-yellow-300">
+          Gender
+        </Label>
+        <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
+          <SelectTrigger id="gender" className="bg-red-600 border-red-800 text-yellow-200">
+            <SelectValue placeholder="Select gender" />
+          </SelectTrigger>
+          <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+            <SelectItem value="Male">Male</SelectItem>
+            <SelectItem value="Female">Female</SelectItem>
+            <SelectItem value="Kids (Boy)">Kids (Boy)</SelectItem>
+            <SelectItem value="Kids (Girl)">Kids (Girl)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="age" className="text-yellow-300">
+          Age
+        </Label>
+        <Input
+          id="age"
+          type="number"
+          min={0}
+          max={120}
+          value={formData.age}
+          onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+          className="bg-red-600 border-red-800 text-yellow-200"
+        />
+      </div>
+      <div className="space-y-2">
         <Label htmlFor="address" className="text-yellow-300">
           Address
         </Label>
@@ -389,3 +383,4 @@ function CustomerForm({
     </div>
   );
 }
+

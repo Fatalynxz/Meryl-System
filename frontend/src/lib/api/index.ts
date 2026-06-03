@@ -12,4 +12,4 @@ export * from "./promotions";
 export * from "./notifications";
 export * from "./analytics";
 export * from "./predictions";
-
+export * from "./productAnalyticsSnapshots";

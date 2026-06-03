@@ -10,6 +10,7 @@ import {
 import { supabase } from "./supabase";
 
 export const MERYL_USER_STORAGE_KEY = "meryl_user";
+const GOOGLE_OTP_VERIFIED_EMAIL_KEY = "meryl_google_otp_verified_email";
 
 export type AuthUser = {
   user_id: string;
@@ -26,7 +27,8 @@ type AuthContextValue = {
   login: (username: string, password: string) => Promise<AuthUser | null>;
   signInWithGoogle: () => Promise<void>;
   requestEmailOtp: (email: string) => Promise<void>;
-  completeExternalAuth: () => Promise<AuthUser | null>;
+  completeExternalAuth: (options?: { persist?: boolean; bypassOtpGate?: boolean }) => Promise<AuthUser | null>;
+  markGoogleOtpVerified: (email: string) => void;
   logout: () => void;
 };
 
@@ -44,6 +46,18 @@ function readStoredUser(): AuthUser | null {
 
 function writeStoredUser(authUser: AuthUser) {
   sessionStorage.setItem(MERYL_USER_STORAGE_KEY, JSON.stringify(authUser));
+}
+
+function getVerifiedGoogleOtpEmail() {
+  return sessionStorage.getItem(GOOGLE_OTP_VERIFIED_EMAIL_KEY)?.trim().toLowerCase() ?? "";
+}
+
+function markGoogleOtpVerifiedEmail(email: string) {
+  sessionStorage.setItem(GOOGLE_OTP_VERIFIED_EMAIL_KEY, email.trim().toLowerCase());
+}
+
+function clearGoogleOtpVerifiedEmail() {
+  sessionStorage.removeItem(GOOGLE_OTP_VERIFIED_EMAIL_KEY);
 }
 
 export function getPostLoginPath(authUser: AuthUser | null) {
@@ -118,7 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const completeExternalAuth = useCallback(async () => {
+  const completeExternalAuth = useCallback(async (options?: { persist?: boolean; bypassOtpGate?: boolean }) => {
+    const persist = options?.persist ?? true;
+    const bypassOtpGate = options?.bypassOtpGate ?? false;
     const {
       data: { session },
       error,
@@ -128,6 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const email = session?.user?.email;
     if (!email) return null;
+    const normalizedEmail = email.trim().toLowerCase();
+    const provider = String(session?.user?.app_metadata?.provider ?? "").toLowerCase();
+    const googleNeedsOtp = provider === "google" && getVerifiedGoogleOtpEmail() !== normalizedEmail;
 
     const authUser = await findAppUserByEmail(email);
     if (!authUser) {
@@ -135,8 +154,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    writeStoredUser(authUser);
-    setUser(authUser);
+    if (googleNeedsOtp && !bypassOtpGate) {
+      sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
+      setUser(null);
+      return null;
+    }
+
+    if (persist) {
+      writeStoredUser(authUser);
+      setUser(authUser);
+    }
     return authUser;
   }, []);
 
@@ -205,6 +232,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  const markGoogleOtpVerified = useCallback((email: string) => {
+    markGoogleOtpVerifiedEmail(email);
+  }, []);
+
   const login = useCallback(async (username: string, password: string) => {
     const { data, error } = await supabase.rpc("login_user", {
       p_username: username,
@@ -223,13 +254,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
+    clearGoogleOtpVerifiedEmail();
     supabase.auth.signOut();
     setUser(null);
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, signInWithGoogle, requestEmailOtp, completeExternalAuth, logout }),
-    [user, loading, login, signInWithGoogle, requestEmailOtp, completeExternalAuth, logout],
+    () => ({ user, loading, login, signInWithGoogle, requestEmailOtp, completeExternalAuth, markGoogleOtpVerified, logout }),
+    [user, loading, login, signInWithGoogle, requestEmailOtp, completeExternalAuth, markGoogleOtpVerified, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

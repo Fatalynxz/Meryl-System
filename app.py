@@ -113,6 +113,9 @@ from app_modules.analytics.app_returns_predictor import (
 from app_modules.analytics.app_pricing_engine import (
     build_pricing_context as analytics_build_pricing_context,
 )
+from app_modules.analytics.app_product_snapshot_persistence import (
+    rebuild_product_analytics_snapshots,
+)
 from app_modules.sales.app_pos import (
     add_product_to_cart as pos_add_product_to_cart,
     build_receipt_payload as pos_build_receipt_payload,
@@ -1703,10 +1706,19 @@ def normalize_promotion_api_payload(payload, *, allow_past_start=False):
     except ValueError:
         return None, "Start date and end date must be valid dates."
 
+    raw_discount_type = normalize_promotion_type(payload.get("discount_type") or "percentage")
+    normalized_discount_type = db_promotion_type(payload.get("discount_type") or "percentage")
+    discount_value = safe_float(payload.get("discount_value"), 0)
+    # Some schemas enforce discount_value > 0. Keep BOGO representable and valid.
+    if raw_discount_type == "bogo" and discount_value <= 0:
+        discount_value = 50
+    if normalized_discount_type in {"percentage", "fixed"} and discount_value <= 0:
+        discount_value = 1
+
     normalized = {
         "promo_name": promo_name,
-        "discount_type": db_promotion_type(payload.get("discount_type") or "percentage"),
-        "discount_value": safe_float(payload.get("discount_value"), 0),
+        "discount_type": normalized_discount_type,
+        "discount_value": discount_value,
         "start_date": start_iso,
         "end_date": end_iso,
         "status": db_promotion_status(payload.get("status") or "inactive"),
@@ -1733,8 +1745,8 @@ def api_promotion_create_public():
     if error:
         return {"ok": False, "error": error}, 400
     requested_id = str((request.get_json(silent=True) or {}).get("promo_id") or "").strip()
-    if requested_id:
-        payload["promo_id"] = requested_id
+    if requested_id and requested_id.isdigit():
+        payload["promo_id"] = int(requested_id)
 
     try:
         def insert(row):
@@ -2146,6 +2158,76 @@ def api_pricing_recommendations():
         return jsonify(context), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/analytics/product/rebuild", methods=["POST"])
+@login_required
+@roles_required("admin")
+def api_rebuild_product_analytics():
+    """Rebuild persisted product analytics snapshots/dimensions/recommendations."""
+    from flask import jsonify
+    try:
+        body = request.get_json(silent=True) or {}
+        periods = body.get("periods")
+        if periods and isinstance(periods, list):
+            requested_periods = [str(item).strip().lower() for item in periods if str(item).strip()]
+        else:
+            requested_periods = None
+        start_date = str(body.get("start_date") or "").strip() or None
+        end_date = str(body.get("end_date") or "").strip() or None
+
+        result = rebuild_product_analytics_snapshots(
+            fetch_rows=fetch_rows,
+            table_exists=table_exists,
+            supabase=supabase(),
+            periods=requested_periods,
+            custom_start_date=start_date,
+            custom_end_date=end_date,
+        )
+        return jsonify(result), 200
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.route("/api/analytics/product/snapshots", methods=["GET"])
+@login_required
+@roles_required("admin", "inventory_staff")
+def api_product_analytics_snapshots():
+    """Fetch persisted product analytics by period."""
+    from flask import jsonify
+    try:
+        period = str(request.args.get("period") or "monthly").strip().lower()
+        start_date = str(request.args.get("start_date") or "").strip()
+        end_date = str(request.args.get("end_date") or "").strip()
+        snapshot_query = supabase().table("analytics_product_snapshot").select("*").eq("period_key", period)
+        dimension_query = supabase().table("analytics_dimension_snapshot").select("*").eq("period_key", period)
+        recommendation_query = (
+            supabase()
+            .table("analytics_recommendation")
+            .select("*, product:product(product_id, product_name, brand, size, color, category_id)")
+            .eq("period_key", period)
+        )
+        if start_date and end_date:
+            snapshot_query = snapshot_query.eq("period_start", start_date).eq("period_end", end_date)
+            dimension_query = dimension_query.eq("period_start", start_date).eq("period_end", end_date)
+            recommendation_query = recommendation_query.eq("period_start", start_date).eq("period_end", end_date)
+
+        snapshots = snapshot_query.order("rank_position", desc=False).order("units_sold", desc=True).execute().data or []
+        dimensions = dimension_query.order("dimension_type", desc=False).order("rank_position", desc=False).execute().data or []
+        recommendations = recommendation_query.order("severity", desc=False).execute().data or []
+        return jsonify(
+            {
+                "ok": True,
+                "period": period,
+                "start_date": start_date or None,
+                "end_date": end_date or None,
+                "snapshots": snapshots,
+                "dimensions": dimensions,
+                "recommendations": recommendations,
+            }
+        ), 200
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @app.route("/pos")

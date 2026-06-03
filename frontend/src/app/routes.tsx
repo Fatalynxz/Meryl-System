@@ -26,6 +26,9 @@ function lazyWithChunkReload<T extends { default: React.ComponentType<any> }>(lo
 }
 
 const Login = lazyWithChunkReload(() => import('./components/Login').then((module) => ({ default: module.Login })));
+const AuthCallback = lazyWithChunkReload(() =>
+  import('./components/AuthCallback').then((module) => ({ default: module.AuthCallback })),
+);
 const AdminLayout = lazyWithChunkReload(() => import('./components/AdminLayout').then((module) => ({ default: module.AdminLayout })));
 const SalesStaffLayout = lazyWithChunkReload(() =>
   import('./components/SalesStaffLayout').then((module) => ({ default: module.SalesStaffLayout })),
@@ -101,6 +104,15 @@ export const router = createBrowserRouter([
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminLayout />
         </ProtectedRoute>
+      </RouteLoader>
+    ),
+  },
+  {
+    path: '/auth/callback',
+    errorElement: <RouteErrorFallback />,
+    element: (
+      <RouteLoader>
+        <AuthCallback />
       </RouteLoader>
     ),
   },

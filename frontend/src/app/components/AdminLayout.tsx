@@ -180,7 +180,6 @@ export function AdminLayout() {
           <BrandLogo size="md" />
           <div>
             <h1 className="text-white text-base leading-none">Meryl Shoes</h1>
-            <p className="text-[11px] text-white/40 mt-1">Admin Console</p>
           </div>
         </div>
 

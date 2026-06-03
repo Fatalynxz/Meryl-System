@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
-import { LogIn, User, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { LogIn, User, Lock, ShieldCheck } from 'lucide-react';
 import { getPostLoginPath, useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
 
 
 export function Login() {
   const navigate = useNavigate();
-  const { login, signInWithGoogle, requestEmailOtp } = useAuth();
+  const { login, signInWithGoogle } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [staffEmail, setStaffEmail] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -52,27 +51,6 @@ export function Login() {
     }
   };
 
-  const handleEmailOtp = async () => {
-    if (externalSubmitting) return;
-    if (!staffEmail.trim()) {
-      setError('Enter your staff email first.');
-      return;
-    }
-
-    setExternalSubmitting(true);
-    setError('');
-    setNotice('');
-
-    try {
-      await requestEmailOtp(staffEmail);
-      setNotice('Check your email for the sign-in link or OTP. Use the same email saved in the Users page.');
-    } catch (otpError) {
-      setError(otpError instanceof Error ? otpError.message : 'Could not send the email sign-in link.');
-    } finally {
-      setExternalSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#0E0E12] text-white flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-[#E5202A]/20 blur-3xl" />
@@ -89,7 +67,6 @@ export function Login() {
             <BrandLogo size="xl" className="ring-white/60 shadow-[0_18px_45px_rgba(0,0,0,0.5)]" />
             <div>
               <div className="text-white text-xl font-bold tracking-wide">Meryl Shoes</div>
-              <div className="text-xs text-white/80">Admin Console</div>
             </div>
           </div>
 
@@ -189,33 +166,9 @@ export function Login() {
               </span>
               Continue with Google
             </Button>
-
-            <div className="rounded-2xl border border-white/10 bg-[#111117] p-3">
-              <label className="text-xs text-white/60 mb-1.5 block">Email OTP / sign-in link</label>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="relative flex-1">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
-                  <input
-                    type="email"
-                    value={staffEmail}
-                    onChange={(event) => setStaffEmail(event.target.value)}
-                    placeholder="staff@email.com"
-                    className="h-11 w-full rounded-xl border border-white/5 bg-[#1D1D25] pl-10 pr-3 text-sm text-white placeholder:text-white/30 transition focus:border-[#FFD60A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFD60A]/20"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  disabled={externalSubmitting || submitting}
-                  onClick={handleEmailOtp}
-                  className="h-11 rounded-xl bg-[#FFD60A] px-5 font-semibold text-[#17171D] hover:bg-[#ffcf24]"
-                >
-                  Send OTP
-                </Button>
-              </div>
-              <p className="mt-2 text-[11px] leading-4 text-white/45">
-                Google and OTP only work when the email exists in Users and the account is Active.
-              </p>
-            </div>
+            <p className="px-1 text-[11px] leading-4 text-white/45">
+              Google sign-in now includes OTP verification before access.
+            </p>
           </div>
 
         </div>

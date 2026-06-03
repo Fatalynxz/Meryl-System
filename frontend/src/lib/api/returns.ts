@@ -1,10 +1,20 @@
 import { createRow, getRowById, listRows, removeRow, updateRow } from "./_common";
+import { supabase } from "../supabase";
 
 const RETURNS_JOIN = "*, sales_transaction:sales_transaction(*, customer:customer(*)), user:user(*), return_details:return_details(*, product:product(*, category(*), inventory(*)))";
 const RETURNS_DETAILS_JOIN = RETURNS_JOIN;
 
 export const returnsApi = {
   list: () => listRows("returns", RETURNS_JOIN, "return_date"),
+  listByUser: async (userId: string) => {
+    const { data, error } = await supabase
+      .from("returns")
+      .select(RETURNS_JOIN)
+      .eq("user_id", userId)
+      .order("return_date", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
   getById: (id: string) => getRowById("returns", id, RETURNS_DETAILS_JOIN),
   create: (payload: any) => createRow("returns", payload),
   update: (id: string, payload: any) => updateRow("returns", id, payload),
