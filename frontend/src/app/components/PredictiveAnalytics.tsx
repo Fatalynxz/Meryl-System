@@ -66,8 +66,18 @@ function shortLabel(value: string, max = 18) {
 
 function toDate(value: unknown) {
   if (!value) return null;
-  const date = new Date(String(value));
+  const raw = String(value).trim();
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  const date = new Date(hasTimezone || isDateOnly ? raw : `${raw}Z`);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function endOfDay(date: Date | null) {
+  if (!date) return null;
+  const copy = new Date(date);
+  copy.setHours(23, 59, 59, 999);
+  return copy;
 }
 
 function getOne(value: any) {
@@ -131,6 +141,12 @@ function isCompletedSale(sale: any) {
 
 function getSaleAmount(sale: any) {
   return Number(sale?.adjusted_total_amount ?? sale?.total_amount ?? sale?.original_total_amount ?? 0);
+}
+
+function getSaleDetailRevenue(detail: any) {
+  const qty = Number(detail?.quantity ?? 0);
+  const price = Number(detail?.price ?? 0);
+  return Number(detail?.subtotal ?? (price * qty));
 }
 
 function getCustomerGender(customer: any) {
@@ -887,8 +903,9 @@ export function PredictiveAnalytics() {
       .map((promo: any, index: number) => {
         const promoProducts = Array.isArray(promo.promo_product) ? promo.promo_product : [];
         const productIds = new Set(promoProducts.map((row: any) => String(row.product_id ?? row.product?.product_id ?? "")));
+        const promoId = String(promo.promo_id ?? `promo-${index}`);
         const start = toDate(promo.start_date);
-        const end = toDate(promo.end_date);
+        const end = endOfDay(toDate(promo.end_date));
         const startDate = String(promo.start_date ?? "").slice(0, 10);
         const endDate = String(promo.end_date ?? "").slice(0, 10);
         const rawStatus = String(promo.status ?? promo.promo_status ?? "").toLowerCase();
@@ -910,14 +927,18 @@ export function PredictiveAnalytics() {
           const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
           details.forEach((detail: any) => {
             const productId = String(detail.product_id ?? "");
-            if (productIds.size && !productIds.has(productId)) return;
+            const detailPromoId = String(detail.promo_id ?? detail.promotion_id ?? "");
+            const matchesExactPromo = detailPromoId && detailPromoId === promoId;
+            const matchesPromoProduct = !productIds.size || productIds.has(productId);
+            const hasPromoDiscount = Number(detail.discount_applied ?? detail.discount ?? 0) > 0;
+            if (!matchesExactPromo && (!matchesPromoProduct || !hasPromoDiscount)) return;
             units += Number(detail.quantity ?? 0);
-            revenue += Number(detail.subtotal ?? detail.price ?? 0);
+            revenue += getSaleDetailRevenue(detail);
           });
         });
 
         return {
-          id: String(promo.promo_id ?? `promo-${index}`),
+          id: promoId,
           name: String(promo.promo_name ?? "Promotion"),
           status: derivedStatus,
           start: start ? formatShortDate(start) : "N/A",
