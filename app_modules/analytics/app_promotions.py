@@ -231,24 +231,84 @@ def _product_price(product):
 
 
 def _product_matches_target(product, target_text):
-    target = str(target_text or "").strip().lower()
-    if not target or target in ("all", "all products"):
+    parsed = _parse_target_products(target_text)
+    if not parsed["categories"] and not parsed["products"]:
         return True
-    searchable = " ".join(
-        str(product.get(key) or "")
-        for key in (
-            "product_name",
-            "brand",
-            "category_name",
-            "category",
-            "color",
-            "gender",
-            "size",
-            "sku",
-            "product_id",
+
+    product_name = str(product.get("product_name") or product.get("name") or "").strip().lower()
+    category_name = str(product.get("category_name") or product.get("category") or "").strip().lower()
+
+    if parsed["products"]:
+        if product_name not in parsed["products"]:
+            return False
+        return not parsed["categories"] or category_name in parsed["categories"]
+    return category_name in parsed["categories"]
+
+
+def _parse_target_products(target_text):
+    raw = str(target_text or "").strip()
+    if not raw or raw.lower() in ("all", "all products"):
+        return {"categories": set(), "products": set()}
+
+    categories = set()
+    products = set()
+    for segment in raw.split("|"):
+        value = segment.strip()
+        if not value:
+            continue
+        lowered = value.lower()
+        if lowered.startswith("categories:"):
+            categories.update(
+                item.strip().lower()
+                for item in value[len("categories:"):].split(",")
+                if item.strip()
+            )
+            continue
+        if lowered.startswith("products:"):
+            products.update(
+                item.strip().lower()
+                for item in value[len("products:"):].split(",")
+                if item.strip()
+            )
+            continue
+        if lowered.endswith(" category"):
+            categories.add(value[:-len(" category")].strip().lower())
+            continue
+        products.add(lowered)
+    return {"categories": categories, "products": products}
+
+
+def _target_label(target_products, matching_products, *, linked_product_ids=None):
+    parsed = _parse_target_products(target_products)
+    linked_product_ids = linked_product_ids or set()
+    if not parsed["categories"] and not parsed["products"] and not linked_product_ids:
+        return "All Products"
+    matched_names = sorted(
+        {
+            str(product.get("product_name") or product.get("name") or "").strip()
+            for product in matching_products
+            if str(product.get("product_name") or product.get("name") or "").strip()
+        }
+    )
+    if parsed["products"]:
+        return "Products: " + ", ".join(matched_names or sorted(parsed["products"]))
+    if parsed["categories"]:
+        category_names = sorted(
+            {
+                str(product.get("category_name") or product.get("category") or "").strip()
+                for product in matching_products
+                if str(product.get("category_name") or product.get("category") or "").strip()
+            }
         )
-    ).lower()
-    return any(part.strip() and part.strip() in searchable for part in target.replace("|", ",").split(","))
+        return "Categories: " + ", ".join(category_names or sorted(parsed["categories"]))
+    names = sorted(
+        {
+            str(product.get("product_name") or product.get("name") or "").strip()
+            for product in matching_products
+            if str(product.get("product_name") or product.get("name") or "").strip()
+        }
+    )
+    return "Products: " + ", ".join(names[:4]) if names else "Selected Products"
 
 
 def _top_pick_reason(product, kind):
@@ -269,6 +329,7 @@ def _top_pick_reason(product, kind):
 def _build_promotion_email(
     *,
     customer_name,
+    promo_id,
     promo_name,
     discount_type,
     discount_value,
@@ -276,6 +337,7 @@ def _build_promotion_email(
     end_date,
     target_products,
     product_rows,
+    promo_product_rows,
 ):
     kind = _campaign_kind(discount_type, promo_name)
     clean_name = _clean_promo_name(promo_name)
@@ -327,10 +389,23 @@ def _build_promotion_email(
     }
     template = templates.get(kind, templates["percentage"])
 
-    matching_products = [
-        product for product in product_rows if _product_matches_target(product, target_products)
-    ] or list(product_rows)
+    linked_product_ids = {
+        str(row.get("product_id") or "").strip()
+        for row in promo_product_rows
+        if str(row.get("promo_id") or "").strip() == str(promo_id or "").strip()
+        and str(row.get("product_id") or "").strip()
+    }
+    if linked_product_ids:
+        matching_products = [
+            product for product in product_rows
+            if str(product.get("product_id") or "").strip() in linked_product_ids
+        ]
+    else:
+        matching_products = [
+            product for product in product_rows if _product_matches_target(product, target_products)
+        ]
     top_picks = matching_products[:2]
+    safe_target_label = escape(_target_label(target_products, matching_products, linked_product_ids=linked_product_ids))
 
     if not top_picks:
         top_picks_html = (
@@ -396,6 +471,7 @@ def _build_promotion_email(
         "<div style='background:#171923;color:#f3f4f6;border:1px solid #2b2d38;border-radius:16px;padding:16px;margin:20px 0;'>"
         "<div style='font-size:14px;font-weight:700;color:#ffcc00;margin-bottom:6px'>Offer Details</div>"
         f"<div style='font-size:16px;line-height:1.5'>This campaign includes: <strong>{safe_discount}</strong></div>"
+        f"<div style='font-size:14px;line-height:1.5;color:#d1d5db;margin-top:8px'>Target: <strong>{safe_target_label}</strong></div>"
         "</div>"
         "<div style='display:flex;gap:12px;margin:18px 0;flex-wrap:wrap'>"
         f"<span style='border:1px solid #2b2d38;border-radius:999px;padding:8px 12px;color:#d1d5db'>Starts: {safe_start}</span>"
@@ -469,6 +545,7 @@ def send_promotion_notifications_via_gmail(
     end_date = str(promo.get("end_date") or "").strip()[:10]
     target_products = str(promo.get("target_products") or promo.get("target_product") or "All Products").strip()
     product_rows = fetch_rows("product")
+    promo_product_rows = fetch_rows("promo_product")
 
     notification_rows = (
         supabase.table("notification")
@@ -568,6 +645,7 @@ def send_promotion_notifications_via_gmail(
         customer_name = str(customer.get("customer_name") or customer.get("name") or "there").strip()
         email_campaign = _build_promotion_email(
             customer_name=customer_name,
+            promo_id=promo_id,
             promo_name=promo_name,
             discount_type=discount_type,
             discount_value=discount_value,
@@ -575,6 +653,7 @@ def send_promotion_notifications_via_gmail(
             end_date=end_date,
             target_products=target_products,
             product_rows=product_rows,
+            promo_product_rows=promo_product_rows,
         )
 
         status = "sent"
