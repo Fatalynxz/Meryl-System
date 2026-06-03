@@ -656,17 +656,212 @@ export function ReportsAnalytics() {
       toast.error('Select a valid custom date range before exporting.');
       return;
     }
-    const header = 'Date,Sales,Revenue,Customers';
-    const rows = filteredSalesTrends.map((r) => `${r.date},${r.sales},${r.revenue},${r.customers}`);
-    const csv = [header, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sales-report-${timeRange}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Report exported successfully!');
+
+    const escapeHtml = (value: unknown) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    const reportNames: Record<string, string> = {
+      overview: 'Executive Overview Report',
+      sales: 'Sales Report',
+      revenue: 'Revenue Report',
+      inventory: 'Inventory Report',
+      promotions: 'Promotions Report',
+      returns: 'Returns and Replacement Report',
+    };
+    const table = (headers: string[], rows: Array<Array<unknown>>, empty = 'No records found for this date range.') => `
+      <table>
+        <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${rows.length
+            ? rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')
+            : `<tr><td colspan="${headers.length}" class="empty">${escapeHtml(empty)}</td></tr>`}
+        </tbody>
+      </table>
+    `;
+    const metric = (label: string, value: unknown, note = '') => `
+      <div class="metric">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+        ${note ? `<small>${escapeHtml(note)}</small>` : ''}
+      </div>
+    `;
+    const reportSections: Record<string, string> = {
+      overview: `
+        <section>
+          <h2>Executive Snapshot</h2>
+          <div class="metrics">
+            ${metric('Average Transaction Value', money(businessSummary.atv), `${currentMetrics.current.transactions} completed transactions`)}
+            ${metric('Discount Pressure', `${businessSummary.discountRate.toFixed(1)}%`, `${money(businessSummary.discounts)} discount impact`)}
+            ${metric('Best Brand', businessSummary.bestBrandName, `${businessSummary.bestBrandUnits} pairs sold`)}
+            ${metric('Top Product', topProducts[0]?.name ?? 'N/A', topProducts[0] ? `${topProducts[0].sales} units sold` : 'No sales yet')}
+          </div>
+          ${table(
+            ['Summary Item', 'Value'],
+            [
+              ['Gross Sales Before Discounts', money(businessSummary.grossRevenue)],
+              ['Net After Discounts', money(businessSummary.netSales)],
+              ['Best Size', businessSummary.bestSize],
+              ['Prepared By', businessSummary.preparedBy],
+            ],
+          )}
+        </section>
+        <section>
+          <h2>Sales Trend</h2>
+          ${table(['Period', 'Units Sold', 'Revenue', 'Customers'], filteredSalesTrends.map((row) => [row.date, row.sales, money(row.revenue), row.customers]))}
+        </section>
+      `,
+      sales: `
+        <section>
+          <h2>Sales Breakdown</h2>
+          ${table(
+            ['Period', 'Pairs Sold', 'Gross Revenue', 'Discount Applied', 'Net Sales'],
+            salesBreakdownRows.map((row) => [row.date, row.pairs, money(row.gross), money(row.discount), money(row.net)]),
+            'No completed sales found for this date range.',
+          )}
+        </section>
+        <section class="columns">
+          <div>
+            <h2>Top Products</h2>
+            ${table(['Product', 'Units', 'Revenue'], topProducts.map((row) => [row.name, row.sales, money(row.revenue)]))}
+          </div>
+          <div>
+            <h2>Top Brands</h2>
+            ${table(['Brand', 'Pairs', 'Revenue'], topBrands.map((row) => [row.name, row.sales, money(row.revenue)]))}
+          </div>
+          <div>
+            <h2>Top Sizes</h2>
+            ${table(['Size', 'Pairs', 'Revenue'], topSizes.map((row) => [row.name, row.sales, money(row.revenue)]))}
+          </div>
+        </section>
+      `,
+      revenue: `
+        <section>
+          <h2>Revenue by Category</h2>
+          ${table(
+            ['Category', 'Revenue', 'Share', 'Growth vs Previous'],
+            revenueByCategory.map((row) => [row.category, money(row.revenue), `${row.percentage}%`, `${row.growth}%`]),
+          )}
+        </section>
+      `,
+      inventory: `
+        <section>
+          <h2>Inventory Turnover</h2>
+          ${table(
+            ['Period', 'Units Sold', 'Turnover Rate', 'Avg Days to Sell'],
+            inventoryTurnover.map((row) => [row.month, row.units, `${row.turnover.toFixed(2)}x`, row.avgDays || 0]),
+          )}
+        </section>
+        <section>
+          <h2>Inventory and Stock Status</h2>
+          ${table(
+            ['Item ID', 'Brand and Model', 'Size', 'Color', 'In Stock', 'Reorder', 'Status'],
+            inventoryStatusRows.map((row) => [row.itemId, row.name, row.size, row.color, row.stock, row.reorder, row.status]),
+          )}
+        </section>
+      `,
+      promotions: `
+        <section>
+          <h2>Promotion Performance</h2>
+          ${table(
+            ['Promotion', 'Revenue', 'ROI', 'Conversion'],
+            promotionEffectiveness.map((row) => [row.promotion, money(row.revenue), `${row.roi}%`, `${row.conversion}%`]),
+            'No promotion performance found for this date range.',
+          )}
+        </section>
+      `,
+      returns: `
+        <section>
+          <h2>Replacement Summary</h2>
+          <div class="metrics">
+            ${metric('Replacement Transactions', replacementMetrics.replacements)}
+            ${metric('Items Replaced', replacementMetrics.items)}
+            ${metric('Additional Payments', money(replacementMetrics.additionalPay))}
+            ${metric('Even Exchanges', replacementMetrics.evenExchanges)}
+          </div>
+        </section>
+        <section class="columns two">
+          <div>
+            <h2>Reasons</h2>
+            ${table(['Reason', 'Cases', 'Items'], replacementReasonRows.map((row) => [row.reason, row.count, row.items]))}
+          </div>
+          <div>
+            <h2>Top Replaced Products</h2>
+            ${table(['Product', 'Cases', 'Items'], replacementTopProducts.map((row) => [row.product, row.count, row.items]))}
+          </div>
+        </section>
+      `,
+    };
+    const generatedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+    const html = `<!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>${escapeHtml(reportNames[reportType] ?? 'Meryl Shoes Report')}</title>
+          <style>
+            @page { size: A4; margin: 16mm; }
+            * { box-sizing: border-box; }
+            body { margin: 0; color: #191919; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
+            .cover { border-bottom: 3px solid #facc15; padding-bottom: 18px; margin-bottom: 18px; }
+            .brand { color: #8a6b00; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+            h1 { margin: 8px 0 4px; font-size: 28px; color: #111; }
+            h2 { margin: 0 0 10px; font-size: 15px; color: #111; }
+            .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+            .meta div, .metric { border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #fafafa; }
+            .meta span, .metric span { display: block; color: #666; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+            .meta strong, .metric strong { display: block; margin-top: 5px; font-size: 17px; color: #111; }
+            .metric small { display: block; margin-top: 5px; color: #666; }
+            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+            section { break-inside: avoid; margin: 18px 0; }
+            table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 8px; }
+            th { background: #1f1f27; color: #fff; text-align: left; font-weight: 700; padding: 9px; border: 1px solid #2e2e38; }
+            td { padding: 8px 9px; border: 1px solid #e6e6e6; vertical-align: top; }
+            tbody tr:nth-child(even) td { background: #fbfbfb; }
+            .empty { text-align: center; color: #777; padding: 18px; }
+            .columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start; }
+            .columns.two { grid-template-columns: repeat(2, 1fr); }
+            .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; color: #666; font-size: 10px; display: flex; justify-content: space-between; }
+            @media print {
+              button { display: none; }
+              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="cover">
+            <div class="brand">Meryl Shoes</div>
+            <h1>${escapeHtml(reportNames[reportType] ?? 'Meryl Shoes Report')}</h1>
+            <div>Libertad St., Bacolod City Branch</div>
+            <div class="meta">
+              <div><span>Date Range</span><strong>${escapeHtml(selectedRangeLabel)}</strong></div>
+              <div><span>Revenue</span><strong>${escapeHtml(money(currentMetrics.current.revenue))}</strong></div>
+              <div><span>Units Sold</span><strong>${escapeHtml(currentMetrics.current.units.toLocaleString())}</strong></div>
+              <div><span>Generated</span><strong>${escapeHtml(generatedAt)}</strong></div>
+            </div>
+          </div>
+          ${reportSections[reportType] ?? reportSections.overview}
+          <div class="footer">
+            <span>Prepared by Store Manager</span>
+            <span>Meryl Shoes Management System</span>
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => window.print(), 250);
+            };
+          </script>
+        </body>
+      </html>`;
+    const reportWindow = window.open('', '_blank');
+    if (!reportWindow) {
+      toast.error('Allow pop-ups to export the PDF report.');
+      return;
+    }
+    reportWindow.document.open();
+    reportWindow.document.write(html);
+    reportWindow.document.close();
+    toast.success('PDF report opened. Choose Save as PDF in the print dialog.');
   };
 
   const inventoryPeriodMetrics = useMemo(() => {
@@ -780,7 +975,7 @@ export function ReportsAnalytics() {
             className="h-9 bg-yellow-400 text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
           <Download className="w-4 h-4 mr-2" />
-          Export Report
+          Export PDF
           </Button>
         </div>
       </div>
