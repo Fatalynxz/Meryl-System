@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { AlertTriangle, BarChart3, Package, RefreshCw, Sparkles, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { BarChart3, Package, RefreshCw, Sparkles, TrendingUp, Users } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -1776,65 +1776,6 @@ export function PredictiveAnalytics() {
           </div>
         </CardContent>
       </Card>}
-
-      {showProduct && <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <Card className="bg-[#16161d] border-[#2b2b36]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <TrendingUp className="h-5 w-5 text-green-400" /> Fast Movers
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {analytics.fastProducts.length ? analytics.fastProducts.map((product) => (
-              <div key={product.id} className="rounded-xl border border-green-500/20 bg-green-500/10 p-3">
-                <div className="flex justify-between gap-3">
-                  <p className="font-semibold text-white">{product.name}</p>
-                  <Badge className="bg-green-600 text-white">{product.unitsPeriod} sold</Badge>
-                </div>
-                <p className="mt-1 text-xs text-white/55">Keep stocked. Forecast depends on continued demand.</p>
-              </div>
-            )) : <p className="text-sm text-white/55">No fast movers yet.</p>}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-[#16161d] border-[#2b2b36]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <TrendingDown className="h-5 w-5 text-orange-400" /> Slow / Dead Stock
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {analytics.slowProducts.length ? analytics.slowProducts.map((product) => (
-              <div key={product.id} className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-3">
-                <div className="flex justify-between gap-3">
-                  <p className="font-semibold text-white">{product.name}</p>
-                  <Badge className={movementBadgeClass(product.movement)}>{product.movement}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-white/55">{product.stock} units left, {product.unitsPeriod} sold in the {analytics.productPeriodLabel.toLowerCase()} view.</p>
-              </div>
-            )) : <p className="text-sm text-white/55">No slow movers detected.</p>}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-[#16161d] border-[#2b2b36]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <AlertTriangle className="h-5 w-5 text-yellow-400" /> Restock Watch
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {analytics.restockAlerts.length ? analytics.restockAlerts.map((product) => (
-              <div key={product.id} className="rounded-xl border border-yellow-400/20 bg-yellow-400/10 p-3">
-                <div className="flex justify-between gap-3">
-                  <p className="font-semibold text-white">{product.name}</p>
-                  <Badge className={stockBadgeClass(product.stock, product.reorder)}>{product.stockCondition}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-white/55">Stock {product.stock}, reorder at {product.reorder}.</p>
-              </div>
-            )) : <p className="text-sm text-white/55">No restock alerts. Inventory looks healthy.</p>}
-          </CardContent>
-        </Card>
-      </div>}
 
       {showProduct && (
       <div className="grid grid-cols-1 gap-6">
