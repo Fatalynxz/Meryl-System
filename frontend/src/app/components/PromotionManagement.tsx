@@ -1670,9 +1670,8 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
         <Input
           id="targetSalesGoal"
           type="number"
-          min="1"
-          value={formData.targetSalesGoal || 10000}
-          onChange={(e) => setFormData({ ...formData, targetSalesGoal: Math.max(1, Number(e.target.value || 0)) })}
+          value={formData.targetSalesGoal || ''}
+          onChange={(e) => setFormData({ ...formData, targetSalesGoal: e.target.value ? Number(e.target.value) : undefined })}
           className="bg-red-600 border-red-800 text-yellow-200"
           placeholder="e.g. 10000"
         />
