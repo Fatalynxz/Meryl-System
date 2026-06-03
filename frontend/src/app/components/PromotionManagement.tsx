@@ -317,8 +317,12 @@ function saleIsCompleted(sale: any) {
 }
 
 function productDetailMatchesPromotion(detail: any, promotion: Promotion) {
+  return productDetailPromotionSpecificity(detail, promotion) > 0;
+}
+
+function productDetailPromotionSpecificity(detail: any, promotion: Promotion) {
   const detailProductId = String(detail?.product_id ?? '').trim();
-  if (detailProductId && promotion.targetProductIds.includes(detailProductId)) return true;
+  if (detailProductId && promotion.targetProductIds.includes(detailProductId)) return 3;
 
   const product = Array.isArray(detail?.product) ? detail.product[0] : detail?.product;
   const productName = String(product?.product_name ?? '').trim().toLowerCase();
@@ -329,12 +333,12 @@ function productDetailMatchesPromotion(detail: any, promotion: Promotion) {
   const categories = new Set(parsed.categories.map((item) => item.trim().toLowerCase()));
   const products = new Set(parsed.products.map((item) => item.trim().toLowerCase()));
 
-  if (wantsAll) return true;
+  if (wantsAll) return 1;
   if (products.size > 0) {
-    if (!products.has(productName)) return false;
-    return !categories.size || categories.has(categoryName);
+    if (!products.has(productName)) return 0;
+    return !categories.size || categories.has(categoryName) ? 3 : 0;
   }
-  return categories.has(categoryName);
+  return categories.has(categoryName) ? 2 : 0;
 }
 
 function sanitizeTargetProductsToSellable(
@@ -671,7 +675,55 @@ export function PromotionManagement() {
             const detailPromoId = String(detail?.promo_id ?? '').trim();
             const hasExplicitPromo = Boolean(detailPromoId);
             if (hasExplicitPromo && detailPromoId !== basePromotion.promo_id) return;
-            if (!hasExplicitPromo && !productDetailMatchesPromotion(detail, basePromotion)) return;
+            if (!hasExplicitPromo) {
+              const winningPromotion = rows
+                .map((candidateRow: any) => {
+                  const candidateStart = normalizePromotionDateTime(String(candidateRow.start_date ?? ''), 'start');
+                  const candidateEnd = normalizePromotionDateTime(String(candidateRow.end_date ?? ''), 'end');
+                  const candidateStartMs = promotionTimeMs(candidateStart, 'start');
+                  const candidateEndMs = promotionTimeMs(candidateEnd, 'end');
+                  if (saleTime < candidateStartMs || saleTime > candidateEndMs) return null;
+                  const candidateType = decodeDisplayType(String(candidateRow.discount_type ?? 'Percentage').toLowerCase(), candidateRow.promo_name);
+                  const candidateTargetIds = (Array.isArray(candidateRow.promo_product) ? candidateRow.promo_product : [])
+                    .map((link: any) => {
+                      const product = Array.isArray(link?.product) ? link.product[0] : link?.product;
+                      return String(link?.product_id ?? product?.product_id ?? '').trim();
+                    })
+                    .filter(Boolean);
+                  const candidatePromotion = {
+                    promo_id: String(candidateRow.promo_id ?? ''),
+                    promo_name: stripPromoTypeMarker(String(candidateRow.promo_name ?? 'Promotion')),
+                    discount_type: candidateType,
+                    discount_value: Number(candidateRow.discount_value ?? 0),
+                    targetProducts: String(candidateRow.target_products ?? candidateRow.targetProducts ?? deriveTargetProductsFromLinks(candidateRow)),
+                    start_date: candidateStart,
+                    end_date: candidateEnd,
+                    status: 'Active' as Promotion['status'],
+                    salesGenerated: 0,
+                    unitsAffected: 0,
+                    effectiveness: 0,
+                    targetSalesGoal: Number(candidateRow.target_sales_goal ?? candidateRow.targetSalesGoal ?? 10000) || 10000,
+                    targetProductIds: candidateTargetIds,
+                  };
+                  const specificity = productDetailPromotionSpecificity(detail, candidatePromotion);
+                  if (!specificity) return null;
+                  return {
+                    promo_id: candidatePromotion.promo_id,
+                    specificity,
+                    typePriority: getPromoPriority(candidatePromotion.discount_type),
+                    discountValue: Number(candidatePromotion.discount_value ?? 0),
+                    startMs: candidateStartMs,
+                  };
+                })
+                .filter(Boolean)
+                .sort((a: any, b: any) => {
+                  if (b.specificity !== a.specificity) return b.specificity - a.specificity;
+                  if (b.typePriority !== a.typePriority) return b.typePriority - a.typePriority;
+                  if (b.discountValue !== a.discountValue) return b.discountValue - a.discountValue;
+                  return b.startMs - a.startMs;
+                })[0] as any;
+              if (winningPromotion?.promo_id !== basePromotion.promo_id) return;
+            }
             const quantity = Number(detail.quantity ?? 0);
             const lineSubtotal = Number(detail.subtotal ?? 0);
             const fallbackSubtotal = Number(detail.price ?? 0) * quantity;
@@ -861,7 +913,7 @@ export function PromotionManagement() {
       promo_name: rec.title,
       discount_type: rec.discount_type,
       discount_value: rec.discount_value,
-      targetSalesGoal: 10000,
+      targetSalesGoal: formData.targetSalesGoal || 10000,
       targetProducts: rec.targetProducts,
       start_date: toLocalDateTimeInput(start),
       end_date: toLocalDateTimeInput(end),
@@ -929,7 +981,7 @@ export function PromotionManagement() {
         discount_value: String(formData.discount_type ?? '').toLowerCase().includes('bogo')
           ? Number(formData.discount_value || 50)
           : Number(formData.discount_value || 0),
-        target_sales_goal: Number(formData.targetSalesGoal || 10000),
+        target_sales_goal: Number(formData.targetSalesGoal),
         target_products: formData.targetProducts || 'All Products',
         targetProducts: formData.targetProducts || 'All Products',
         start_date: formData.start_date!,
@@ -1064,7 +1116,7 @@ export function PromotionManagement() {
         discount_value: String(formData.discount_type ?? '').toLowerCase().includes('bogo')
           ? Number(formData.discount_value || 50)
           : formData.discount_value,
-        target_sales_goal: Number(formData.targetSalesGoal || 10000),
+        target_sales_goal: Number(formData.targetSalesGoal),
         target_products: formData.targetProducts,
         targetProducts: formData.targetProducts,
         start_date: formData.start_date,

@@ -23,5 +23,7 @@ WHERE sd.sales_id = st.sales_id
   AND sd.promo_id IS NULL
   AND COALESCE(sd.discount_applied, 0) > 0
   AND LOWER(COALESCE(pay.payment_status, '')) IN ('completed', 'paid')
-  AND st.transaction_date >= promo.start_date
-  AND st.transaction_date <= promo.end_date;
+  -- Sales are stored in UTC-like timestamps, while promotion windows are
+  -- chosen as Philippine business dates in the UI.
+  AND ((st.transaction_date AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::date >= promo.start_date::date
+  AND ((st.transaction_date AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Manila')::date <= promo.end_date::date;

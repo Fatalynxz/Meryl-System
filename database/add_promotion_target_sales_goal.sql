@@ -8,9 +8,19 @@ UPDATE public.promotion
 SET target_sales_goal = 10000
 WHERE target_sales_goal IS NULL OR target_sales_goal <= 0;
 
-ALTER TABLE public.promotion
-  ADD CONSTRAINT chk_promotion_target_sales_goal_positive
-  CHECK (target_sales_goal > 0) NOT VALID;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'chk_promotion_target_sales_goal_positive'
+      AND conrelid = 'public.promotion'::regclass
+  ) THEN
+    ALTER TABLE public.promotion
+      ADD CONSTRAINT chk_promotion_target_sales_goal_positive
+      CHECK (target_sales_goal > 0) NOT VALID;
+  END IF;
+END $$;
 
 ALTER TABLE public.promotion
   VALIDATE CONSTRAINT chk_promotion_target_sales_goal_positive;
