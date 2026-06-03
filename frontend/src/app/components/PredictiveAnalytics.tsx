@@ -80,6 +80,17 @@ function endOfDay(date: Date | null) {
   return copy;
 }
 
+function businessDateKey(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 function getOne(value: any) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -147,6 +158,37 @@ function getSaleDetailRevenue(detail: any) {
   const qty = Number(detail?.quantity ?? 0);
   const price = Number(detail?.price ?? 0);
   return Number(detail?.subtotal ?? (price * qty));
+}
+
+function parsePromotionTargets(text: unknown) {
+  const raw = String(text ?? "").trim();
+  if (!raw || raw.toLowerCase() === "all products") {
+    return { categories: [] as string[], products: [] as string[] };
+  }
+  const categories: string[] = [];
+  const products: string[] = [];
+  raw.split("|").forEach((segment) => {
+    const value = segment.trim();
+    if (!value) return;
+    const lower = value.toLowerCase();
+    if (lower.startsWith("categories:")) {
+      value.slice("categories:".length).split(",").map((item) => item.trim()).filter(Boolean).forEach((item) => categories.push(item.toLowerCase()));
+      return;
+    }
+    if (lower.startsWith("products:")) {
+      value.slice("products:".length).split(",").map((item) => item.trim()).filter(Boolean).forEach((item) => products.push(item.toLowerCase()));
+      return;
+    }
+    if (lower.endsWith(" category")) {
+      categories.push(value.slice(0, -" category".length).trim().toLowerCase());
+      return;
+    }
+    products.push(lower);
+  });
+  return {
+    categories: Array.from(new Set(categories)),
+    products: Array.from(new Set(products)),
+  };
 }
 
 function getCustomerGender(customer: any) {
@@ -903,6 +945,8 @@ export function PredictiveAnalytics() {
       .map((promo: any, index: number) => {
         const promoProducts = Array.isArray(promo.promo_product) ? promo.promo_product : [];
         const productIds = new Set(promoProducts.map((row: any) => String(row.product_id ?? row.product?.product_id ?? "")));
+        const parsedTargets = parsePromotionTargets(promo.target_products ?? promo.targetProducts);
+        const hasSpecificTargets = productIds.size > 0 || parsedTargets.products.length > 0 || parsedTargets.categories.length > 0;
         const promoId = String(promo.promo_id ?? `promo-${index}`);
         const start = toDate(promo.start_date);
         const end = endOfDay(toDate(promo.end_date));
@@ -922,16 +966,22 @@ export function PredictiveAnalytics() {
         sales.forEach((sale: any) => {
           const date = toDate(sale.transaction_date ?? sale.created_at);
           if (!date) return;
-          if (start && date < start) return;
-          if (end && date > end) return;
+          const saleDateKey = businessDateKey(date);
+          if (startDate && saleDateKey < startDate) return;
+          if (endDate && saleDateKey > endDate) return;
           const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
           details.forEach((detail: any) => {
             const productId = String(detail.product_id ?? "");
+            const product = productMap.get(productId) ?? detail.product;
+            const productName = String(product?.product_name ?? "").trim().toLowerCase();
+            const categoryName = getCategory(product).trim().toLowerCase();
             const detailPromoId = String(detail.promo_id ?? detail.promotion_id ?? "");
             const matchesExactPromo = detailPromoId && detailPromoId === promoId;
-            const matchesPromoProduct = !productIds.size || productIds.has(productId);
-            const hasPromoDiscount = Number(detail.discount_applied ?? detail.discount ?? 0) > 0;
-            if (!matchesExactPromo && (!matchesPromoProduct || !hasPromoDiscount)) return;
+            const matchesLinkedProduct = productIds.has(productId);
+            const matchesNamedProduct = parsedTargets.products.includes(productName);
+            const matchesCategory = parsedTargets.categories.includes(categoryName);
+            const matchesPromoTarget = !hasSpecificTargets || matchesLinkedProduct || matchesNamedProduct || matchesCategory;
+            if (!matchesExactPromo && !matchesPromoTarget) return;
             units += Number(detail.quantity ?? 0);
             revenue += getSaleDetailRevenue(detail);
           });
