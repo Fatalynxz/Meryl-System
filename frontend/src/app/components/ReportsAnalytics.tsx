@@ -406,9 +406,10 @@ export function ReportsAnalytics() {
     return rows.length ? rows : [{ id: 'cd-empty', name: 'No Sales', value: 100, color: '#fef9c3' }];
   }, [revenueByCategory]);
 
-  const salesBreakdownPeriod: 'daily' | 'weekly' | 'monthly' | 'quarterly' = useMemo(() => {
+  const salesBreakdownPeriod: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually' = useMemo(() => {
     if (timeRange === 'quarterly') return 'quarterly';
-    if (timeRange === 'monthly' || timeRange === 'annually') return 'monthly';
+    if (timeRange === 'annually') return 'annually';
+    if (timeRange === 'monthly') return 'monthly';
     if (timeRange === 'weekly') return 'weekly';
     return 'daily';
   }, [timeRange]);
@@ -433,6 +434,14 @@ export function ReportsAnalytics() {
           key: `${date.getFullYear()}-Q${quarter}`,
           label: `Q${quarter} ${date.getFullYear()}`,
           date: new Date(date.getFullYear(), quarterStartMonth, 1),
+        };
+      }
+
+      if (salesBreakdownPeriod === 'annually') {
+        return {
+          key: String(date.getFullYear()),
+          label: String(date.getFullYear()),
+          date: new Date(date.getFullYear(), 0, 1),
         };
       }
 
