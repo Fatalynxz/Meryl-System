@@ -293,14 +293,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await supabase.auth.signOut().catch(() => null);
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: {
-        shouldCreateUser: false,
-      },
+    const response = await fetch("/api/auth/password-reset/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizedEmail }),
     });
 
-    if (error) throw error;
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result?.ok) {
+      throw new Error(String(result?.error || "Unable to send password reset OTP right now."));
+    }
   }, []);
 
   const updatePasswordAfterRecovery = useCallback(async (newPassword: string) => {
@@ -347,48 +349,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyPasswordResetOtpAndUpdate = useCallback(async (email: string, otp: string, newPassword: string) => {
     const normalizedEmail = email.trim().toLowerCase();
     const cleanOtp = otp.trim();
+    const cleanPassword = newPassword.trim();
 
     if (!cleanOtp) {
       throw new Error("Enter the OTP sent to your email.");
     }
 
+    if (cleanPassword.length < 8) {
+      throw new Error("Password must be at least 8 characters.");
+    }
+
     await supabase.auth.signOut().catch(() => null);
 
-    const otpTypes = ["email", "magiclink", "recovery"] as const;
-    const errors: string[] = [];
-
-    for (const type of otpTypes) {
-      const { error: otpError } = await supabase.auth.verifyOtp({
+    const response = await fetch("/api/auth/password-reset/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         email: normalizedEmail,
-        token: cleanOtp,
-        type,
-      });
+        otp: cleanOtp,
+        new_password: cleanPassword,
+      }),
+    });
 
-      if (!otpError) {
-        await updatePasswordAfterRecovery(newPassword);
-        return;
-      }
-
-      errors.push(`${type}: ${getSupabaseErrorMessage(otpError)}`);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result?.ok) {
+      throw new Error(String(result?.error || "Unable to reset password right now."));
     }
 
-    for (const type of otpTypes) {
-      const { error: tokenHashError } = await supabase.auth.verifyOtp({
-        token_hash: cleanOtp,
-        type,
-      });
-
-      if (!tokenHashError) {
-        await updatePasswordAfterRecovery(newPassword);
-        return;
-      }
-
-      errors.push(`${type} token hash: ${getSupabaseErrorMessage(tokenHashError)}`);
-    }
-
-    console.warn("Password reset OTP verification failed:", errors);
-    throw new Error("Token has expired or is invalid. Request a new OTP and use the newest code from the newest email.");
-  }, [updatePasswordAfterRecovery]);
+    sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
+    clearGoogleOtpVerifiedEmail();
+    setUser(null);
+    await supabase.auth.signOut().catch(() => null);
+  }, []);
 
   const markGoogleOtpVerified = useCallback((email: string) => {
     markGoogleOtpVerifiedEmail(email);

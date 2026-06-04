@@ -767,6 +767,67 @@ def send_otp_email(recipient_email, otp_code, display_name):
         server.send_message(message)
 
 
+def find_active_user_management_account_by_email(email):
+    normalized_email = str(email or "").strip().lower()
+    if not normalized_email or not table_exists("user"):
+        return None
+
+    role_lookup = {
+        str(role.get("role_id")): role
+        for role in fetch_rows("role")
+    } if table_exists("role") else {}
+
+    for user_row in fetch_rows("user"):
+        if str(user_row.get("email") or "").strip().lower() != normalized_email:
+            continue
+        if str(user_row.get("status") or "active").strip().lower() != "active":
+            return None
+        role = role_lookup.get(str(user_row.get("role_id")))
+        role_name = str((role or {}).get("role_name") or "").strip()
+        if not role_name:
+            return None
+        return user_row
+    return None
+
+
+def update_staff_password_by_email(email, new_password):
+    normalized_email = str(email or "").strip().lower()
+    clean_password = str(new_password or "")
+    if len(clean_password) < 8:
+        raise ValueError("Password must be at least 8 characters.")
+
+    accounts = load_auth_accounts()
+    password_updated = False
+    for account in accounts:
+        if str(account.get("email") or "").strip().lower() != normalized_email:
+            continue
+        account["password"] = clean_password
+        account["password_hash"] = hash_password(clean_password)
+        account["updated_at"] = datetime.now().isoformat()
+        password_updated = True
+        sync_staff_user_record(account)
+
+    if password_updated:
+        save_auth_accounts(accounts)
+
+    user_payload = {
+        "password": clean_password,
+        "updated_at": datetime.now().isoformat(),
+    }
+    result = (
+        supabase()
+        .table("user")
+        .update(user_payload)
+        .eq("email", normalized_email)
+        .eq("status", db_user_status("active"))
+        .execute()
+    )
+    if not (result.data or password_updated):
+        raise ValueError("No active User Management account matches this email.")
+
+    return True
+
+
 def create_user_profile(name, username, role, password=None, status="active"):
     try:
         existing_rows = fetch_rows("user")
@@ -2068,6 +2129,107 @@ def api_brevo_health():
 @app.route("/api/integrations/brevo/health/public", methods=["GET"])
 def api_brevo_health_public():
     return api_gmail_health_public()
+
+
+@app.route("/api/auth/password-reset/request", methods=["POST"])
+def api_password_reset_request():
+    payload = request.get_json(silent=True) or {}
+    email = str(payload.get("email") or "").strip().lower()
+    if not email:
+        return {"ok": False, "error": "Email is required."}, 400
+
+    user_row = find_active_user_management_account_by_email(email)
+    if not user_row:
+        return {
+            "ok": False,
+            "error": "Your account is not authorized to reset a password. Please contact the administrator.",
+        }, 403
+
+    otp_code = f"{random.SystemRandom().randint(0, 999999):06d}"
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    try:
+        supabase().table("password_reset_otp").delete().eq("email", email).is_("used_at", "null").execute()
+        supabase().table("password_reset_otp").insert(
+            {
+                "email": email,
+                "otp_hash": hash_password(otp_code),
+                "expires_at": expires_at.isoformat(),
+                "failed_attempts": 0,
+            }
+        ).execute()
+        send_otp_email(email, otp_code, user_row.get("name") or "Meryl Shoes user")
+    except Exception as exc:
+        logger.exception("Password reset OTP request failed")
+        return {"ok": False, "error": str(exc) or "Unable to send password reset OTP right now."}, 500
+
+    return {"ok": True, "message": "OTP sent. Check your registered email."}
+
+
+@app.route("/api/auth/password-reset/verify", methods=["POST"])
+def api_password_reset_verify():
+    payload = request.get_json(silent=True) or {}
+    email = str(payload.get("email") or "").strip().lower()
+    otp_code = str(payload.get("otp") or "").strip()
+    new_password = str(payload.get("new_password") or "")
+
+    if not email or not otp_code or not new_password:
+        return {"ok": False, "error": "Email, OTP, and new password are required."}, 400
+    if len(new_password.strip()) < 8:
+        return {"ok": False, "error": "Password must be at least 8 characters."}, 400
+
+    user_row = find_active_user_management_account_by_email(email)
+    if not user_row:
+        return {
+            "ok": False,
+            "error": "Your account is not authorized to reset a password. Please contact the administrator.",
+        }, 403
+
+    try:
+        rows = (
+            supabase()
+            .table("password_reset_otp")
+            .select("*")
+            .eq("email", email)
+            .is_("used_at", "null")
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        reset_row = rows[0] if rows else None
+        if not reset_row:
+            return {"ok": False, "error": "OTP expired or invalid. Please request a new OTP."}, 400
+
+        reset_id = reset_row.get("reset_id")
+        failed_attempts = safe_int(reset_row.get("failed_attempts"), 0)
+        if failed_attempts >= 5:
+            return {"ok": False, "error": "Too many failed attempts. Please request a new OTP."}, 429
+
+        expires_at = parse_iso_datetime(reset_row.get("expires_at"))
+        if expires_at:
+            current_time = datetime.now(expires_at.tzinfo) if expires_at.tzinfo else datetime.utcnow()
+        else:
+            current_time = datetime.utcnow()
+        if expires_at and expires_at < current_time:
+            return {"ok": False, "error": "OTP expired. Please request a new OTP."}, 400
+
+        if hash_password(otp_code) != reset_row.get("otp_hash"):
+            supabase().table("password_reset_otp").update(
+                {"failed_attempts": failed_attempts + 1}
+            ).eq("reset_id", reset_id).execute()
+            return {"ok": False, "error": "Invalid OTP code."}, 400
+
+        update_staff_password_by_email(email, new_password.strip())
+        supabase().table("password_reset_otp").update(
+            {"used_at": datetime.utcnow().isoformat()}
+        ).eq("reset_id", reset_id).execute()
+    except Exception as exc:
+        logger.exception("Password reset OTP verification failed")
+        return {"ok": False, "error": str(exc) or "Unable to reset password right now."}, 500
+
+    return {"ok": True, "message": "Password updated successfully."}
 
 
 @app.route("/reports")
