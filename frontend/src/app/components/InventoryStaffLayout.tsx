@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ProductManagement } from './ProductManagement';
-import { Package, LogOut, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
+import { ClipboardList, Package, LogOut, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
 import { Button } from './ui/button';
 import { NotificationCenter } from './NotificationCenter';
 import { useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
+import { InventoryLogPage } from './InventoryLogPage';
 
 export function InventoryStaffLayout() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export function InventoryStaffLayout() {
     { id: 'product-list', label: 'Product List', icon: Package },
     { id: 'product-settings', label: 'Product Settings', icon: SlidersHorizontal },
     { id: 'inventory', label: 'Inventory', icon: Warehouse },
+    { id: 'inventory-log', label: 'Inventory Log', icon: ClipboardList },
   ];
 
   const renderContent = () => {
@@ -31,6 +33,8 @@ export function InventoryStaffLayout() {
         return <ProductManagement view="settings" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
       case 'inventory':
         return <ProductManagement view="inventory" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
+      case 'inventory-log':
+        return <InventoryLogPage />;
       default:
         return <ProductManagement view="list" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
     }

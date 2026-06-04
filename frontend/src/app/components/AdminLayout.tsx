@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Dashboard } from './Dashboard';
-import { LayoutDashboard, Package, ShoppingCart, Users, CreditCard, TrendingUp, Tag, BarChart3, LogOut, UserCog, RotateCcw, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, Package, ShoppingCart, Users, CreditCard, TrendingUp, Tag, BarChart3, LogOut, UserCog, RotateCcw, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
@@ -16,6 +16,7 @@ const loadReportsAnalytics = () => import('./ReportsAnalytics');
 const loadUserManagement = () => import('./UserManagement');
 const loadReturnManagement = () => import('./ReturnManagement');
 const loadNotificationCenter = () => import('./NotificationCenter');
+const loadInventoryLogPage = () => import('./InventoryLogPage');
 
 const PointOfSale = lazy(() => loadPointOfSale().then((module) => ({ default: module.PointOfSale })));
 const ProductManagement = lazy(() => loadProductManagement().then((module) => ({ default: module.ProductManagement })));
@@ -27,6 +28,7 @@ const ReportsAnalytics = lazy(() => loadReportsAnalytics().then((module) => ({ d
 const UserManagement = lazy(() => loadUserManagement().then((module) => ({ default: module.UserManagement })));
 const ReturnManagement = lazy(() => loadReturnManagement().then((module) => ({ default: module.ReturnManagement })));
 const NotificationCenter = lazy(() => loadNotificationCenter().then((module) => ({ default: module.NotificationCenter })));
+const InventoryLogPage = lazy(() => loadInventoryLogPage().then((module) => ({ default: module.InventoryLogPage })));
 
 function clearOrphanedModalState() {
   if (typeof document === 'undefined') return;
@@ -129,6 +131,7 @@ export function AdminLayout() {
     { id: 'product-list', label: 'Product List', icon: Package },
     { id: 'product-settings', label: 'Product Settings', icon: SlidersHorizontal },
     { id: 'inventory', label: 'Inventory', icon: Warehouse },
+    { id: 'inventory-log', label: 'Inventory Log', icon: ClipboardList },
     { id: 'sales', label: 'Sales', icon: ShoppingCart },
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'returns', label: 'Replacement', icon: RotateCcw },
@@ -143,6 +146,7 @@ export function AdminLayout() {
     'product-list': loadProductManagement,
     'product-settings': loadProductManagement,
     inventory: loadProductManagement,
+    'inventory-log': loadInventoryLogPage,
     sales: loadSalesManagement,
     customers: loadCustomerManagement,
     analytics: loadPredictiveAnalytics,
@@ -159,6 +163,7 @@ export function AdminLayout() {
       case 'product-list': return <ProductManagement view="list" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
       case 'product-settings': return <ProductManagement view="settings" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
       case 'inventory': return <ProductManagement view="inventory" onViewChange={(view) => setActiveView(view === 'list' ? 'product-list' : view === 'settings' ? 'product-settings' : 'inventory')} />;
+      case 'inventory-log': return <InventoryLogPage />;
       case 'sales': return <SalesManagement />;
       case 'customers': return <CustomerManagement />;
       case 'analytics': return <PredictiveAnalytics />;
