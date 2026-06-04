@@ -29,6 +29,7 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePasswordAfterRecovery: (newPassword: string) => Promise<void>;
+  verifyPasswordResetOtpAndUpdate: (email: string, otp: string, newPassword: string) => Promise<void>;
   requestEmailOtp: (email: string) => Promise<void>;
   completeExternalAuth: (options?: { persist?: boolean; bypassOtpGate?: boolean }) => Promise<AuthUser | null>;
   markGoogleOtpVerified: (email: string) => void;
@@ -290,8 +291,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Your account is not authorized to reset a password. Please contact the administrator.");
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: passwordResetRedirectUrl(),
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        emailRedirectTo: passwordResetRedirectUrl(),
+        shouldCreateUser: false,
+      },
     });
 
     if (error) throw error;
@@ -338,6 +343,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const verifyPasswordResetOtpAndUpdate = useCallback(async (email: string, otp: string, newPassword: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.trim();
+
+    if (!cleanOtp) {
+      throw new Error("Enter the OTP sent to your email.");
+    }
+
+    const { error: otpError } = await supabase.auth.verifyOtp({
+      email: normalizedEmail,
+      token: cleanOtp,
+      type: "email",
+    });
+
+    if (otpError) {
+      throw new Error(getSupabaseErrorMessage(otpError));
+    }
+
+    await updatePasswordAfterRecovery(newPassword);
+  }, [updatePasswordAfterRecovery]);
+
   const markGoogleOtpVerified = useCallback((email: string) => {
     markGoogleOtpVerifiedEmail(email);
   }, []);
@@ -373,6 +399,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       requestPasswordReset,
       updatePasswordAfterRecovery,
+      verifyPasswordResetOtpAndUpdate,
       requestEmailOtp,
       completeExternalAuth,
       markGoogleOtpVerified,
@@ -385,6 +412,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       requestPasswordReset,
       updatePasswordAfterRecovery,
+      verifyPasswordResetOtpAndUpdate,
       requestEmailOtp,
       completeExternalAuth,
       markGoogleOtpVerified,

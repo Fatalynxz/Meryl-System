@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
-import { ArrowLeft, LogIn, Mail, User, Lock, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, KeyRound, LogIn, Mail, User, Lock, ShieldCheck } from 'lucide-react';
 import { getPostLoginPath, useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
 
 
 export function Login() {
   const navigate = useNavigate();
-  const { login, signInWithGoogle, requestPasswordReset } = useAuth();
+  const { login, signInWithGoogle, requestPasswordReset, verifyPasswordResetOtpAndUpdate } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [resetEmail, setResetEmail] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetStep, setResetStep] = useState<'email' | 'otp'>('email');
   const [forgotMode, setForgotMode] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -62,13 +66,59 @@ export function Login() {
 
     try {
       await requestPasswordReset(resetEmail);
-      setNotice('Password reset link sent. Open your email and set a new password within the allowed time.');
+      setResetStep('otp');
+      setNotice('OTP sent. Enter the code from your email, then set your new password.');
     } catch (resetError) {
-      const message = resetError instanceof Error ? resetError.message : 'Unable to send password reset email right now.';
-      setError(message.includes('rate limit') ? 'Email rate limit exceeded. Please wait before requesting another reset email.' : message);
+      const message = resetError instanceof Error ? resetError.message : 'Unable to send password reset OTP right now.';
+      setError(message.includes('rate limit') ? 'Email rate limit exceeded. Please wait before requesting another OTP.' : message);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleVerifyResetOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError('');
+    setNotice('');
+
+    try {
+      if (resetPassword.trim().length < 8) {
+        setError('Password must be at least 8 characters.');
+        return;
+      }
+      if (resetPassword !== resetConfirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+
+      await verifyPasswordResetOtpAndUpdate(resetEmail, resetOtp, resetPassword);
+      setNotice('Password updated successfully. You can now sign in with your new password.');
+      window.setTimeout(() => {
+        setForgotMode(false);
+        setResetStep('email');
+        setResetOtp('');
+        setResetPassword('');
+        setResetConfirmPassword('');
+        setPassword('');
+      }, 1200);
+    } catch (resetError) {
+      const message = resetError instanceof Error ? resetError.message : 'Unable to verify OTP right now.';
+      setError(message.includes('expired') ? 'OTP expired. Please resend a new OTP.' : message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetForgotState = () => {
+    setForgotMode(false);
+    setResetStep('email');
+    setResetOtp('');
+    setResetPassword('');
+    setResetConfirmPassword('');
+    setError('');
+    setNotice('');
   };
 
   return (
@@ -115,7 +165,7 @@ export function Login() {
           </div>
 
           {forgotMode ? (
-          <form onSubmit={handleForgotPassword} className="space-y-4">
+          <form onSubmit={resetStep === 'email' ? handleForgotPassword : handleVerifyResetOtp} className="space-y-4">
             <div>
               <label className="text-xs text-white/60 mb-1.5 block">Registered email</label>
               <div className="relative">
@@ -125,11 +175,62 @@ export function Login() {
                   placeholder="Enter registered email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
+                  disabled={resetStep === 'otp'}
                   required
                   className="w-full pl-10 pr-3 py-2.5 bg-[#1D1D25] border border-white/5 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFD60A]/40 focus:ring-2 focus:ring-[#FFD60A]/20 transition"
                 />
               </div>
             </div>
+
+            {resetStep === 'otp' && (
+              <>
+                <div>
+                  <label className="text-xs text-white/60 mb-1.5 block">Email OTP code</label>
+                  <div className="relative">
+                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="Enter OTP code"
+                      value={resetOtp}
+                      onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      required
+                      className="w-full pl-10 pr-3 py-2.5 bg-[#1D1D25] border border-white/5 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFD60A]/40 focus:ring-2 focus:ring-[#FFD60A]/20 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-white/60 mb-1.5 block">New password</label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <input
+                      type="password"
+                      placeholder="At least 8 characters"
+                      value={resetPassword}
+                      onChange={(e) => setResetPassword(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-3 py-2.5 bg-[#1D1D25] border border-white/5 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFD60A]/40 focus:ring-2 focus:ring-[#FFD60A]/20 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-white/60 mb-1.5 block">Confirm password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <input
+                      type="password"
+                      placeholder="Re-enter new password"
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      required
+                      className="w-full pl-10 pr-3 py-2.5 bg-[#1D1D25] border border-white/5 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFD60A]/40 focus:ring-2 focus:ring-[#FFD60A]/20 transition"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             {error && (
               <div className="rounded-xl px-3 py-2.5 bg-[#E5202A]/15 border border-[#E5202A]/30 text-sm text-[#FF6B72]">
@@ -148,18 +249,26 @@ export function Login() {
               disabled={submitting}
               className="w-full h-11 rounded-xl bg-[#FFD60A] hover:bg-[#ffcf24] text-[#15151B] shadow-lg shadow-yellow-900/20"
             >
-              <Mail className="w-4 h-4 mr-2" />
-              Send Reset Link
+              {resetStep === 'email' ? <Mail className="w-4 h-4 mr-2" /> : <ShieldCheck className="w-4 h-4 mr-2" />}
+              {resetStep === 'email' ? 'Send Reset OTP' : 'Verify OTP and Reset Password'}
             </Button>
+
+            {resetStep === 'otp' && (
+              <Button
+                type="button"
+                disabled={submitting}
+                onClick={handleForgotPassword as unknown as React.MouseEventHandler<HTMLButtonElement>}
+                className="h-11 w-full rounded-xl border border-white/10 bg-[#1D1D25] text-white hover:bg-white/10"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Resend OTP
+              </Button>
+            )}
 
             <Button
               type="button"
               disabled={submitting}
-              onClick={() => {
-                setForgotMode(false);
-                setError('');
-                setNotice('');
-              }}
+              onClick={resetForgotState}
               className="h-11 w-full rounded-xl border border-white/10 bg-[#1D1D25] text-white hover:bg-white/10"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -203,6 +312,7 @@ export function Login() {
                 type="button"
                 onClick={() => {
                   setForgotMode(true);
+                  setResetStep('email');
                   setResetEmail(username.includes('@') ? username : '');
                   setError('');
                   setNotice('');
