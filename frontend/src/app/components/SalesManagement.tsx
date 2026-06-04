@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { ArrowRightLeft, Calendar, Eye, Search, ShoppingCart } from "lucide-react";
+import { Calendar, Eye, Search, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { useProducts, useReturns, useSales } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
@@ -59,6 +59,15 @@ function extractPesoAmount(text: string) {
   const match = String(text ?? "").match(/(?:customer adds|adds)\s*php\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
   if (!match?.[1]) return 0;
   return Number(match[1].replace(/,/g, "")) || 0;
+}
+
+function normalizeProductName(value: string) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function extractReplacementName(text: string) {
+  const match = String(text ?? "").match(/replacement:\s*([^|]+)/i);
+  return match?.[1]?.trim() ?? "";
 }
 
 function formatCurrency(value: number) {
@@ -120,7 +129,10 @@ export function SalesManagement() {
       const mappedDetails = details.map((detail: any) => {
         const returnedProduct = Array.isArray(detail.product) ? detail.product[0] : detail.product;
         const returnedFallback = productMap.get(String(detail.returned_product_id ?? detail.product_id ?? ""));
-        const replacementFallback = productMap.get(String(detail.replacement_product_id ?? detail.new_product_id ?? ""));
+        const replacementNameFromNote = extractReplacementName(String(detail.reason ?? ""));
+        const replacementFallback =
+          productMap.get(String(detail.replacement_product_id ?? detail.new_product_id ?? "")) ??
+          [...productMap.values()].find((product) => normalizeProductName(product.name) === normalizeProductName(replacementNameFromNote));
         const returnedInventory = Array.isArray(returnedProduct?.inventory) ? returnedProduct.inventory[0] : returnedProduct?.inventory;
         return {
           return_detail_id: String(detail.return_detail_id ?? ""),
@@ -429,7 +441,7 @@ export function SalesManagement() {
                                 <div className="space-y-3">
                                   {sale.replacementDetails.map((detail: any) => (
                                     <div key={detail.return_detail_id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:items-stretch">
                                         <div className="rounded-md border border-red-900/50 bg-red-950/20 p-3">
                                           <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replaced Item</p>
                                           <p className="font-medium text-zinc-100">{detail.returnedProductName}</p>
@@ -439,9 +451,6 @@ export function SalesManagement() {
                                             <span>Size: {detail.returnedSize}</span>
                                             <span>Color: {detail.returnedColor}</span>
                                           </div>
-                                        </div>
-                                        <div className="hidden items-center justify-center text-yellow-300 md:flex">
-                                          <ArrowRightLeft className="h-5 w-5" />
                                         </div>
                                         <div className="rounded-md border border-emerald-900/50 bg-emerald-950/20 p-3">
                                           <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replacement Item</p>

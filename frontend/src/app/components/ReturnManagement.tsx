@@ -126,6 +126,15 @@ function extractPesoAmount(text: string) {
   return Number(match[1].replace(/,/g, "")) || 0;
 }
 
+function normalizeProductName(value: string) {
+  return String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function extractReplacementName(text: string) {
+  const match = String(text ?? "").match(/replacement:\s*([^|]+)/i);
+  return match?.[1]?.trim() ?? "";
+}
+
 async function tryUpdateById(table: string, idColumn: string, id: string, payloads: Record<string, any>[]) {
   let lastError: any = null;
   for (const payload of payloads) {
@@ -527,7 +536,10 @@ export function ReturnManagement() {
           const replacementJoin = Array.isArray(detail.replacement_product) ? detail.replacement_product[0] : detail.replacement_product;
           const newProductJoin = Array.isArray(detail.new_product) ? detail.new_product[0] : detail.new_product;
           const returnedFallback = productMap.get(String(detail.returned_product_id ?? detail.product_id ?? ""));
-          const replacementFallback = productMap.get(String(detail.replacement_product_id ?? detail.new_product_id ?? ""));
+          const replacementNameFromNote = extractReplacementName(String(detail.reason ?? ""));
+          const replacementFallback =
+            productMap.get(String(detail.replacement_product_id ?? detail.new_product_id ?? "")) ??
+            [...productMap.values()].find((product) => normalizeProductName(product.name) === normalizeProductName(replacementNameFromNote));
           const replacement = replacementJoin ?? newProductJoin;
           const returnedInventory = Array.isArray(product?.inventory) ? product.inventory[0] : product?.inventory;
           const replacementInventory = Array.isArray(replacement?.inventory) ? replacement.inventory[0] : replacement?.inventory;
@@ -1466,7 +1478,7 @@ export function ReturnManagement() {
                               <div className="space-y-3">
                                 {returnItem.returnDetails.map((detail) => (
                                   <div key={detail.return_detail_id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:items-stretch">
                                       <div className="rounded-md border border-red-900/50 bg-red-950/20 p-3">
                                         <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replaced Item</p>
                                         <p className="font-medium text-zinc-100">{detail.productName}</p>
@@ -1476,9 +1488,6 @@ export function ReturnManagement() {
                                           <span>Size: {detail.productSize}</span>
                                           <span>Color: {detail.productColor}</span>
                                         </div>
-                                      </div>
-                                      <div className="hidden items-center justify-center text-yellow-300 md:flex">
-                                        <ArrowRightLeft className="h-5 w-5" />
                                       </div>
                                       <div className="rounded-md border border-emerald-900/50 bg-emerald-950/20 p-3">
                                         <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replacement Item</p>
