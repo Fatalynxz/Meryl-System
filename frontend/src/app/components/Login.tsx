@@ -57,8 +57,8 @@ export function Login() {
     }
   };
 
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleForgotPassword = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
     if (submitting) return;
     setSubmitting(true);
     setError('');
@@ -67,6 +67,9 @@ export function Login() {
     try {
       await requestPasswordReset(resetEmail);
       setResetStep('otp');
+      setResetOtp('');
+      setResetPassword('');
+      setResetConfirmPassword('');
       setNotice('OTP sent. Enter the code from your email, then set your new password.');
     } catch (resetError) {
       const message = resetError instanceof Error ? resetError.message : 'Unable to send password reset OTP right now.';
@@ -105,7 +108,7 @@ export function Login() {
       }, 1200);
     } catch (resetError) {
       const message = resetError instanceof Error ? resetError.message : 'Unable to verify OTP right now.';
-      setError(message.includes('expired') ? 'OTP expired. Please resend a new OTP.' : message);
+      setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -257,7 +260,7 @@ export function Login() {
               <Button
                 type="button"
                 disabled={submitting}
-                onClick={handleForgotPassword as unknown as React.MouseEventHandler<HTMLButtonElement>}
+                onClick={handleForgotPassword}
                 className="h-11 w-full rounded-xl border border-white/10 bg-[#1D1D25] text-white hover:bg-white/10"
               >
                 <Mail className="w-4 h-4 mr-2" />

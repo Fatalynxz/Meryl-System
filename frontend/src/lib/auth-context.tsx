@@ -347,14 +347,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Enter the OTP sent to your email.");
     }
 
-    const { error: otpError } = await supabase.auth.verifyOtp({
+    const { error: recoveryOtpError } = await supabase.auth.verifyOtp({
       email: normalizedEmail,
       token: cleanOtp,
       type: "recovery",
     });
 
-    if (otpError) {
-      throw new Error(getSupabaseErrorMessage(otpError));
+    if (recoveryOtpError) {
+      const { error: emailOtpError } = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: cleanOtp,
+        type: "email",
+      });
+
+      if (emailOtpError) {
+        const recoveryMessage = getSupabaseErrorMessage(recoveryOtpError);
+        const emailMessage = getSupabaseErrorMessage(emailOtpError);
+        throw new Error(
+          recoveryMessage === emailMessage
+            ? recoveryMessage
+            : `Reset OTP failed: ${recoveryMessage}. Email OTP fallback: ${emailMessage}`,
+        );
+      }
     }
 
     await updatePasswordAfterRecovery(newPassword);
