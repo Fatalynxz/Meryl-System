@@ -9,6 +9,12 @@
 
 begin;
 
+-- Drop old versions before recreating. PostgreSQL cannot change an existing
+-- function's return type with CREATE OR REPLACE, and duplicate overloads make
+-- Supabase RPC ambiguous.
+drop function if exists public.complete_sale(text, text, text, numeric, jsonb);
+drop function if exists public.complete_sale(uuid, uuid, text, numeric, jsonb);
+
 -- Keep this RPC browser-friendly: Supabase JS sends UUID values as strings,
 -- so using text parameters avoids overloaded uuid/text ambiguity in PostgREST.
 create or replace function public.complete_sale(
@@ -179,11 +185,6 @@ end;
 $$;
 
 grant execute on function public.complete_sale(text, text, text, numeric, jsonb) to anon, authenticated;
-
--- Remove the duplicate uuid overload created by an earlier patch. Leaving both
--- text and uuid signatures makes Supabase RPC fail with "could not choose the
--- best candidate function" because browser JSON values arrive as strings.
-drop function if exists public.complete_sale(uuid, uuid, text, numeric, jsonb);
 
 -- Backfill completed historical sale rows that are missing inventory_log sale movements.
 -- This intentionally does not deduct stock again. It only creates missing log rows.
