@@ -6,6 +6,15 @@ import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 import { BrandLogo } from "./BrandLogo";
 
+function getResetErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error) {
+    const record = error as { message?: unknown; error_description?: unknown; details?: unknown };
+    return String(record.message ?? record.error_description ?? record.details ?? "Unable to update password right now.");
+  }
+  return "Unable to update password right now.";
+}
+
 export function ResetPassword() {
   const navigate = useNavigate();
   const { updatePasswordAfterRecovery } = useAuth();
@@ -72,7 +81,7 @@ export function ResetPassword() {
       setNotice("Password updated successfully. You can now sign in with your new password.");
       window.setTimeout(() => navigate("/", { replace: true }), 1200);
     } catch (resetError) {
-      setError(resetError instanceof Error ? resetError.message : "Unable to update password right now.");
+      setError(getResetErrorMessage(resetError));
     } finally {
       setSubmitting(false);
     }

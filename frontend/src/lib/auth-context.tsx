@@ -164,6 +164,15 @@ function passwordResetRedirectUrl() {
   return `${window.location.origin}/auth/reset-password`;
 }
 
+function getSupabaseErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error) {
+    const record = error as { message?: unknown; error_description?: unknown; details?: unknown };
+    return String(record.message ?? record.error_description ?? record.details ?? "Unknown Supabase error");
+  }
+  return String(error || "Unknown Supabase error");
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -311,14 +320,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Your account is not authorized to reset a password. Please contact the administrator.");
     }
 
-    const { error: authError } = await supabase.auth.updateUser({ password: cleanPassword });
-    if (authError) throw authError;
-
     const { error: appPasswordError } = await supabase.rpc("reset_user_password_by_email", {
       p_new_password: cleanPassword,
     });
 
-    if (appPasswordError) throw appPasswordError;
+    if (appPasswordError) {
+      throw new Error(getSupabaseErrorMessage(appPasswordError));
+    }
+
+    // Keep the Supabase Auth password aligned when possible, but the system's
+    // manual login uses public."user".password, so this is not the authority.
+    await supabase.auth.updateUser({ password: cleanPassword }).catch(() => null);
 
     sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
     clearGoogleOtpVerifiedEmail();
