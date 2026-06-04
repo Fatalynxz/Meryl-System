@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router';
-import { useAuth } from '../../lib/auth-context';
+import { getRoleGroup, useAuth } from '../../lib/auth-context';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -15,16 +15,17 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/" replace />;
   }
 
-  const normalizedRole = user.role_name.trim().toLowerCase();
-  const hasAccess = allowedRoles.some((role) => role.toLowerCase() === normalizedRole);
+  const roleGroup = getRoleGroup(user.role_name);
+  const allowedGroups = allowedRoles.map((role) => getRoleGroup(role) || role.toLowerCase());
+  const hasAccess = allowedGroups.includes(roleGroup);
   if (!hasAccess) {
-    if (normalizedRole === 'admin' || normalizedRole === 'administrator') {
+    if (roleGroup === 'admin') {
       return <Navigate to="/admin" replace />;
     }
-    if (normalizedRole === 'sales' || normalizedRole === 'sales staff') {
+    if (roleGroup === 'sales') {
       return <Navigate to="/sales" replace />;
     }
-    if (normalizedRole === 'inventory' || normalizedRole === 'inventory staff') {
+    if (roleGroup === 'inventory') {
       return <Navigate to="/inventory" replace />;
     }
     return <Navigate to="/" replace />;

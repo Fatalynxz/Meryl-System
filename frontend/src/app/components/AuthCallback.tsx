@@ -5,6 +5,27 @@ import { Button } from "./ui/button";
 import { getPostLoginPath, useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 
+const OTP_TTL_MS = 5 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+
+type OtpChallenge = {
+  email: string;
+  sentAt: number;
+  attempts: number;
+  resendAvailableAt: number;
+};
+
+function createOtpChallenge(email: string): OtpChallenge {
+  const now = Date.now();
+  return {
+    email,
+    sentAt: now,
+    attempts: 0,
+    resendAvailableAt: now + OTP_RESEND_COOLDOWN_MS,
+  };
+}
+
 export function AuthCallback() {
   const navigate = useNavigate();
   const { completeExternalAuth, requestEmailOtp, markGoogleOtpVerified, logout } = useAuth();
@@ -15,6 +36,19 @@ export function AuthCallback() {
   const [otpNotice, setOtpNotice] = useState("");
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpChallenge, setOtpChallenge] = useState<OtpChallenge | null>(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!otpMode) return undefined;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [otpMode]);
+
+  const expiresAt = otpChallenge ? otpChallenge.sentAt + OTP_TTL_MS : 0;
+  const remainingSeconds = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+  const canResend = otpChallenge ? now >= otpChallenge.resendAvailableAt : false;
+  const attemptsLeft = otpChallenge ? Math.max(0, OTP_MAX_ATTEMPTS - otpChallenge.attempts) : OTP_MAX_ATTEMPTS;
 
   useEffect(() => {
     let mounted = true;
@@ -37,7 +71,7 @@ export function AuthCallback() {
         if (!appUser) {
           logout();
           setError(
-            "This Google/email account is not linked to an active Meryl staff account. Ask an admin to add the same email in Users.",
+            "Your account is not authorized to access this system. Please contact the administrator.",
           );
           return;
         }
@@ -49,7 +83,8 @@ export function AuthCallback() {
             setSendingOtp(true);
             await requestEmailOtp(sessionEmail);
             if (mounted) {
-              setOtpNotice("We sent an OTP/sign-in code to your email. Enter it below to continue.");
+              setOtpChallenge(createOtpChallenge(sessionEmail));
+              setOtpNotice("We sent an OTP/sign-in code to your registered email. Enter it below within 5 minutes.");
             }
           } finally {
             if (mounted) setSendingOtp(false);
@@ -82,6 +117,20 @@ export function AuthCallback() {
       setError("Enter the OTP code from your email.");
       return;
     }
+    if (!otpChallenge || otpChallenge.email !== otpEmail) {
+      setError("Please request a new OTP before continuing.");
+      return;
+    }
+    if (Date.now() > otpChallenge.sentAt + OTP_TTL_MS) {
+      setError("This OTP has expired. Please resend a new code.");
+      return;
+    }
+    if (otpChallenge.attempts >= OTP_MAX_ATTEMPTS) {
+      logout();
+      setOtpMode(false);
+      setError("Too many failed OTP attempts. Please sign in again.");
+      return;
+    }
 
     try {
       setVerifyingOtp(true);
@@ -96,6 +145,7 @@ export function AuthCallback() {
       if (verifyError) throw verifyError;
 
       markGoogleOtpVerified(otpEmail);
+      setOtpChallenge(null);
       const appUser = await completeExternalAuth({ persist: true });
       if (!appUser) {
         throw new Error("Could not complete sign-in after OTP verification.");
@@ -103,7 +153,22 @@ export function AuthCallback() {
 
       navigate(getPostLoginPath(appUser), { replace: true });
     } catch (otpError) {
-      setError(otpError instanceof Error ? otpError.message : "Invalid OTP code. Please try again.");
+      const nextChallenge = {
+        ...otpChallenge,
+        attempts: otpChallenge.attempts + 1,
+      };
+      setOtpChallenge(nextChallenge);
+      if (nextChallenge.attempts >= OTP_MAX_ATTEMPTS) {
+        logout();
+        setOtpMode(false);
+        setError("Too many failed OTP attempts. Please sign in again.");
+      } else {
+        setError(
+          otpError instanceof Error
+            ? `${otpError.message} ${OTP_MAX_ATTEMPTS - nextChallenge.attempts} attempt(s) left.`
+            : `Invalid OTP code. ${OTP_MAX_ATTEMPTS - nextChallenge.attempts} attempt(s) left.`,
+        );
+      }
     } finally {
       setVerifyingOtp(false);
     }
@@ -111,11 +176,18 @@ export function AuthCallback() {
 
   const handleResendOtp = async () => {
     if (!otpEmail || sendingOtp) return;
+    if (otpChallenge && Date.now() < otpChallenge.resendAvailableAt) {
+      const seconds = Math.ceil((otpChallenge.resendAvailableAt - Date.now()) / 1000);
+      setError(`Please wait ${seconds} second(s) before resending the OTP.`);
+      return;
+    }
     try {
       setSendingOtp(true);
       setError("");
       await requestEmailOtp(otpEmail);
-      setOtpNotice("OTP sent again. Check your email inbox.");
+      setOtpChallenge(createOtpChallenge(otpEmail));
+      setOtpCode("");
+      setOtpNotice("OTP sent again. Check your registered email inbox.");
     } catch (otpError) {
       setError(otpError instanceof Error ? otpError.message : "Could not resend OTP.");
     } finally {
@@ -147,6 +219,9 @@ export function AuthCallback() {
                 <p className="mt-2 text-sm leading-6 text-white/65">
                   Google sign-in succeeded. Enter the OTP sent to <span className="text-white">{otpEmail}</span> to access the system.
                 </p>
+                <p className="mt-1 text-xs text-[#FFD60A]">
+                  Expires in {Math.floor(remainingSeconds / 60)}:{String(remainingSeconds % 60).padStart(2, "0")} - {attemptsLeft} attempt(s) left
+                </p>
               </div>
             </div>
 
@@ -172,7 +247,7 @@ export function AuthCallback() {
                 className="h-11 w-full rounded-xl border border-white/5 bg-[#1D1D25] px-3 text-sm text-white placeholder:text-white/30 transition focus:border-[#FFD60A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFD60A]/20"
               />
               <p className="mt-1.5 text-[11px] text-white/45">
-                OTP codes usually expire within a few minutes. If it expires, tap <span className="text-white/70">Resend OTP</span>.
+                OTP codes expire after 5 minutes. If it expires, tap <span className="text-white/70">Resend OTP</span>.
               </p>
             </div>
 
@@ -188,10 +263,10 @@ export function AuthCallback() {
               <Button
                 type="button"
                 onClick={handleResendOtp}
-                disabled={verifyingOtp || sendingOtp}
+                disabled={verifyingOtp || sendingOtp || !canResend}
                 className="h-11 rounded-xl border border-white/10 bg-[#1D1D25] text-white hover:bg-white/10"
               >
-                {sendingOtp ? "Sending..." : "Resend OTP"}
+                {sendingOtp ? "Sending..." : canResend ? "Resend OTP" : "Wait"}
               </Button>
             </div>
           </div>
@@ -213,7 +288,7 @@ export function AuthCallback() {
                 Quick check
               </div>
               <p className="mt-2 text-xs leading-5">
-                The email used for Google or OTP must exactly exist in the Users page and the account must be Active.
+                The Google email must exactly exist in the Users page, must be Active, and must have an assigned role.
               </p>
             </div>
 

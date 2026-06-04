@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, useRouteError } from 'react-router';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { useAuth } from '../lib/auth-context';
+import { getPostLoginPath, useAuth } from '../lib/auth-context';
 
 const chunkReloadKey = 'meryl_chunk_reload_attempted';
 
@@ -71,16 +71,7 @@ function RootRedirect() {
   if (loading) return null;
 
   if (user) {
-    const normalizedRole = user.role_name.trim().toLowerCase();
-    if (normalizedRole === 'admin' || normalizedRole === 'administrator') {
-      return <Navigate to="/admin" replace />;
-    }
-    if (normalizedRole === 'sales' || normalizedRole === 'sales staff') {
-      return <Navigate to="/sales" replace />;
-    }
-    if (normalizedRole === 'inventory' || normalizedRole === 'inventory staff') {
-      return <Navigate to="/inventory" replace />;
-    }
+    return <Navigate to={getPostLoginPath(user)} replace />;
   }
 
   return <Login />;

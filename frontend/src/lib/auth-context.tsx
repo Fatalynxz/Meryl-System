@@ -16,6 +16,7 @@ export type AuthUser = {
   user_id: string;
   name: string;
   username: string;
+  email?: string;
   role_id: string;
   role_name: string;
   status: string;
@@ -60,11 +61,35 @@ function clearGoogleOtpVerifiedEmail() {
   sessionStorage.removeItem(GOOGLE_OTP_VERIFIED_EMAIL_KEY);
 }
 
+export function getRoleGroup(roleName?: string | null) {
+  const normalizedRole = String(roleName ?? "").trim().toLowerCase().replace(/[_-]+/g, " ");
+
+  if (["admin", "administrator", "owner", "admin owner", "admin/owner"].includes(normalizedRole)) {
+    return "admin";
+  }
+
+  if (["sales", "sales staff", "cashier", "cashier staff", "sales cashier"].includes(normalizedRole)) {
+    return "sales";
+  }
+
+  if (["inventory", "inventory staff", "stock staff", "warehouse staff"].includes(normalizedRole)) {
+    return "inventory";
+  }
+
+  return "";
+}
+
+function isAuthorizedAppUser(authUser: AuthUser | null) {
+  if (!authUser) return false;
+  if (String(authUser.status ?? "").trim().toLowerCase() !== "active") return false;
+  return Boolean(getRoleGroup(authUser.role_name));
+}
+
 export function getPostLoginPath(authUser: AuthUser | null) {
-  const normalizedRole = authUser?.role_name.trim().toLowerCase() ?? "";
-  if (normalizedRole === "admin" || normalizedRole === "administrator") return "/admin";
-  if (normalizedRole === "sales" || normalizedRole === "sales staff") return "/sales";
-  if (normalizedRole === "inventory" || normalizedRole === "inventory staff") return "/inventory";
+  const roleGroup = getRoleGroup(authUser?.role_name);
+  if (roleGroup === "admin") return "/admin";
+  if (roleGroup === "sales") return "/sales";
+  if (roleGroup === "inventory") return "/inventory";
   return "/";
 }
 
@@ -78,7 +103,8 @@ async function findAppUserByEmail(email: string): Promise<AuthUser | null> {
     });
 
     if (!error && data) {
-      return data as AuthUser;
+      const authUser = data as AuthUser;
+      return isAuthorizedAppUser(authUser) ? authUser : null;
     }
   } catch {
     // Fall back to direct lookup for local/dev databases where the helper is not installed yet.
@@ -97,6 +123,7 @@ async function findAppUserByEmail(email: string): Promise<AuthUser | null> {
         user_id: string;
         name: string;
         username: string;
+        email: string | null;
         role_id: string;
         status: string | null;
       }
@@ -114,14 +141,17 @@ async function findAppUserByEmail(email: string): Promise<AuthUser | null> {
 
   if (roleError) throw roleError;
 
-  return {
+  const authUser = {
     user_id: row.user_id,
     name: row.name,
     username: row.username,
+    email: row.email ?? normalizedEmail,
     role_id: row.role_id,
     role_name: String((roleRows?.[0] as { role_name?: string } | undefined)?.role_name ?? ""),
     status: row.status ?? "active",
   };
+
+  return isAuthorizedAppUser(authUser) ? authUser : null;
 }
 
 function authRedirectUrl() {
@@ -149,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const googleNeedsOtp = provider === "google" && getVerifiedGoogleOtpEmail() !== normalizedEmail;
 
     const authUser = await findAppUserByEmail(email);
-    if (!authUser) {
+    if (!isAuthorizedAppUser(authUser)) {
       await supabase.auth.signOut();
       return null;
     }
@@ -174,10 +204,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // One-time cleanup for old persistent login behavior.
       localStorage.removeItem(MERYL_USER_STORAGE_KEY);
       const storedUser = readStoredUser();
-      if (storedUser && mounted) setUser(storedUser);
+      if (storedUser && !isAuthorizedAppUser(storedUser)) {
+        sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
+        clearGoogleOtpVerifiedEmail();
+      } else if (storedUser && mounted) {
+        setUser(storedUser);
+      }
 
       try {
-        if (!storedUser) {
+        if (!storedUser || !isAuthorizedAppUser(storedUser)) {
           await completeExternalAuth();
         }
       } catch {
