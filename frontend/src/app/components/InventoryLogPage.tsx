@@ -180,14 +180,14 @@ export function InventoryLogPage() {
 
         <CardContent>
           <div className="overflow-hidden rounded-2xl border border-zinc-800">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="border-zinc-800 bg-zinc-900 hover:bg-zinc-900">
-                  <TableHead className="text-yellow-300">Date</TableHead>
-                  <TableHead className="text-yellow-300">Product</TableHead>
-                  <TableHead className="text-yellow-300 text-center">Movement</TableHead>
-                  <TableHead className="text-yellow-300 text-center">Qty Change</TableHead>
-                  <TableHead className="text-yellow-300">Reference</TableHead>
+                  <TableHead className="w-[18%] text-center text-yellow-300">Date</TableHead>
+                  <TableHead className="w-[30%] text-center text-yellow-300">Product</TableHead>
+                  <TableHead className="w-[17%] text-center text-yellow-300">Movement</TableHead>
+                  <TableHead className="w-[15%] text-center text-yellow-300">Qty Change</TableHead>
+                  <TableHead className="w-[20%] text-center text-yellow-300">Reference</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,10 +208,10 @@ export function InventoryLogPage() {
                     const product = getProduct(row);
                     const qty = Number(row.quantity_change ?? 0);
                     return (
-                      <TableRow key={row.inventory_log_id} className="border-zinc-800 hover:bg-zinc-900/70">
-                        <TableCell className="whitespace-nowrap text-zinc-200">{formatDateTime(row.date_updated)}</TableCell>
-                        <TableCell className="min-w-[260px]">
-                          <div className="font-medium text-yellow-100">{product.name}</div>
+                      <TableRow key={row.inventory_log_id} className="h-16 border-zinc-800 hover:bg-zinc-900/70">
+                        <TableCell className="whitespace-nowrap text-center text-zinc-200">{formatDateTime(row.date_updated)}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="font-semibold text-yellow-100">{product.name}</div>
                           <div className="text-xs text-zinc-400">
                             {product.brand} | Size {product.size} | {product.color}
                           </div>
@@ -223,8 +223,8 @@ export function InventoryLogPage() {
                         <TableCell className={`text-center font-semibold tabular-nums ${qty >= 0 ? "text-emerald-300" : "text-red-300"}`}>
                           {qty >= 0 ? `+${qty}` : qty}
                         </TableCell>
-                        <TableCell className="max-w-[260px] truncate text-zinc-300" title={row.reference_id ?? ""}>
-                          {row.reference_id ?? "Manual / No reference"}
+                        <TableCell className="text-center text-zinc-300" title={row.reference_id ?? ""}>
+                          <span className="mx-auto block max-w-[220px] truncate">{row.reference_id ?? "Manual / No reference"}</span>
                         </TableCell>
                       </TableRow>
                     );
