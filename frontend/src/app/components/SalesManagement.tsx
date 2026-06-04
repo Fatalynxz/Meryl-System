@@ -115,13 +115,7 @@ export function SalesManagement() {
       if (!salesId) continue;
       const prev = map.get(salesId) ?? { count: 0, additional: 0, credits: 0, lastActivity: null, details: [] };
       const details = Array.isArray(replacement.return_details) ? replacement.return_details : [];
-      const detailAdditional = details.reduce((sum: number, detail: any) => {
-        const byDiff = Math.max(0, Number(detail?.net_difference ?? detail?.price_difference ?? 0));
-        if (byDiff > 0) return sum + byDiff;
-        return sum + extractPesoAmount(String(detail?.reason ?? ""));
-      }, 0);
       const headerAdditional = Number(replacement.additional_payment ?? replacement.total_replacement_payments ?? 0);
-      const additional = headerAdditional > 0 ? headerAdditional : detailAdditional;
       const credits = Number(replacement.total_refund ?? replacement.total_credits_issued ?? 0);
       const activityDate = String(replacement.last_activity_date ?? replacement.return_date ?? replacement.created_at ?? "");
       const prevTs = prev.lastActivity ? new Date(prev.lastActivity).getTime() : 0;
@@ -134,22 +128,35 @@ export function SalesManagement() {
           productMap.get(String(detail.replacement_product_id ?? detail.new_product_id ?? "")) ??
           [...productMap.values()].find((product) => normalizeProductName(product.name) === normalizeProductName(replacementNameFromNote));
         const returnedInventory = Array.isArray(returnedProduct?.inventory) ? returnedProduct.inventory[0] : returnedProduct?.inventory;
+        const returnedPrice = Number(detail.returned_price_unit ?? returnedInventory?.srp ?? returnedProduct?.price ?? returnedProduct?.cost_price ?? returnedFallback?.price ?? 0);
+        const replacementPrice = Number(detail.new_price_unit ?? replacementFallback?.price ?? 0);
+        const returnedQuantity = Number(detail.returned_quantity ?? detail.quantity_returned ?? 0);
+        const replacementQuantity = Number(detail.new_quantity ?? detail.replacement_quantity ?? detail.quantity_returned ?? 0);
+        const storedDifference = Number(detail.net_difference ?? detail.price_difference ?? 0);
+        const computedDifference = (replacementPrice * replacementQuantity) - (returnedPrice * returnedQuantity);
         return {
           return_detail_id: String(detail.return_detail_id ?? ""),
           returnedProductName: returnedProduct?.product_name ?? returnedFallback?.name ?? "N/A",
           returnedSize: String(returnedProduct?.size ?? returnedFallback?.size ?? "N/A"),
           returnedColor: String(returnedProduct?.color ?? returnedFallback?.color ?? "N/A"),
-          returnedPrice: Number(detail.returned_price_unit ?? returnedInventory?.srp ?? returnedProduct?.price ?? returnedProduct?.cost_price ?? returnedFallback?.price ?? 0),
-          returnedQuantity: Number(detail.returned_quantity ?? detail.quantity_returned ?? 0),
+          returnedPrice,
+          returnedQuantity,
           replacementProductName: replacementFallback?.name ?? "N/A",
           replacementSize: String(replacementFallback?.size ?? "N/A"),
           replacementColor: String(replacementFallback?.color ?? "N/A"),
-          replacementPrice: Number(detail.new_price_unit ?? replacementFallback?.price ?? 0),
-          replacementQuantity: Number(detail.new_quantity ?? detail.replacement_quantity ?? detail.quantity_returned ?? 0),
-          priceDifference: Number(detail.net_difference ?? detail.price_difference ?? 0),
+          replacementPrice,
+          replacementQuantity,
+          priceDifference: storedDifference !== 0 ? storedDifference : computedDifference,
           inventoryAction: String(detail.inventory_action ?? "Defective / Not Sellable"),
         };
       });
+      const detailAdditional = mappedDetails.reduce((sum: number, detail: any) => {
+        const byDiff = Math.max(0, Number(detail.priceDifference ?? 0));
+        if (byDiff > 0) return sum + byDiff;
+        const rawDetail = details.find((item: any) => String(item.return_detail_id ?? "") === detail.return_detail_id);
+        return sum + extractPesoAmount(String(rawDetail?.reason ?? ""));
+      }, 0);
+      const additional = detailAdditional > 0 ? detailAdditional : headerAdditional;
       map.set(salesId, {
         count: prev.count + (Number(replacement.replacement_count ?? 0) || Math.max(1, details.length || 1)),
         additional: prev.additional + additional,
@@ -415,7 +422,7 @@ export function SalesManagement() {
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-3xl">
+                        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-3xl max-h-[85vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle className="text-zinc-100">Sale Details - {sale.display_sales_id}</DialogTitle>
                           </DialogHeader>

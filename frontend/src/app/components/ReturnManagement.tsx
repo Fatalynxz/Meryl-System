@@ -510,7 +510,24 @@ export function ReturnManagement() {
       const processedUser = Array.isArray(row.user) ? row.user[0] : row.user;
       const details = Array.isArray(row.return_details) ? row.return_details : [];
       const paymentFromDetails = details.reduce((sum: number, detail: any) => {
-        const byDiff = Math.max(0, Number(detail?.price_difference ?? 0));
+        const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
+        const replacementJoin = Array.isArray(detail.replacement_product) ? detail.replacement_product[0] : detail.replacement_product;
+        const newProductJoin = Array.isArray(detail.new_product) ? detail.new_product[0] : detail.new_product;
+        const replacementNameFromNote = extractReplacementName(String(detail.reason ?? ""));
+        const returnedFallback = productMap.get(String(detail.returned_product_id ?? detail.product_id ?? ""));
+        const replacementFallback =
+          productMap.get(String(detail.replacement_product_id ?? detail.new_product_id ?? "")) ??
+          [...productMap.values()].find((item) => normalizeProductName(item.name) === normalizeProductName(replacementNameFromNote));
+        const replacement = replacementJoin ?? newProductJoin;
+        const returnedInventory = Array.isArray(product?.inventory) ? product.inventory[0] : product?.inventory;
+        const replacementInventory = Array.isArray(replacement?.inventory) ? replacement.inventory[0] : replacement?.inventory;
+        const returnedPrice = Number(detail.returned_price_unit ?? returnedInventory?.srp ?? product?.price ?? product?.cost_price ?? returnedFallback?.price ?? 0);
+        const replacementPrice = Number(detail.new_price_unit ?? replacementInventory?.srp ?? replacement?.price ?? replacement?.cost_price ?? replacementFallback?.price ?? 0);
+        const returnedQty = Number(detail.returned_quantity ?? detail.quantity_returned ?? 0);
+        const replacementQty = Number(detail.new_quantity ?? detail.replacement_quantity ?? detail.quantity_returned ?? 0);
+        const storedDifference = Number(detail.net_difference ?? detail.price_difference ?? 0);
+        const computedDifference = (replacementPrice * replacementQty) - (returnedPrice * returnedQty);
+        const byDiff = Math.max(0, storedDifference !== 0 ? storedDifference : computedDifference);
         if (byDiff > 0) return sum + byDiff;
         return sum + extractPesoAmount(String(detail?.reason ?? ""));
       }, 0);
@@ -526,7 +543,7 @@ export function ReturnManagement() {
         total_refund: Number(row.total_refund ?? 0),
         return_type: String(row.return_type ?? "Replacement"),
         return_status: String(row.return_status ?? "Completed"),
-        additional_payment: rowAdditionalPayment > 0 ? rowAdditionalPayment : paymentFromDetails,
+        additional_payment: paymentFromDetails > 0 ? paymentFromDetails : rowAdditionalPayment,
         adjustment_amount: Number(row.adjustment_amount ?? 0),
         processedBy: processedUser?.name ?? processedUser?.username ?? "Staff",
         staffCode: String(processedUser?.staff_code ?? processedUser?.staffCode ?? "N/A"),
@@ -543,23 +560,29 @@ export function ReturnManagement() {
           const replacement = replacementJoin ?? newProductJoin;
           const returnedInventory = Array.isArray(product?.inventory) ? product.inventory[0] : product?.inventory;
           const replacementInventory = Array.isArray(replacement?.inventory) ? replacement.inventory[0] : replacement?.inventory;
+          const returnedPrice = Number(detail.returned_price_unit ?? returnedInventory?.srp ?? product?.price ?? product?.cost_price ?? returnedFallback?.price ?? 0);
+          const replacementPrice = Number(detail.new_price_unit ?? replacementInventory?.srp ?? replacement?.price ?? replacement?.cost_price ?? replacementFallback?.price ?? 0);
+          const returnedQty = Number(detail.returned_quantity ?? detail.quantity_returned ?? 0);
+          const replacementQty = Number(detail.new_quantity ?? detail.replacement_quantity ?? detail.quantity_returned ?? 0);
+          const storedDifference = Number(detail.net_difference ?? detail.price_difference ?? 0);
+          const computedDifference = (replacementPrice * replacementQty) - (returnedPrice * returnedQty);
           return {
             return_detail_id: String(detail.return_detail_id ?? ""),
             product_id: String(detail.product_id ?? ""),
             productName: product?.product_name ?? returnedFallback?.name ?? "N/A",
             productSize: String(product?.size ?? returnedFallback?.size ?? "N/A"),
             productColor: String(product?.color ?? returnedFallback?.color ?? "N/A"),
-            productPrice: Number(detail.returned_price_unit ?? returnedInventory?.srp ?? product?.price ?? product?.cost_price ?? returnedFallback?.price ?? 0),
-            quantity_returned: Number(detail.returned_quantity ?? detail.quantity_returned ?? 0),
+            productPrice: returnedPrice,
+            quantity_returned: returnedQty,
             reason: String(detail.reason ?? ""),
             refund_amount: Number(detail.refund_amount ?? 0),
             replacementProductId: String(detail.replacement_product_id ?? detail.new_product_id ?? ""),
             replacementProductName: replacement?.product_name ?? replacementFallback?.name ?? "N/A",
             replacementProductSize: String(replacement?.size ?? replacementFallback?.size ?? "N/A"),
             replacementProductColor: String(replacement?.color ?? replacementFallback?.color ?? "N/A"),
-            replacementProductPrice: Number(detail.new_price_unit ?? replacementInventory?.srp ?? replacement?.price ?? replacement?.cost_price ?? replacementFallback?.price ?? 0),
-            replacementQuantity: Number(detail.new_quantity ?? detail.replacement_quantity ?? detail.quantity_returned ?? 0),
-            price_difference: Number(detail.net_difference ?? detail.price_difference ?? 0),
+            replacementProductPrice: replacementPrice,
+            replacementQuantity: replacementQty,
+            price_difference: storedDifference !== 0 ? storedDifference : computedDifference,
             inventory_action: String(detail.inventory_action ?? "Defective / Not Sellable"),
           };
         }),
@@ -1420,7 +1443,7 @@ export function ReturnManagement() {
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-3xl">
+                        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-3xl max-h-[85vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle className="text-zinc-100">Replacement Details - {returnItem.display_return_id}</DialogTitle>
                           </DialogHeader>
