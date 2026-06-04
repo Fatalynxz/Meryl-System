@@ -7,9 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Calendar, Eye, Search, ShoppingCart } from "lucide-react";
+import { ArrowRightLeft, Calendar, Eye, Search, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
-import { useReturns, useSales } from "../../lib/hooks";
+import { useProducts, useReturns, useSales } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 import { writeAuditLog } from "../../lib/audit";
@@ -55,11 +55,22 @@ function toPaymentStatus(status: SaleStatus): string {
   return "completed";
 }
 
+function extractPesoAmount(text: string) {
+  const match = String(text ?? "").match(/(?:customer adds|adds)\s*php\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
+  if (!match?.[1]) return 0;
+  return Number(match[1].replace(/,/g, "")) || 0;
+}
+
+function formatCurrency(value: number) {
+  return `PHP ${Number(value || 0).toFixed(2)}`;
+}
+
 export function SalesManagement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const salesQuery = useSales();
   const returnsQuery = useReturns();
+  const productsQuery = useProducts();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [viewingSale, setViewingSale] = useState<any | null>(null);
@@ -67,29 +78,76 @@ export function SalesManagement() {
 
   const sales = (salesQuery.data as any[]) ?? [];
   const returns = (returnsQuery.data as any[]) ?? [];
+  const productRows = (productsQuery.data as any[]) ?? [];
   const normalizedRole = String(user?.role_name ?? "").trim().toLowerCase();
   const isAdmin = normalizedRole.includes("admin");
 
+  const productMap = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const product of productRows) {
+      const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
+      const productId = String(product.product_id ?? "");
+      if (!productId) continue;
+      map.set(productId, {
+        product_id: productId,
+        name: String(product.product_name ?? "N/A"),
+        size: String(product.size ?? "N/A"),
+        color: String(product.color ?? "N/A"),
+        price: Number(inventory?.srp ?? product.price ?? product.cost_price ?? 0),
+      });
+    }
+    return map;
+  }, [productRows]);
+
   const replacementBySale = useMemo(() => {
-    const map = new Map<string, { count: number; additional: number; credits: number; lastActivity: string | null }>();
+    const map = new Map<string, { count: number; additional: number; credits: number; lastActivity: string | null; details: any[] }>();
     for (const replacement of returns) {
-      const salesId = String(replacement.sales_id ?? "");
+      const salesId = String(replacement.original_sales_id ?? replacement.sales_id ?? "");
       if (!salesId) continue;
-      const prev = map.get(salesId) ?? { count: 0, additional: 0, credits: 0, lastActivity: null };
-      const additional = Number(replacement.additional_payment ?? replacement.total_replacement_payments ?? 0);
+      const prev = map.get(salesId) ?? { count: 0, additional: 0, credits: 0, lastActivity: null, details: [] };
+      const details = Array.isArray(replacement.return_details) ? replacement.return_details : [];
+      const detailAdditional = details.reduce((sum: number, detail: any) => {
+        const byDiff = Math.max(0, Number(detail?.net_difference ?? detail?.price_difference ?? 0));
+        if (byDiff > 0) return sum + byDiff;
+        return sum + extractPesoAmount(String(detail?.reason ?? ""));
+      }, 0);
+      const headerAdditional = Number(replacement.additional_payment ?? replacement.total_replacement_payments ?? 0);
+      const additional = headerAdditional > 0 ? headerAdditional : detailAdditional;
       const credits = Number(replacement.total_refund ?? replacement.total_credits_issued ?? 0);
       const activityDate = String(replacement.last_activity_date ?? replacement.return_date ?? replacement.created_at ?? "");
       const prevTs = prev.lastActivity ? new Date(prev.lastActivity).getTime() : 0;
       const nextTs = activityDate ? new Date(activityDate).getTime() : 0;
+      const mappedDetails = details.map((detail: any) => {
+        const returnedProduct = Array.isArray(detail.product) ? detail.product[0] : detail.product;
+        const returnedFallback = productMap.get(String(detail.returned_product_id ?? detail.product_id ?? ""));
+        const replacementFallback = productMap.get(String(detail.replacement_product_id ?? detail.new_product_id ?? ""));
+        const returnedInventory = Array.isArray(returnedProduct?.inventory) ? returnedProduct.inventory[0] : returnedProduct?.inventory;
+        return {
+          return_detail_id: String(detail.return_detail_id ?? ""),
+          returnedProductName: returnedProduct?.product_name ?? returnedFallback?.name ?? "N/A",
+          returnedSize: String(returnedProduct?.size ?? returnedFallback?.size ?? "N/A"),
+          returnedColor: String(returnedProduct?.color ?? returnedFallback?.color ?? "N/A"),
+          returnedPrice: Number(detail.returned_price_unit ?? returnedInventory?.srp ?? returnedProduct?.price ?? returnedProduct?.cost_price ?? returnedFallback?.price ?? 0),
+          returnedQuantity: Number(detail.returned_quantity ?? detail.quantity_returned ?? 0),
+          replacementProductName: replacementFallback?.name ?? "N/A",
+          replacementSize: String(replacementFallback?.size ?? "N/A"),
+          replacementColor: String(replacementFallback?.color ?? "N/A"),
+          replacementPrice: Number(detail.new_price_unit ?? replacementFallback?.price ?? 0),
+          replacementQuantity: Number(detail.new_quantity ?? detail.replacement_quantity ?? detail.quantity_returned ?? 0),
+          priceDifference: Number(detail.net_difference ?? detail.price_difference ?? 0),
+          inventoryAction: String(detail.inventory_action ?? "Defective / Not Sellable"),
+        };
+      });
       map.set(salesId, {
-        count: prev.count + 1,
+        count: prev.count + (Number(replacement.replacement_count ?? 0) || Math.max(1, details.length || 1)),
         additional: prev.additional + additional,
         credits: prev.credits + credits,
         lastActivity: nextTs > prevTs ? activityDate : prev.lastActivity,
+        details: [...prev.details, ...mappedDetails],
       });
     }
     return map;
-  }, [returns]);
+  }, [productMap, returns]);
 
   const uiSales = useMemo(
     () => {
@@ -112,7 +170,7 @@ export function SalesManagement() {
         const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
         const details = Array.isArray((sale as any).sales_details) ? (sale as any).sales_details : [];
         const salesId = String(sale.sales_id ?? "");
-        const replacementInfo = replacementBySale.get(salesId) ?? { count: 0, additional: 0, credits: 0, lastActivity: null };
+        const replacementInfo = replacementBySale.get(salesId) ?? { count: 0, additional: 0, credits: 0, lastActivity: null, details: [] };
         return {
           sales_id: salesId,
           display_sales_id: salesIdSequence.get(salesId) ?? "SALES-000",
@@ -129,6 +187,7 @@ export function SalesManagement() {
           replacementCount: replacementInfo.count,
           replacementPayments: replacementInfo.additional,
           replacementCredits: replacementInfo.credits,
+          replacementDetails: replacementInfo.details,
           lastActivityDate: formatDate(replacementInfo.lastActivity ?? sale.updated_at ?? sale.transaction_date),
           saleDetails: details.map((d: any) => ({
             sales_detail_id: d.sales_detail_id,
@@ -359,17 +418,57 @@ export function SalesManagement() {
                               {sale.saleDetails.map((detail: any, idx: number) => (
                                 <div key={idx} className="rounded-md border border-zinc-800 bg-zinc-900/80 p-3 mb-2">
                                   <p className="text-zinc-100">{detail.productName}</p>
-                                  <p className="text-yellow-200 text-xs">Qty: {detail.quantity} × ₱{detail.price} = ₱{detail.subtotal}</p>
+                                  <p className="text-yellow-200 text-xs">Qty: {detail.quantity} x {formatCurrency(detail.price)} = {formatCurrency(detail.subtotal)}</p>
                                   {detail.discount_applied > 0 && <p className="text-yellow-200 text-xs">Discount: -PHP {Number(detail.discount_applied ?? 0).toFixed(2)}</p>}
                                 </div>
                               ))}
                             </div>
+                            {sale.replacementDetails.length > 0 && (
+                              <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                                <p className="mb-3 text-sm text-zinc-400">Replacement Items</p>
+                                <div className="space-y-3">
+                                  {sale.replacementDetails.map((detail: any) => (
+                                    <div key={detail.return_detail_id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+                                        <div className="rounded-md border border-red-900/50 bg-red-950/20 p-3">
+                                          <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replaced Item</p>
+                                          <p className="font-medium text-zinc-100">{detail.returnedProductName}</p>
+                                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                                            <span>Qty: {detail.returnedQuantity}</span>
+                                            <span>Price: {formatCurrency(detail.returnedPrice)}</span>
+                                            <span>Size: {detail.returnedSize}</span>
+                                            <span>Color: {detail.returnedColor}</span>
+                                          </div>
+                                        </div>
+                                        <div className="hidden items-center justify-center text-yellow-300 md:flex">
+                                          <ArrowRightLeft className="h-5 w-5" />
+                                        </div>
+                                        <div className="rounded-md border border-emerald-900/50 bg-emerald-950/20 p-3">
+                                          <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replacement Item</p>
+                                          <p className="font-medium text-zinc-100">{detail.replacementProductName}</p>
+                                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                                            <span>Qty: {detail.replacementQuantity}</span>
+                                            <span>Price: {formatCurrency(detail.replacementPrice)}</span>
+                                            <span>Size: {detail.replacementSize}</span>
+                                            <span>Color: {detail.replacementColor}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-300">
+                                        <Badge className="bg-zinc-800 text-zinc-200">Difference: {formatCurrency(detail.priceDifference)}</Badge>
+                                        <Badge className="bg-zinc-800 text-zinc-200">Inventory: {detail.inventoryAction}</Badge>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4">
                               <div><p className="text-sm text-zinc-400">Payment Method</p><p className="text-zinc-100">{sale.payment_method}</p></div>
                               <div><p className="text-sm text-zinc-400">Total Amount</p><p className="text-zinc-100">PHP {Number(sale.total_amount ?? 0).toFixed(2)}</p></div>
                               <div><p className="text-sm text-zinc-400">Replacements</p><p className="text-zinc-100">{sale.replacementCount}</p></div>
-                              <div><p className="text-sm text-zinc-400">Added Payments</p><p className="text-zinc-100">PHP {Number(sale.replacementPayments ?? 0).toFixed(2)}</p></div>
-                              <div><p className="text-sm text-zinc-400">Credits Issued</p><p className="text-zinc-100">PHP {Number(sale.replacementCredits ?? 0).toFixed(2)}</p></div>
+                              <div><p className="text-sm text-zinc-400">Added Payments</p><p className="text-zinc-100">{formatCurrency(sale.replacementPayments ?? 0)}</p></div>
+                              <div><p className="text-sm text-zinc-400">Credits Issued</p><p className="text-zinc-100">{formatCurrency(sale.replacementCredits ?? 0)}</p></div>
                               <div><p className="text-sm text-zinc-400">Last Activity</p><p className="text-zinc-100">{sale.lastActivityDate}</p></div>
                             </div>
                             <div><p className="text-sm text-zinc-400">Status</p><p className="text-zinc-100">{sale.status}</p></div>
