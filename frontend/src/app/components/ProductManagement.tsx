@@ -1337,6 +1337,11 @@ function NumberField({ label, value, onChange }: { label: string; value: number;
   }, [isFocused, value]);
 
   const commitValue = (rawValue: string) => {
+    if (rawValue === "") {
+      setInputValue(String(Number(value || 0)));
+      return;
+    }
+
     const nextValue = Math.max(0, Number(rawValue) || 0);
     setInputValue(String(nextValue));
     onChange(nextValue);
