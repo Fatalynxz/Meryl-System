@@ -1327,10 +1327,42 @@ function TextField({ label, value, onChange }: { label: string; value: string; o
 }
 
 function NumberField({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  const [inputValue, setInputValue] = useState(String(Number(value || 0)));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setInputValue(String(Number(value || 0)));
+    }
+  }, [isFocused, value]);
+
+  const commitValue = (rawValue: string) => {
+    const nextValue = Math.max(0, Number(rawValue) || 0);
+    setInputValue(String(nextValue));
+    onChange(nextValue);
+  };
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-semibold text-yellow-300">{label}</Label>
-      <Input type="number" value={value === 0 ? "" : value} onChange={(event) => onChange(event.target.value === "" ? 0 : Math.max(0, Number(event.target.value) || 0))} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus-visible:ring-yellow-400/50" />
+      <Input
+        type="number"
+        min={0}
+        value={inputValue}
+        onFocus={() => setIsFocused(true)}
+        onBlur={(event) => {
+          setIsFocused(false);
+          commitValue(event.target.value);
+        }}
+        onChange={(event) => {
+          const rawValue = event.target.value;
+          setInputValue(rawValue);
+          if (rawValue !== "") {
+            onChange(Math.max(0, Number(rawValue) || 0));
+          }
+        }}
+        className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus-visible:ring-yellow-400/50"
+      />
     </div>
   );
 }
