@@ -1071,6 +1071,13 @@ def admin_shell():
     return redirect("/")
 
 
+@app.route("/auth/callback")
+def auth_callback_shell():
+    if has_react_shell():
+        return render_react_shell()
+    return redirect("/")
+
+
 @app.route("/assets/<path:filename>")
 def react_assets(filename):
     if not REACT_ASSETS_DIR.exists():
