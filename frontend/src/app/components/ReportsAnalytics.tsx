@@ -103,10 +103,11 @@ function weekStartMonday(date: Date) {
 }
 
 function trendBucketMode(timeRange: ReportPeriod, days: number): TrendBucketMode {
-  if (timeRange === 'daily' || timeRange === 'weekly') return 'daily';
-  if (timeRange === 'monthly') return 'weekly';
-  if (timeRange === 'quarterly') return 'monthly';
-  if (timeRange === 'annually') return 'monthly';
+  if (timeRange === 'daily') return 'daily';
+  if (timeRange === 'weekly') return 'weekly';
+  if (timeRange === 'monthly') return 'monthly';
+  if (timeRange === 'quarterly') return 'quarterly';
+  if (timeRange === 'annually') return 'annually';
   if (days <= 31) return 'daily';
   if (days <= 120) return 'weekly';
   if (days <= 730) return 'monthly';
