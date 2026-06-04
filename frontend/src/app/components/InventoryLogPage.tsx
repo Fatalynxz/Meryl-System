@@ -20,9 +20,12 @@ type InventoryLogRow = {
 
 function formatDateTime(value?: string | null) {
   if (!value) return "No date";
-  const date = new Date(value);
+  const raw = String(value).trim();
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(raw);
+  const date = new Date(hasTimezone ? raw : `${raw.replace(" ", "T")}Z`);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleString("en-PH", {
+    timeZone: "Asia/Manila",
     year: "numeric",
     month: "short",
     day: "2-digit",
