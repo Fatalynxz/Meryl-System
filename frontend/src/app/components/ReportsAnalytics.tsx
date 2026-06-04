@@ -657,12 +657,6 @@ export function ReportsAnalytics() {
       return;
     }
 
-    const escapeHtml = (value: unknown) => String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
     const reportNames: Record<string, string> = {
       overview: 'Executive Overview Report',
       sales: 'Sales Report',
@@ -671,197 +665,201 @@ export function ReportsAnalytics() {
       promotions: 'Promotions Report',
       returns: 'Returns and Replacement Report',
     };
-    const table = (headers: string[], rows: Array<Array<unknown>>, empty = 'No records found for this date range.') => `
-      <table>
-        <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
-        <tbody>
-          ${rows.length
-            ? rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')
-            : `<tr><td colspan="${headers.length}" class="empty">${escapeHtml(empty)}</td></tr>`}
-        </tbody>
-      </table>
-    `;
-    const metric = (label: string, value: unknown, note = '') => `
-      <div class="metric">
-        <span>${escapeHtml(label)}</span>
-        <strong>${escapeHtml(value)}</strong>
-        ${note ? `<small>${escapeHtml(note)}</small>` : ''}
-      </div>
-    `;
-    const reportSections: Record<string, string> = {
-      overview: `
-        <section>
-          <h2>Executive Snapshot</h2>
-          <div class="metrics">
-            ${metric('Average Transaction Value', money(businessSummary.atv), `${currentMetrics.current.transactions} completed transactions`)}
-            ${metric('Discount Pressure', `${businessSummary.discountRate.toFixed(1)}%`, `${money(businessSummary.discounts)} discount impact`)}
-            ${metric('Best Brand', businessSummary.bestBrandName, `${businessSummary.bestBrandUnits} pairs sold`)}
-            ${metric('Top Product', topProducts[0]?.name ?? 'N/A', topProducts[0] ? `${topProducts[0].sales} units sold` : 'No sales yet')}
-          </div>
-          ${table(
-            ['Summary Item', 'Value'],
-            [
-              ['Gross Sales Before Discounts', money(businessSummary.grossRevenue)],
-              ['Net After Discounts', money(businessSummary.netSales)],
-              ['Best Size', businessSummary.bestSize],
-              ['Prepared By', businessSummary.preparedBy],
-            ],
-          )}
-        </section>
-        <section>
-          <h2>Sales Trend</h2>
-          ${table(['Period', 'Units Sold', 'Revenue', 'Customers'], filteredSalesTrends.map((row) => [row.date, row.sales, money(row.revenue), row.customers]))}
-        </section>
-      `,
-      sales: `
-        <section>
-          <h2>Sales Breakdown</h2>
-          ${table(
-            ['Period', 'Pairs Sold', 'Gross Revenue', 'Discount Applied', 'Net Sales'],
-            salesBreakdownRows.map((row) => [row.date, row.pairs, money(row.gross), money(row.discount), money(row.net)]),
-            'No completed sales found for this date range.',
-          )}
-        </section>
-        <section class="columns">
-          <div>
-            <h2>Top Products</h2>
-            ${table(['Product', 'Units', 'Revenue'], topProducts.map((row) => [row.name, row.sales, money(row.revenue)]))}
-          </div>
-          <div>
-            <h2>Top Brands</h2>
-            ${table(['Brand', 'Pairs', 'Revenue'], topBrands.map((row) => [row.name, row.sales, money(row.revenue)]))}
-          </div>
-          <div>
-            <h2>Top Sizes</h2>
-            ${table(['Size', 'Pairs', 'Revenue'], topSizes.map((row) => [row.name, row.sales, money(row.revenue)]))}
-          </div>
-        </section>
-      `,
-      revenue: `
-        <section>
-          <h2>Revenue by Category</h2>
-          ${table(
-            ['Category', 'Revenue', 'Share', 'Growth vs Previous'],
-            revenueByCategory.map((row) => [row.category, money(row.revenue), `${row.percentage}%`, `${row.growth}%`]),
-          )}
-        </section>
-      `,
-      inventory: `
-        <section>
-          <h2>Inventory Turnover</h2>
-          ${table(
-            ['Period', 'Units Sold', 'Turnover Rate', 'Avg Days to Sell'],
-            inventoryTurnover.map((row) => [row.month, row.units, `${row.turnover.toFixed(2)}x`, row.avgDays || 0]),
-          )}
-        </section>
-        <section>
-          <h2>Inventory and Stock Status</h2>
-          ${table(
-            ['Item ID', 'Brand and Model', 'Size', 'Color', 'In Stock', 'Reorder', 'Status'],
-            inventoryStatusRows.map((row) => [row.itemId, row.name, row.size, row.color, row.stock, row.reorder, row.status]),
-          )}
-        </section>
-      `,
-      promotions: `
-        <section>
-          <h2>Promotion Performance</h2>
-          ${table(
-            ['Promotion', 'Revenue', 'ROI', 'Conversion'],
-            promotionEffectiveness.map((row) => [row.promotion, money(row.revenue), `${row.roi}%`, `${row.conversion}%`]),
-            'No promotion performance found for this date range.',
-          )}
-        </section>
-      `,
-      returns: `
-        <section>
-          <h2>Replacement Summary</h2>
-          <div class="metrics">
-            ${metric('Replacement Transactions', replacementMetrics.replacements)}
-            ${metric('Items Replaced', replacementMetrics.items)}
-            ${metric('Additional Payments', money(replacementMetrics.additionalPay))}
-            ${metric('Even Exchanges', replacementMetrics.evenExchanges)}
-          </div>
-        </section>
-        <section class="columns two">
-          <div>
-            <h2>Reasons</h2>
-            ${table(['Reason', 'Cases', 'Items'], replacementReasonRows.map((row) => [row.reason, row.count, row.items]))}
-          </div>
-          <div>
-            <h2>Top Replaced Products</h2>
-            ${table(['Product', 'Cases', 'Items'], replacementTopProducts.map((row) => [row.product, row.count, row.items]))}
-          </div>
-        </section>
-      `,
-    };
     const generatedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
-    const html = `<!doctype html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>${escapeHtml(reportNames[reportType] ?? 'Meryl Shoes Report')}</title>
-          <style>
-            @page { size: A4; margin: 16mm; }
-            * { box-sizing: border-box; }
-            body { margin: 0; color: #191919; background: #fff; font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
-            .cover { border-bottom: 3px solid #facc15; padding-bottom: 18px; margin-bottom: 18px; }
-            .brand { color: #8a6b00; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
-            h1 { margin: 8px 0 4px; font-size: 28px; color: #111; }
-            h2 { margin: 0 0 10px; font-size: 15px; color: #111; }
-            .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
-            .meta div, .metric { border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #fafafa; }
-            .meta span, .metric span { display: block; color: #666; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
-            .meta strong, .metric strong { display: block; margin-top: 5px; font-size: 17px; color: #111; }
-            .metric small { display: block; margin-top: 5px; color: #666; }
-            .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
-            section { break-inside: avoid; margin: 18px 0; }
-            table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 8px; }
-            th { background: #1f1f27; color: #fff; text-align: left; font-weight: 700; padding: 9px; border: 1px solid #2e2e38; }
-            td { padding: 8px 9px; border: 1px solid #e6e6e6; vertical-align: top; }
-            tbody tr:nth-child(even) td { background: #fbfbfb; }
-            .empty { text-align: center; color: #777; padding: 18px; }
-            .columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start; }
-            .columns.two { grid-template-columns: repeat(2, 1fr); }
-            .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; color: #666; font-size: 10px; display: flex; justify-content: space-between; }
-            @media print {
-              button { display: none; }
-              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="cover">
-            <div class="brand">Meryl Shoes</div>
-            <h1>${escapeHtml(reportNames[reportType] ?? 'Meryl Shoes Report')}</h1>
-            <div>Libertad St., Bacolod City Branch</div>
-            <div class="meta">
-              <div><span>Date Range</span><strong>${escapeHtml(selectedRangeLabel)}</strong></div>
-              <div><span>Revenue</span><strong>${escapeHtml(money(currentMetrics.current.revenue))}</strong></div>
-              <div><span>Units Sold</span><strong>${escapeHtml(currentMetrics.current.units.toLocaleString())}</strong></div>
-              <div><span>Generated</span><strong>${escapeHtml(generatedAt)}</strong></div>
-            </div>
-          </div>
-          ${reportSections[reportType] ?? reportSections.overview}
-          <div class="footer">
-            <span>Prepared by Store Manager</span>
-            <span>Meryl Shoes Management System</span>
-          </div>
-          <script>
-            window.onload = () => {
-              setTimeout(() => window.print(), 250);
-            };
-          </script>
-        </body>
-      </html>`;
-    const reportWindow = window.open('', '_blank');
-    if (!reportWindow) {
-      toast.error('Allow pop-ups to export the PDF report.');
-      return;
+    const sanitize = (value: unknown) => String(value ?? '')
+      .normalize('NFKD')
+      .replace(/[^\x20-\x7E]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const pdfEscape = (value: unknown) => sanitize(value).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+    const pages: string[][] = [[]];
+    const pageWidth = 595;
+    const pageHeight = 842;
+    const margin = 40;
+    let y = pageHeight - margin;
+    const current = () => pages[pages.length - 1];
+    const add = (command: string) => current().push(command);
+    const ensureSpace = (height: number) => {
+      if (y - height >= margin) return;
+      pages.push([]);
+      y = pageHeight - margin;
+      drawHeader(false);
+    };
+    const text = (value: unknown, x: number, textY: number, size = 10, bold = false, color = '0 0 0') => {
+      add(`q ${color} rg BT /${bold ? 'F2' : 'F1'} ${size} Tf ${x} ${textY} Td (${pdfEscape(value)}) Tj ET Q`);
+    };
+    const rect = (x: number, rectY: number, width: number, height: number, fill = '1 1 1', stroke = '0.85 0.85 0.85') => {
+      add(`q ${fill} rg ${stroke} RG ${x} ${rectY} ${width} ${height} re B Q`);
+    };
+    const line = (x1: number, y1: number, x2: number, y2: number, color = '0.96 0.78 0.08') => {
+      add(`q ${color} RG 2 w ${x1} ${y1} m ${x2} ${y2} l S Q`);
+    };
+    const truncate = (value: unknown, max: number) => {
+      const clean = sanitize(value);
+      return clean.length > max ? `${clean.slice(0, Math.max(0, max - 3))}...` : clean;
+    };
+    const drawHeader = (full = true) => {
+      if (full) {
+        text('MERYL SHOES', margin, y, 10, true, '0.55 0.42 0');
+        y -= 22;
+        text(reportNames[reportType] ?? 'Meryl Shoes Report', margin, y, 24, true);
+        y -= 16;
+        text('Libertad St., Bacolod City Branch', margin, y, 10, false, '0.25 0.25 0.25');
+        y -= 18;
+      } else {
+        text(reportNames[reportType] ?? 'Meryl Shoes Report', margin, y, 10, true, '0.35 0.35 0.35');
+        y -= 18;
+      }
+      line(margin, y, pageWidth - margin, y);
+      y -= 18;
+    };
+    const drawMetric = (label: string, value: string, x: number, metricY: number, width: number) => {
+      rect(x, metricY - 52, width, 52, '0.98 0.98 0.98');
+      text(label.toUpperCase(), x + 8, metricY - 18, 7, true, '0.45 0.45 0.45');
+      text(value, x + 8, metricY - 37, 13, true);
+    };
+    const drawMetricGrid = (items: Array<[string, string]>) => {
+      ensureSpace(70);
+      const gap = 8;
+      const width = (pageWidth - margin * 2 - gap * 3) / 4;
+      const top = y;
+      items.slice(0, 4).forEach(([label, value], index) => {
+        drawMetric(label, value, margin + index * (width + gap), top, width);
+      });
+      y -= 68;
+    };
+    const drawTitle = (title: string) => {
+      ensureSpace(30);
+      text(title, margin, y, 14, true);
+      y -= 14;
+    };
+    const drawTable = (headers: string[], rows: Array<Array<unknown>>, widths?: number[]) => {
+      const tableWidth = pageWidth - margin * 2;
+      const columnWidths = widths ?? headers.map(() => tableWidth / headers.length);
+      const rowHeight = 23;
+      ensureSpace(rowHeight * 2);
+      rect(margin, y - rowHeight, tableWidth, rowHeight, '0.12 0.12 0.15', '0.12 0.12 0.15');
+      let x = margin;
+      headers.forEach((header, index) => {
+        text(truncate(header, Math.floor(columnWidths[index] / 5)), x + 5, y - 15, 8, true, '1 1 1');
+        x += columnWidths[index];
+      });
+      y -= rowHeight;
+      const bodyRows = rows.length ? rows : [['No records found for this date range.']];
+      bodyRows.forEach((row) => {
+        ensureSpace(rowHeight + 4);
+        rect(margin, y - rowHeight, tableWidth, rowHeight, '1 1 1');
+        let cellX = margin;
+        if (row.length === 1) {
+          text(row[0], cellX + 5, y - 15, 8, false, '0.4 0.4 0.4');
+        } else {
+          row.forEach((cell, index) => {
+            text(truncate(cell, Math.floor((columnWidths[index] ?? 60) / 5)), cellX + 5, y - 15, 8);
+            cellX += columnWidths[index] ?? 60;
+          });
+        }
+        y -= rowHeight;
+      });
+      y -= 16;
+    };
+
+    drawHeader();
+    drawMetricGrid([
+      ['Date Range', selectedRangeLabel],
+      ['Revenue', money(currentMetrics.current.revenue)],
+      ['Units Sold', currentMetrics.current.units.toLocaleString()],
+      ['Generated', generatedAt],
+    ]);
+    drawMetricGrid([
+      ['Inventory Turnover', `${latestTurnover.toFixed(2)}x`],
+      ['Avg Days to Sell', String(latestAvgDays || 0)],
+      ['Transactions', currentMetrics.current.transactions.toLocaleString()],
+      ['Report Type', reportNames[reportType] ?? 'Report'],
+    ]);
+
+    if (reportType === 'overview') {
+      drawTitle('Executive Snapshot');
+      drawTable(['Summary Item', 'Value'], [
+        ['Average Transaction Value', money(businessSummary.atv)],
+        ['Discount Pressure', `${businessSummary.discountRate.toFixed(1)}% (${money(businessSummary.discounts)})`],
+        ['Best Brand', `${businessSummary.bestBrandName} (${businessSummary.bestBrandUnits} pairs)`],
+        ['Top Product', topProducts[0] ? `${topProducts[0].name} (${topProducts[0].sales} units)` : 'N/A'],
+        ['Gross Sales Before Discounts', money(businessSummary.grossRevenue)],
+        ['Net After Discounts', money(businessSummary.netSales)],
+      ], [250, 265]);
+      drawTitle('Sales Trend');
+      drawTable(['Period', 'Units Sold', 'Revenue', 'Customers'], filteredSalesTrends.map((row) => [row.date, row.sales, money(row.revenue), row.customers]));
+    } else if (reportType === 'sales') {
+      drawTitle('Sales Breakdown');
+      drawTable(['Period', 'Pairs Sold', 'Gross Revenue', 'Discount Applied', 'Net Sales'], salesBreakdownRows.map((row) => [row.date, row.pairs, money(row.gross), money(row.discount), money(row.net)]));
+      drawTitle('Top Products');
+      drawTable(['Product', 'Units', 'Revenue'], topProducts.map((row) => [row.name, row.sales, money(row.revenue)]), [260, 80, 175]);
+    } else if (reportType === 'revenue') {
+      drawTitle('Revenue by Category');
+      drawTable(['Category', 'Revenue', 'Share', 'Growth'], revenueByCategory.map((row) => [row.category, money(row.revenue), `${row.percentage}%`, `${row.growth}%`]));
+    } else if (reportType === 'inventory') {
+      drawTitle('Inventory Turnover');
+      drawTable(['Period', 'Units Sold', 'Turnover', 'Avg Days'], inventoryTurnover.map((row) => [row.month, row.units, `${row.turnover.toFixed(2)}x`, row.avgDays || 0]));
+      drawTitle('Inventory and Stock Status');
+      drawTable(['Item ID', 'Brand and Model', 'Size', 'Color', 'Stock', 'Reorder', 'Status'], inventoryStatusRows.map((row) => [row.itemId, row.name, row.size, row.color, row.stock, row.reorder, row.status]));
+    } else if (reportType === 'promotions') {
+      drawTitle('Promotion Performance');
+      drawTable(['Promotion', 'Revenue', 'ROI', 'Conversion'], promotionEffectiveness.map((row) => [row.promotion, money(row.revenue), `${row.roi}%`, `${row.conversion}%`]));
+    } else if (reportType === 'returns') {
+      drawTitle('Replacement Summary');
+      drawTable(['Metric', 'Value'], [
+        ['Replacement Transactions', replacementMetrics.replacements],
+        ['Items Replaced', replacementMetrics.items],
+        ['Additional Payments', money(replacementMetrics.additionalPay)],
+        ['Even Exchanges', replacementMetrics.evenExchanges],
+      ], [260, 255]);
+      drawTitle('Replacement Reasons');
+      drawTable(['Reason', 'Cases', 'Items'], replacementReasonRows.map((row) => [row.reason, row.count, row.items]), [300, 80, 135]);
     }
-    reportWindow.document.open();
-    reportWindow.document.write(html);
-    reportWindow.document.close();
-    toast.success('PDF report opened. Choose Save as PDF in the print dialog.');
+
+    pages.forEach((page, index) => {
+      page.push(`BT /F1 8 Tf ${margin} 24 Td (Prepared by Store Manager) Tj ET`);
+      page.push(`BT /F1 8 Tf ${pageWidth - margin - 68} 24 Td (Page ${index + 1} of ${pages.length}) Tj ET`);
+    });
+
+    const objects: string[] = [
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>',
+    ];
+    const pageObjectNumbers: number[] = [];
+    pages.forEach((page) => {
+      const stream = page.join('\n');
+      const contentObject = objects.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+      const pageObject = objects.push(`<< /Type /Page /Parent PAGES_REF /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents ${contentObject} 0 R >>`);
+      pageObjectNumbers.push(pageObject);
+    });
+    const pagesObject = objects.push(`<< /Type /Pages /Kids [${pageObjectNumbers.map((num) => `${num} 0 R`).join(' ')}] /Count ${pageObjectNumbers.length} >>`);
+    const catalogObject = objects.push(`<< /Type /Catalog /Pages ${pagesObject} 0 R >>`);
+    const resolvedObjects = objects.map((object) => object.replace(/PAGES_REF/g, `${pagesObject} 0 R`));
+    let pdf = '%PDF-1.4\n';
+    const offsets: number[] = [0];
+    resolvedObjects.forEach((object, index) => {
+      offsets.push(pdf.length);
+      pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+    });
+    const xref = pdf.length;
+    pdf += `xref\n0 ${resolvedObjects.length + 1}\n0000000000 65535 f \n`;
+    offsets.slice(1).forEach((offset) => {
+      pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+    });
+    pdf += `trailer\n<< /Size ${resolvedObjects.length + 1} /Root ${catalogObject} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+
+    const blob = new Blob([pdf], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const filename = `${(reportNames[reportType] ?? 'report').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${timeRange}.pdf`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast.success('PDF report downloaded.');
   };
 
   const inventoryPeriodMetrics = useMemo(() => {
