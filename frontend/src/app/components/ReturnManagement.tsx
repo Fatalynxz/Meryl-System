@@ -18,10 +18,18 @@ type ReturnDetail = {
   return_detail_id: string;
   product_id: string;
   productName: string;
+  productSize: string;
+  productColor: string;
+  productPrice: number;
   quantity_returned: number;
   reason: string;
   refund_amount: number;
+  replacementProductId: string;
   replacementProductName: string;
+  replacementProductSize: string;
+  replacementProductColor: string;
+  replacementProductPrice: number;
+  replacementQuantity: number;
   price_difference: number;
   inventory_action: string;
 };
@@ -189,6 +197,18 @@ export function ReturnManagement() {
   const returnRows = (returnsQuery.data as any[]) ?? [];
   const isAdmin = String(user?.role_name ?? "").trim().toLowerCase().includes("admin");
   const selectedReplacementReason = reasonOption === "Others" ? customReason.trim() : reasonOption.trim();
+  const replacedSalesIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of returnRows) {
+      const type = String(row.return_type ?? "Replacement").trim().toLowerCase();
+      const status = String(row.return_status ?? "Completed").trim().toLowerCase();
+      if (type.includes("replacement") && status !== "cancelled") {
+        const saleId = String(row.original_sales_id ?? row.sales_id ?? "");
+        if (saleId) ids.add(saleId);
+      }
+    }
+    return ids;
+  }, [returnRows]);
 
   const salesDisplayMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -239,6 +259,7 @@ export function ReturnManagement() {
     () =>
       sales
         .filter((sale: any) => isAdmin || String(sale.user_id ?? "") === String(user?.user_id ?? ""))
+        .filter((sale: any) => !replacedSalesIds.has(String(sale.sales_id ?? "")))
         .map((sale: any) => {
           const customer = Array.isArray(sale.customer) ? sale.customer[0] : sale.customer;
           const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
@@ -269,7 +290,7 @@ export function ReturnManagement() {
           };
         })
         .filter((sale) => sale.details.some((detail: any) => Number(detail.returnable_quantity ?? 0) > 0)),
-    [isAdmin, productMap, sales, salesDisplayMap, user?.user_id],
+    [isAdmin, productMap, replacedSalesIds, sales, salesDisplayMap, user?.user_id],
   );
 
   const selectedSale = salesOptions.find((sale) => sale.sales_id === formData.sales_id);
@@ -503,16 +524,30 @@ export function ReturnManagement() {
         salesStatus: normalizeSaleStatus(sale?.sales_status ?? sale?.status),
         returnDetails: details.map((detail: any) => {
           const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
-          const replacement = Array.isArray(detail.replacement_product) ? detail.replacement_product[0] : detail.replacement_product;
+          const replacementJoin = Array.isArray(detail.replacement_product) ? detail.replacement_product[0] : detail.replacement_product;
+          const newProductJoin = Array.isArray(detail.new_product) ? detail.new_product[0] : detail.new_product;
+          const returnedFallback = productMap.get(String(detail.returned_product_id ?? detail.product_id ?? ""));
+          const replacementFallback = productMap.get(String(detail.replacement_product_id ?? detail.new_product_id ?? ""));
+          const replacement = replacementJoin ?? newProductJoin;
+          const returnedInventory = Array.isArray(product?.inventory) ? product.inventory[0] : product?.inventory;
+          const replacementInventory = Array.isArray(replacement?.inventory) ? replacement.inventory[0] : replacement?.inventory;
           return {
             return_detail_id: String(detail.return_detail_id ?? ""),
             product_id: String(detail.product_id ?? ""),
-            productName: product?.product_name ?? productMap.get(String(detail.product_id ?? ""))?.name ?? "N/A",
-            quantity_returned: Number(detail.quantity_returned ?? 0),
+            productName: product?.product_name ?? returnedFallback?.name ?? "N/A",
+            productSize: String(product?.size ?? returnedFallback?.size ?? "N/A"),
+            productColor: String(product?.color ?? returnedFallback?.color ?? "N/A"),
+            productPrice: Number(detail.returned_price_unit ?? returnedInventory?.srp ?? product?.price ?? product?.cost_price ?? returnedFallback?.price ?? 0),
+            quantity_returned: Number(detail.returned_quantity ?? detail.quantity_returned ?? 0),
             reason: String(detail.reason ?? ""),
             refund_amount: Number(detail.refund_amount ?? 0),
-            replacementProductName: replacement?.product_name ?? "N/A",
-            price_difference: Number(detail.price_difference ?? 0),
+            replacementProductId: String(detail.replacement_product_id ?? detail.new_product_id ?? ""),
+            replacementProductName: replacement?.product_name ?? replacementFallback?.name ?? "N/A",
+            replacementProductSize: String(replacement?.size ?? replacementFallback?.size ?? "N/A"),
+            replacementProductColor: String(replacement?.color ?? replacementFallback?.color ?? "N/A"),
+            replacementProductPrice: Number(detail.new_price_unit ?? replacementInventory?.srp ?? replacement?.price ?? replacement?.cost_price ?? replacementFallback?.price ?? 0),
+            replacementQuantity: Number(detail.new_quantity ?? detail.replacement_quantity ?? detail.quantity_returned ?? 0),
+            price_difference: Number(detail.net_difference ?? detail.price_difference ?? 0),
             inventory_action: String(detail.inventory_action ?? "Defective / Not Sellable"),
           };
         }),
@@ -617,6 +652,10 @@ export function ReturnManagement() {
       toast.error("Please add a replacement reason");
       return;
     }
+    if (replacedSalesIds.has(selectedSale.sales_id)) {
+      toast.error("This sales transaction already has a recorded replacement. Only one replacement is allowed per sale.");
+      return;
+    }
 
     try {
       setIsSaving(true);
@@ -645,14 +684,53 @@ export function ReturnManagement() {
         replacementStockUsed.set(line.replacement_product_id, usedStock + line.quantity);
       }
 
+      const returnId = buildClientId();
+      const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + totalAdditionalPayment);
+      const replacementSummary = [
+        "Replacement",
+        `Lines: ${replacementLines.length}`,
+        `Additional payment: ${formatCurrency(totalAdditionalPayment)}`,
+        "No refund/store credit. Replacement only.",
+        `Mode of payment: ${totalAdditionalPayment > 0 ? formData.mode_of_payment : "N/A"}`,
+        `Reason: ${selectedReplacementReason}`,
+      ].join(" | ");
+
+      await tryInsertRow("returns", [
+        {
+          return_id: returnId,
+          sales_id: selectedSale.sales_id,
+          original_sales_id: selectedSale.sales_id,
+          user_id: user?.user_id ?? selectedSale.user_id,
+          return_date: new Date().toISOString(),
+          return_type: "Replacement",
+          return_status: "Completed",
+          total_refund: 0,
+          additional_payment: totalAdditionalPayment,
+          adjustment_amount: totalAdditionalPayment,
+          mode_of_payment: totalAdditionalPayment > 0 ? formData.mode_of_payment : null,
+          payment_date: totalAdditionalPayment > 0 ? new Date().toISOString() : null,
+          fulfilled_date: new Date().toISOString(),
+          replacement_count: replacementLines.length,
+          total_replacement_payments: totalAdditionalPayment,
+          total_credits_issued: 0,
+          net_amount: adjustedTotal,
+          last_activity_date: new Date().toISOString(),
+          remarks: replacementSummary,
+        },
+        {
+          return_id: returnId,
+          sales_id: selectedSale.sales_id,
+          user_id: user?.user_id ?? selectedSale.user_id,
+          return_date: new Date().toISOString(),
+          total_refund: 0,
+        },
+      ]);
+
       for (const line of replacementLines) {
-        const returnId = buildClientId();
         const saleDetail = saleDetailById.get(line.sales_detail_id);
         if (!saleDetail) continue;
 
         const additionalPayment = Math.max(0, line.price_difference);
-        const creditIssued = 0;
-        const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + additionalPayment);
         const replacementNote = [
           "Replacement",
           `Replaced: ${line.returned_product_name}`,
@@ -662,37 +740,6 @@ export function ReturnManagement() {
           `Inventory action: ${line.inventory_action}`,
           `Reason: ${selectedReplacementReason}`,
         ].join(" | ");
-
-        await tryInsertRow("returns", [
-          {
-            return_id: returnId,
-            sales_id: selectedSale.sales_id,
-            original_sales_id: selectedSale.sales_id,
-            user_id: user?.user_id ?? selectedSale.user_id,
-            return_date: new Date().toISOString(),
-            return_type: "Replacement",
-            return_status: "Completed",
-            total_refund: 0,
-            additional_payment: additionalPayment,
-            adjustment_amount: additionalPayment,
-            mode_of_payment: additionalPayment > 0 ? formData.mode_of_payment : null,
-            payment_date: additionalPayment > 0 ? new Date().toISOString() : null,
-            fulfilled_date: new Date().toISOString(),
-            replacement_count: 1,
-            total_replacement_payments: additionalPayment,
-            total_credits_issued: 0,
-            net_amount: adjustedTotal,
-            last_activity_date: new Date().toISOString(),
-            remarks: replacementNote,
-          },
-          {
-            return_id: returnId,
-            sales_id: selectedSale.sales_id,
-            user_id: user?.user_id ?? selectedSale.user_id,
-            return_date: new Date().toISOString(),
-            total_refund: 0,
-          },
-        ]);
 
         await tryInsertRow("return_details", [
           {
@@ -1402,11 +1449,7 @@ export function ReturnManagement() {
 
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
                               <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Financials</p>
-                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                <div>
-                                  <p className="text-sm text-zinc-400">Refund (Disabled)</p>
-                                  <p className="text-zinc-100">{formatCurrency(returnItem.total_refund)}</p>
-                                </div>
+                              <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <p className="text-sm text-zinc-400">Additional Pay</p>
                                   <p className="text-zinc-100">{formatCurrency(returnItem.additional_payment)}</p>
@@ -1419,17 +1462,39 @@ export function ReturnManagement() {
                             </div>
 
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-                              <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Replaced Items</p>
-                              <div className="space-y-2">
+                              <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Replacement Items</p>
+                              <div className="space-y-3">
                                 {returnItem.returnDetails.map((detail) => (
-                                  <div key={detail.return_detail_id} className="rounded-md border border-zinc-800 bg-zinc-900/80 p-3">
-                                    <p className="text-zinc-100 font-medium">{detail.productName}</p>
-                                    <p className="text-zinc-300 text-xs">
-                                      Qty: {detail.quantity_returned} | Credit/Refund Applied: {formatCurrency(detail.refund_amount)}
-                                    </p>
-                                    <p className="text-zinc-300 text-xs">
-                                      Replacement: {detail.replacementProductName} | Inventory: {detail.inventory_action}
-                                    </p>
+                                  <div key={detail.return_detail_id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+                                      <div className="rounded-md border border-red-900/50 bg-red-950/20 p-3">
+                                        <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replaced Item</p>
+                                        <p className="font-medium text-zinc-100">{detail.productName}</p>
+                                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                                          <span>Qty: {detail.quantity_returned}</span>
+                                          <span>Price: {formatCurrency(detail.productPrice)}</span>
+                                          <span>Size: {detail.productSize}</span>
+                                          <span>Color: {detail.productColor}</span>
+                                        </div>
+                                      </div>
+                                      <div className="hidden items-center justify-center text-yellow-300 md:flex">
+                                        <ArrowRightLeft className="h-5 w-5" />
+                                      </div>
+                                      <div className="rounded-md border border-emerald-900/50 bg-emerald-950/20 p-3">
+                                        <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replacement Item</p>
+                                        <p className="font-medium text-zinc-100">{detail.replacementProductName}</p>
+                                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                                          <span>Qty: {detail.replacementQuantity}</span>
+                                          <span>Price: {formatCurrency(detail.replacementProductPrice)}</span>
+                                          <span>Size: {detail.replacementProductSize}</span>
+                                          <span>Color: {detail.replacementProductColor}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-300">
+                                      <Badge className="bg-zinc-800 text-zinc-200">Difference: {formatCurrency(detail.price_difference)}</Badge>
+                                      <Badge className="bg-zinc-800 text-zinc-200">Inventory: {detail.inventory_action}</Badge>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
