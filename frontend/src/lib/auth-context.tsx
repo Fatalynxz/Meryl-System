@@ -291,12 +291,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Your account is not authorized to reset a password. Please contact the administrator.");
     }
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalizedEmail,
-      options: {
-        emailRedirectTo: passwordResetRedirectUrl(),
-        shouldCreateUser: false,
-      },
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: passwordResetRedirectUrl(),
     });
 
     if (error) throw error;
@@ -354,7 +350,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error: otpError } = await supabase.auth.verifyOtp({
       email: normalizedEmail,
       token: cleanOtp,
-      type: "email",
+      type: "recovery",
     });
 
     if (otpError) {
