@@ -140,6 +140,48 @@ function trendBucketLabel(bucket: Date, mode: TrendBucketMode) {
   return bucket.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function endOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(23, 59, 59, 999);
+  return copy;
+}
+
+function salesTrendFrame(timeRange: ReportPeriod, customStartDate?: string, customEndDate?: string) {
+  const window = rangeWindow(timeRange, customStartDate, customEndDate);
+  const baseEnd = window.now;
+
+  if (timeRange === 'weekly') {
+    const start = weekStartMonday(baseEnd);
+    const end = endOfDay(new Date(start));
+    end.setDate(start.getDate() + 6);
+    return { start, end, mode: 'daily' as TrendBucketMode };
+  }
+
+  if (timeRange === 'monthly') {
+    const start = new Date(baseEnd.getFullYear(), 0, 1);
+    const end = endOfDay(new Date(baseEnd.getFullYear(), 11, 31));
+    return { start, end, mode: 'monthly' as TrendBucketMode };
+  }
+
+  if (timeRange === 'quarterly') {
+    const start = new Date(baseEnd.getFullYear(), 0, 1);
+    const end = endOfDay(new Date(baseEnd.getFullYear(), 11, 31));
+    return { start, end, mode: 'quarterly' as TrendBucketMode };
+  }
+
+  if (timeRange === 'annually') {
+    const start = new Date(baseEnd.getFullYear() - 4, 0, 1);
+    const end = endOfDay(new Date(baseEnd.getFullYear(), 11, 31));
+    return { start, end, mode: 'annually' as TrendBucketMode };
+  }
+
+  return {
+    start: window.start,
+    end: window.now,
+    mode: trendBucketMode(timeRange, window.days),
+  };
+}
+
 export function ReportsAnalytics() {
   const [timeRange, setTimeRange] = useState<ReportPeriod>('monthly');
   const [reportType, setReportType] = useState('overview');
@@ -199,12 +241,11 @@ export function ReportsAnalytics() {
   }, [customEndDate, customStartDate, salesRows, timeRange]);
 
   const filteredSalesTrends = useMemo(() => {
-    const { now, start, days } = rangeWindow(timeRange, customStartDate, customEndDate);
-    const mode = trendBucketMode(timeRange, days);
+    const { end, mode, start } = salesTrendFrame(timeRange, customStartDate, customEndDate);
     const grouped = new Map<string, { sales: number; revenue: number; customers: Set<string>; firstDate: Date }>();
     let cursor = bucketStartForDate(start, mode);
 
-    while (cursor <= now) {
+    while (cursor <= end) {
       const bucket = new Date(cursor);
       grouped.set(localDateKey(bucket), {
         sales: 0,
@@ -217,7 +258,7 @@ export function ReportsAnalytics() {
 
     salesRows.forEach((sale) => {
       const date = saleDate(sale);
-      if (!date || date < start || date > now) return;
+      if (!date || date < start || date > end) return;
       const bucket = bucketStartForDate(date, mode);
       const key = localDateKey(bucket);
       const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: new Set<string>(), firstDate: bucket };
