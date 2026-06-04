@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
-import { useProducts, usePromotions, useReturns, useSales } from '../../lib/hooks';
+import { useProducts, usePromotions, useSales } from '../../lib/hooks';
 
 function isCompletedSale(sale: any) {
   const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
@@ -19,11 +19,6 @@ function saleDate(sale: any) {
   const raw = String(sale.transaction_date ?? sale.created_at ?? '').trim();
   const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(raw);
   const date = new Date(hasTimezone ? raw : `${raw}Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function returnDate(row: any) {
-  const date = new Date(row.return_date ?? row.created_at ?? '');
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -154,12 +149,10 @@ export function ReportsAnalytics() {
   const salesQuery = useSales();
   const productsQuery = useProducts();
   const promotionsQuery = usePromotions();
-  const returnsQuery = useReturns();
 
   const salesRows = ((salesQuery.data as any[]) ?? []).filter(isCompletedSale);
   const productRows = (productsQuery.data as any[]) ?? [];
   const promotionRows = (promotionsQuery.data as any[]) ?? [];
-  const returnRows = (returnsQuery.data as any[]) ?? [];
 
   const productLookup = useMemo(() => {
     const map = new Map<string, any>();
@@ -644,78 +637,6 @@ export function ReportsAnalytics() {
     }).sort((a, b) => b.revenue - a.revenue);
   }, [currentMetrics.current.units, promotionRows, salesRows]);
 
-  const filteredReturns = useMemo(() => {
-    const { now, start } = rangeWindow(timeRange, customStartDate, customEndDate);
-    return returnRows.filter((row) => {
-      const date = returnDate(row);
-      return date && date >= start && date <= now;
-    });
-  }, [customEndDate, customStartDate, returnRows, timeRange]);
-
-  const replacementMetrics = useMemo(() => {
-    let items = 0;
-    let additionalPay = 0;
-    let evenExchanges = 0;
-
-    filteredReturns.forEach((row) => {
-      const details = Array.isArray(row.return_details) ? row.return_details : [];
-      details.forEach((detail: any) => {
-        items += Number(detail.quantity_returned ?? detail.quantity ?? 0);
-      });
-      const addPay = Number(row.additional_payment ?? row.total_replacement_payments ?? 0);
-      additionalPay += addPay;
-      if (addPay <= 0) evenExchanges += 1;
-    });
-
-    return {
-      replacements: filteredReturns.length,
-      items,
-      additionalPay,
-      evenExchanges,
-    };
-  }, [filteredReturns]);
-
-  const replacementReasonRows = useMemo(() => {
-    const byReason = new Map<string, { reason: string; count: number; items: number }>();
-    filteredReturns.forEach((row) => {
-      const details = Array.isArray(row.return_details) ? row.return_details : [];
-      if (!details.length) {
-        const reason = 'Unspecified';
-        const prev = byReason.get(reason) ?? { reason, count: 0, items: 0 };
-        prev.count += 1;
-        byReason.set(reason, prev);
-        return;
-      }
-      details.forEach((detail: any) => {
-        const reason = String(detail.reason ?? row.return_reason ?? 'Unspecified');
-        const prev = byReason.get(reason) ?? { reason, count: 0, items: 0 };
-        prev.count += 1;
-        prev.items += Number(detail.quantity_returned ?? detail.quantity ?? 0);
-        byReason.set(reason, prev);
-      });
-    });
-    return Array.from(byReason.values()).sort((a, b) => b.count - a.count);
-  }, [filteredReturns]);
-
-  const replacementTopProducts = useMemo(() => {
-    const byProduct = new Map<string, { product: string; count: number; items: number }>();
-    filteredReturns.forEach((row) => {
-      const details = Array.isArray(row.return_details) ? row.return_details : [];
-      details.forEach((detail: any) => {
-        const productName = String(
-          detail.product?.product_name
-          ?? detail.product_name
-          ?? 'Unknown Product',
-        );
-        const prev = byProduct.get(productName) ?? { product: productName, count: 0, items: 0 };
-        prev.count += 1;
-        prev.items += Number(detail.quantity_returned ?? detail.quantity ?? 0);
-        byProduct.set(productName, prev);
-      });
-    });
-    return Array.from(byProduct.values()).sort((a, b) => b.items - a.items).slice(0, 8);
-  }, [filteredReturns]);
-
   const handleExportReport = () => {
     if (timeRange === 'custom' && (!customStartDate || !customEndDate || customStartDate > customEndDate)) {
       toast.error('Select a valid custom date range before exporting.');
@@ -728,7 +649,6 @@ export function ReportsAnalytics() {
       revenue: 'Revenue Report',
       inventory: 'Inventory Report',
       promotions: 'Promotions Report',
-      returns: 'Returns and Replacement Report',
     };
     const generatedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
     const sanitize = (value: unknown) => String(value ?? '')
@@ -870,16 +790,6 @@ export function ReportsAnalytics() {
     } else if (reportType === 'promotions') {
       drawTitle('Promotion Performance');
       drawTable(['Promotion', 'Revenue', 'ROI', 'Conversion'], promotionEffectiveness.map((row) => [row.promotion, money(row.revenue), `${row.roi}%`, `${row.conversion}%`]));
-    } else if (reportType === 'returns') {
-      drawTitle('Replacement Summary');
-      drawTable(['Metric', 'Value'], [
-        ['Replacement Transactions', replacementMetrics.replacements],
-        ['Items Replaced', replacementMetrics.items],
-        ['Additional Payments', money(replacementMetrics.additionalPay)],
-        ['Even Exchanges', replacementMetrics.evenExchanges],
-      ], [260, 255]);
-      drawTitle('Replacement Reasons');
-      drawTable(['Reason', 'Cases', 'Items'], replacementReasonRows.map((row) => [row.reason, row.count, row.items]), [300, 80, 135]);
     }
 
     pages.forEach((page, index) => {
@@ -995,7 +905,6 @@ export function ReportsAnalytics() {
                 <SelectItem value="revenue">Revenue Report</SelectItem>
                 <SelectItem value="inventory">Inventory Report</SelectItem>
                 <SelectItem value="promotions">Promotions Report</SelectItem>
-                <SelectItem value="returns">Returns / Replacement Report</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1470,111 +1379,6 @@ export function ReportsAnalytics() {
                   <div className="flex gap-3"><Badge className="bg-yellow-400 text-black">{money(promo.revenue)}</Badge><Badge className="bg-green-600 text-white">{promo.roi}% ROI</Badge></div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {reportType === 'returns' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardContent className="pt-6">
-                <p className="text-sm text-white/70">Total Replacements</p>
-                <p className="text-2xl text-white">{replacementMetrics.replacements.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardContent className="pt-6">
-                <p className="text-sm text-white/70">Items Replaced</p>
-                <p className="text-2xl text-white">{replacementMetrics.items.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardContent className="pt-6">
-                <p className="text-sm text-white/70">Additional Payment</p>
-                <p className="text-2xl text-white">{money(replacementMetrics.additionalPay)}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardContent className="pt-6">
-                <p className="text-sm text-white/70">Even Exchanges</p>
-                <p className="text-2xl text-white">{replacementMetrics.evenExchanges.toLocaleString()}</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardHeader><CardTitle className="text-yellow-300">Replacement Reasons</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={replacementReasonRows}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#24242d" />
-                    <XAxis dataKey="reason" stroke="#fef08a" />
-                    <YAxis stroke="#fef08a" />
-                    <Tooltip contentStyle={{ backgroundColor: '#111118', border: '1px solid #24242d', color: '#fef08a' }} />
-                    <Bar dataKey="count" fill="#fef08a" name="Cases" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardHeader><CardTitle className="text-yellow-300">Top Replaced Products</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {replacementTopProducts.map((row) => (
-                  <div key={row.product} className="flex justify-between items-center border-b border-[#24242d] pb-2">
-                    <div>
-                      <p className="text-yellow-200">{row.product}</p>
-                      <p className="text-yellow-300 text-xs">{row.count} replacements</p>
-                    </div>
-                    <p className="text-yellow-300">{row.items} items</p>
-                  </div>
-                ))}
-                {!replacementTopProducts.length && <p className="text-yellow-200 text-sm">No replacement data for this range.</p>}
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="bg-[#0b0b0f] border-[#24242d]">
-            <CardHeader><CardTitle className="text-yellow-300">Replacement Transactions</CardTitle></CardHeader>
-            <CardContent>
-              <Table className="overflow-hidden rounded-lg border border-[#24242d] bg-[#07070a]">
-                <TableHeader className="bg-[#0b0b0f]">
-                  <TableRow className="border-[#24242d] hover:bg-[#0b0b0f]">
-                    <TableHead className="text-yellow-300">Date</TableHead>
-                    <TableHead className="text-yellow-300">Replacement ID</TableHead>
-                    <TableHead className="text-yellow-300">Sales ID</TableHead>
-                    <TableHead className="text-yellow-300">Customer</TableHead>
-                    <TableHead className="text-yellow-300 text-center">Items</TableHead>
-                    <TableHead className="text-yellow-300 text-center">Additional Pay</TableHead>
-                    <TableHead className="text-yellow-300 text-center">Processed By</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredReturns.map((row, index) => {
-                    const details = Array.isArray(row.return_details) ? row.return_details : [];
-                    const items = details.reduce((sum: number, d: any) => sum + Number(d.quantity_returned ?? d.quantity ?? 0), 0);
-                    const date = returnDate(row);
-                    return (
-                      <TableRow key={row.return_id ?? `ret-${index}`} className="border-[#24242d] bg-[#07070a] hover:bg-white/[0.03]">
-                        <TableCell className="text-yellow-200">{date ? date.toLocaleDateString('en-US') : 'N/A'}</TableCell>
-                        <TableCell className="text-yellow-200">{row.return_id ?? '-'}</TableCell>
-                        <TableCell className="text-yellow-200">{row.sales_id ?? row.sales_transaction?.sales_id ?? '-'}</TableCell>
-                        <TableCell className="text-yellow-200">{row.sales_transaction?.customer?.customer_name ?? row.customer_name ?? 'Walk-in Customer'}</TableCell>
-                        <TableCell className="text-yellow-200 text-center">{items}</TableCell>
-                        <TableCell className="text-yellow-300 text-center">{money(Number(row.additional_payment ?? row.total_replacement_payments ?? 0))}</TableCell>
-                        <TableCell className="text-yellow-200 text-center">{row.user?.username ?? row.processed_by ?? '-'}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!filteredReturns.length && (
-                    <TableRow className="border-[#24242d] bg-[#07070a]">
-                      <TableCell colSpan={7} className="text-center text-yellow-200 py-6">No replacement transactions for this date range.</TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
             </CardContent>
           </Card>
         </div>
