@@ -679,11 +679,6 @@ export function ReportsAnalytics() {
   }, [currentMetrics.current.units, promotionRows, salesRows]);
 
   const handleExportReport = () => {
-    if (timeRange === 'custom' && (!customStartDate || !customEndDate || customStartDate > customEndDate)) {
-      toast.error('Select a valid custom date range before exporting.');
-      return;
-    }
-
     const reportNames: Record<string, string> = {
       overview: 'Executive Overview Report',
       sales: 'Sales Report',
@@ -939,7 +934,6 @@ export function ReportsAnalytics() {
   const turnoverChange = percentChange(latestTurnover, previousTurnover);
   const avgDaysChange = previousAvgDays ? previousAvgDays - latestAvgDays : 0;
   const selectedRangeLabel = formatDateRange(selectedWindow.start, selectedWindow.now);
-  const isCustomRangeIncomplete = timeRange === 'custom' && (!customStartDate || !customEndDate || customStartDate > customEndDate);
 
   return (
     <div className="space-y-6">
@@ -958,7 +952,6 @@ export function ReportsAnalytics() {
                 <SelectItem value="monthly">Monthly</SelectItem>
                 <SelectItem value="quarterly">Quarterly</SelectItem>
                 <SelectItem value="annually">Annually</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -977,28 +970,6 @@ export function ReportsAnalytics() {
               </SelectContent>
             </Select>
           </div>
-          {timeRange === 'custom' && (
-            <>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs uppercase tracking-wide text-yellow-200/70">Start Date</span>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="date-input-dark h-9 w-40 rounded-md border border-[#24242d] bg-[#0b0b0f] px-3 text-sm text-white outline-none focus:ring-2 focus:ring-yellow-400/50"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-xs uppercase tracking-wide text-yellow-200/70">End Date</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="date-input-dark h-9 w-40 rounded-md border border-[#24242d] bg-[#0b0b0f] px-3 text-sm text-white outline-none focus:ring-2 focus:ring-yellow-400/50"
-                />
-              </div>
-            </>
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex h-9 items-center gap-2 rounded-md border border-[#24242d] bg-[#0b0b0f] px-3 text-sm text-white">
@@ -1012,8 +983,7 @@ export function ReportsAnalytics() {
           </label>
           <Button
             onClick={handleExportReport}
-            disabled={isCustomRangeIncomplete}
-            className="h-9 bg-yellow-400 text-black hover:bg-yellow-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-9 bg-yellow-400 text-black hover:bg-yellow-500"
           >
           <Download className="w-4 h-4 mr-2" />
           Export PDF
@@ -1022,7 +992,6 @@ export function ReportsAnalytics() {
       </div>
       <div className="rounded-md border border-[#24242d] bg-[#07070a] px-4 py-2 text-sm text-yellow-200">
         Showing {selectedRangeLabel}
-        {isCustomRangeIncomplete ? <span className="ml-2 text-red-300">Select a valid custom start and end date.</span> : null}
       </div>
 
       {/* Key Performance Indicators */}
