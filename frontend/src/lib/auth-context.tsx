@@ -27,6 +27,8 @@ type AuthContextValue = {
   loading: boolean;
   login: (username: string, password: string) => Promise<AuthUser | null>;
   signInWithGoogle: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  updatePasswordAfterRecovery: (newPassword: string) => Promise<void>;
   requestEmailOtp: (email: string) => Promise<void>;
   completeExternalAuth: (options?: { persist?: boolean; bypassOtpGate?: boolean }) => Promise<AuthUser | null>;
   markGoogleOtpVerified: (email: string) => void;
@@ -158,6 +160,10 @@ function authRedirectUrl() {
   return `${window.location.origin}/auth/callback`;
 }
 
+function passwordResetRedirectUrl() {
+  return `${window.location.origin}/auth/reset-password`;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -267,6 +273,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  const requestPasswordReset = useCallback(async (email: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const appUser = await findAppUserByEmail(normalizedEmail);
+
+    if (!isAuthorizedAppUser(appUser)) {
+      throw new Error("Your account is not authorized to reset a password. Please contact the administrator.");
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+      redirectTo: passwordResetRedirectUrl(),
+    });
+
+    if (error) throw error;
+  }, []);
+
+  const updatePasswordAfterRecovery = useCallback(async (newPassword: string) => {
+    const cleanPassword = newPassword.trim();
+    if (cleanPassword.length < 8) {
+      throw new Error("Password must be at least 8 characters.");
+    }
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError) throw sessionError;
+
+    const email = String(session?.user?.email ?? "").trim().toLowerCase();
+    if (!email) {
+      throw new Error("Password reset session expired. Please request a new reset link.");
+    }
+
+    const appUser = await findAppUserByEmail(email);
+    if (!isAuthorizedAppUser(appUser)) {
+      throw new Error("Your account is not authorized to reset a password. Please contact the administrator.");
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({ password: cleanPassword });
+    if (authError) throw authError;
+
+    const { error: appPasswordError } = await supabase.rpc("reset_user_password_by_email", {
+      p_new_password: cleanPassword,
+    });
+
+    if (appPasswordError) throw appPasswordError;
+
+    sessionStorage.removeItem(MERYL_USER_STORAGE_KEY);
+    clearGoogleOtpVerifiedEmail();
+    setUser(null);
+    await supabase.auth.signOut();
+  }, []);
+
   const markGoogleOtpVerified = useCallback((email: string) => {
     markGoogleOtpVerifiedEmail(email);
   }, []);
@@ -295,8 +354,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, signInWithGoogle, requestEmailOtp, completeExternalAuth, markGoogleOtpVerified, logout }),
-    [user, loading, login, signInWithGoogle, requestEmailOtp, completeExternalAuth, markGoogleOtpVerified, logout],
+    () => ({
+      user,
+      loading,
+      login,
+      signInWithGoogle,
+      requestPasswordReset,
+      updatePasswordAfterRecovery,
+      requestEmailOtp,
+      completeExternalAuth,
+      markGoogleOtpVerified,
+      logout,
+    }),
+    [
+      user,
+      loading,
+      login,
+      signInWithGoogle,
+      requestPasswordReset,
+      updatePasswordAfterRecovery,
+      requestEmailOtp,
+      completeExternalAuth,
+      markGoogleOtpVerified,
+      logout,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

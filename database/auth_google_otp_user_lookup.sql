@@ -37,3 +37,53 @@ end;
 $$;
 
 grant execute on function public.login_user_by_email(text) to anon, authenticated;
+
+-- Password reset helper for User Management accounts.
+-- Supabase Auth verifies the recovery email first. This function then updates
+-- only the active public."user" row whose email matches the authenticated
+-- recovery session email.
+create extension if not exists pgcrypto;
+
+create or replace function public.reset_user_password_by_email(p_new_password text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text;
+  v_user jsonb;
+begin
+  v_email := lower(trim(coalesce(auth.jwt() ->> 'email', '')));
+
+  if v_email = '' then
+    raise exception 'Password reset session is missing an email.';
+  end if;
+
+  if length(coalesce(p_new_password, '')) < 8 then
+    raise exception 'Password must be at least 8 characters.';
+  end if;
+
+  update public."user" u
+  set
+    password = crypt(p_new_password, gen_salt('bf')),
+    updated_at = now()
+  where lower(coalesce(u.email, '')) = v_email
+    and lower(coalesce(u.status, 'active')) = 'active'
+  returning jsonb_build_object(
+    'user_id', u.user_id,
+    'email', u.email,
+    'status', u.status
+  )
+  into v_user;
+
+  if v_user is null then
+    raise exception 'No active User Management account matches this email.';
+  end if;
+
+  return v_user;
+end;
+$$;
+
+revoke all on function public.reset_user_password_by_email(text) from public;
+grant execute on function public.reset_user_password_by_email(text) to authenticated;

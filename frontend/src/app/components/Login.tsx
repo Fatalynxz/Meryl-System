@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
-import { LogIn, User, Lock, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, LogIn, Mail, User, Lock, ShieldCheck } from 'lucide-react';
 import { getPostLoginPath, useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
 
 
 export function Login() {
   const navigate = useNavigate();
-  const { login, signInWithGoogle } = useAuth();
+  const { login, signInWithGoogle, requestPasswordReset } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [forgotMode, setForgotMode] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -51,6 +53,24 @@ export function Login() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError('');
+    setNotice('');
+
+    try {
+      await requestPasswordReset(resetEmail);
+      setNotice('Password reset link sent. Open your email and set a new password within the allowed time.');
+    } catch (resetError) {
+      const message = resetError instanceof Error ? resetError.message : 'Unable to send password reset email right now.';
+      setError(message.includes('rate limit') ? 'Email rate limit exceeded. Please wait before requesting another reset email.' : message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0E0E12] text-white flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-[#E5202A]/20 blur-3xl" />
@@ -87,11 +107,66 @@ export function Login() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <div className="text-[11px] uppercase tracking-widest text-[#FFD60A]">Sign in</div>
-              <h2 className="mt-1 text-white text-2xl tracking-tight">Login Portal</h2>
+              <h2 className="mt-1 text-white text-2xl tracking-tight">
+                {forgotMode ? 'Reset Password' : 'Login Portal'}
+              </h2>
             </div>
             <BrandLogo size="sm" className="lg:hidden" />
           </div>
 
+          {forgotMode ? (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div>
+              <label className="text-xs text-white/60 mb-1.5 block">Registered email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <input
+                  type="email"
+                  placeholder="Enter registered email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-3 py-2.5 bg-[#1D1D25] border border-white/5 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFD60A]/40 focus:ring-2 focus:ring-[#FFD60A]/20 transition"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-xl px-3 py-2.5 bg-[#E5202A]/15 border border-[#E5202A]/30 text-sm text-[#FF6B72]">
+                {error}
+              </div>
+            )}
+
+            {notice && (
+              <div className="rounded-xl px-3 py-2.5 bg-emerald-500/10 border border-emerald-400/25 text-sm text-emerald-200">
+                {notice}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full h-11 rounded-xl bg-[#FFD60A] hover:bg-[#ffcf24] text-[#15151B] shadow-lg shadow-yellow-900/20"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Send Reset Link
+            </Button>
+
+            <Button
+              type="button"
+              disabled={submitting}
+              onClick={() => {
+                setForgotMode(false);
+                setError('');
+                setNotice('');
+              }}
+              className="h-11 w-full rounded-xl border border-white/10 bg-[#1D1D25] text-white hover:bg-white/10"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Login
+            </Button>
+          </form>
+          ) : (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="text-xs text-white/60 mb-1.5 block">Username</label>
@@ -123,6 +198,21 @@ export function Login() {
               </div>
             </div>
 
+            <div className="-mt-1 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotMode(true);
+                  setResetEmail(username.includes('@') ? username : '');
+                  setError('');
+                  setNotice('');
+                }}
+                className="text-xs font-medium text-[#FFD60A] hover:text-[#ffe36b]"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             {error && (
               <div className="rounded-xl px-3 py-2.5 bg-[#E5202A]/15 border border-[#E5202A]/30 text-sm text-[#FF6B72]">
                 {error}
@@ -144,7 +234,10 @@ export function Login() {
               Sign in
             </Button>
           </form>
+          )}
 
+          {!forgotMode && (
+          <>
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-white/10" />
             <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-white/40">
@@ -170,6 +263,8 @@ export function Login() {
               Google sign-in now includes OTP verification before access.
             </p>
           </div>
+          </>
+          )}
 
         </div>
       </div>

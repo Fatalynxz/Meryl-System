@@ -1078,6 +1078,13 @@ def auth_callback_shell():
     return redirect("/")
 
 
+@app.route("/auth/reset-password")
+def auth_reset_password_shell():
+    if has_react_shell():
+        return render_react_shell()
+    return redirect("/")
+
+
 @app.route("/assets/<path:filename>")
 def react_assets(filename):
     if not REACT_ASSETS_DIR.exists():

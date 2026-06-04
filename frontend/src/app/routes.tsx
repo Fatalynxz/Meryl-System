@@ -29,6 +29,9 @@ const Login = lazyWithChunkReload(() => import('./components/Login').then((modul
 const AuthCallback = lazyWithChunkReload(() =>
   import('./components/AuthCallback').then((module) => ({ default: module.AuthCallback })),
 );
+const ResetPassword = lazyWithChunkReload(() =>
+  import('./components/ResetPassword').then((module) => ({ default: module.ResetPassword })),
+);
 const AdminLayout = lazyWithChunkReload(() => import('./components/AdminLayout').then((module) => ({ default: module.AdminLayout })));
 const SalesStaffLayout = lazyWithChunkReload(() =>
   import('./components/SalesStaffLayout').then((module) => ({ default: module.SalesStaffLayout })),
@@ -104,6 +107,15 @@ export const router = createBrowserRouter([
     element: (
       <RouteLoader>
         <AuthCallback />
+      </RouteLoader>
+    ),
+  },
+  {
+    path: '/auth/reset-password',
+    errorElement: <RouteErrorFallback />,
+    element: (
+      <RouteLoader>
+        <ResetPassword />
       </RouteLoader>
     ),
   },
