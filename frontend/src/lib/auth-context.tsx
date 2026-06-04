@@ -354,17 +354,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     await supabase.auth.signOut().catch(() => null);
 
-    const { error: emailOtpError } = await supabase.auth.verifyOtp({
-      email: normalizedEmail,
-      token: cleanOtp,
-      type: "email",
-    });
+    const otpTypes = ["magiclink", "email", "recovery"] as const;
+    const errors: string[] = [];
 
-    if (emailOtpError) {
-      throw new Error(getSupabaseErrorMessage(emailOtpError));
+    for (const type of otpTypes) {
+      const { error: otpError } = await supabase.auth.verifyOtp({
+        email: normalizedEmail,
+        token: cleanOtp,
+        type,
+      });
+
+      if (!otpError) {
+        await updatePasswordAfterRecovery(newPassword);
+        return;
+      }
+
+      errors.push(`${type}: ${getSupabaseErrorMessage(otpError)}`);
     }
 
-    await updatePasswordAfterRecovery(newPassword);
+    throw new Error(`Token has expired or is invalid. Request a new OTP and use the newest email code. (${errors.join(" | ")})`);
   }, [updatePasswordAfterRecovery]);
 
   const markGoogleOtpVerified = useCallback((email: string) => {
