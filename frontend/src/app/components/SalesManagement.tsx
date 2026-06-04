@@ -484,7 +484,6 @@ export function SalesManagement() {
                               <div><p className="text-sm text-zinc-400">Total Amount</p><p className="text-zinc-100">PHP {Number(sale.total_amount ?? 0).toFixed(2)}</p></div>
                               <div><p className="text-sm text-zinc-400">Replacements</p><p className="text-zinc-100">{sale.replacementCount}</p></div>
                               <div><p className="text-sm text-zinc-400">Added Payments</p><p className="text-zinc-100">{formatCurrency(sale.replacementPayments ?? 0)}</p></div>
-                              <div><p className="text-sm text-zinc-400">Credits Issued</p><p className="text-zinc-100">{formatCurrency(sale.replacementCredits ?? 0)}</p></div>
                               <div><p className="text-sm text-zinc-400">Last Activity</p><p className="text-zinc-100">{sale.lastActivityDate}</p></div>
                             </div>
                             <div><p className="text-sm text-zinc-400">Status</p><p className="text-zinc-100">{sale.status}</p></div>
