@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import { ArrowLeft, KeyRound, LogIn, Mail, User, Lock, ShieldCheck } from 'lucide-react';
@@ -21,6 +21,19 @@ export function Login() {
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [externalSubmitting, setExternalSubmitting] = useState(false);
+
+  useEffect(() => {
+    const resetExternalSubmitting = () => {
+      setExternalSubmitting(false);
+    };
+
+    window.addEventListener('pageshow', resetExternalSubmitting);
+    window.addEventListener('focus', resetExternalSubmitting);
+    return () => {
+      window.removeEventListener('pageshow', resetExternalSubmitting);
+      window.removeEventListener('focus', resetExternalSubmitting);
+    };
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -370,7 +383,7 @@ export function Login() {
               <span className="mr-2 grid h-5 w-5 place-items-center rounded-full bg-white text-sm font-bold text-[#E5202A]">
                 G
               </span>
-              Continue with Google
+              {externalSubmitting ? 'Opening Google...' : 'Continue with Google'}
             </Button>
             <p className="px-1 text-[11px] leading-4 text-white/45">
               Google sign-in now includes OTP verification before access.
