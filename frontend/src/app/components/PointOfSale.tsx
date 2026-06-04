@@ -9,7 +9,7 @@ import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Coins, CreditCard, Package, Plus, Receipt, Search, Trash2, Users } from "lucide-react";
+import { Coins, CreditCard, Minus, Package, Plus, Receipt, Search, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomers, useInventory, useProducts, usePromotions } from "../../lib/hooks";
 import { useAuth } from "../../lib/auth-context";
@@ -24,7 +24,9 @@ type CartItem = {
   size: string;
   price: number;
   quantity: number;
+  quantityInput?: string;
   discount: number;
+  discountInput?: string;
   promotionType?: string;
   promo_id?: string | null;
 };
@@ -643,22 +645,77 @@ export function PointOfSale() {
       return recalculatePromotions(next);
     });
 
-  const updateQuantity = (id: string, newQuantity: number) =>
-    newQuantity >= 1 &&
+  const updateQuantity = (id: string, newQuantity: number) => {
+    const cleanQuantity = Math.max(1, Math.floor(Number(newQuantity) || 1));
     setCart((prev) =>
-      recalculatePromotions(prev.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item))),
+      recalculatePromotions(
+        prev.map((item) => (item.id === id ? { ...item, quantity: cleanQuantity, quantityInput: String(cleanQuantity) } : item)),
+      ),
     );
+  };
 
-  const updateDiscount = (id: string, newDiscount: number) =>
-    newDiscount >= 0 &&
-    newDiscount <= 100 &&
-    setCart(
-      cart.map((item) =>
+  const updateQuantityInput = (id: string, value: string) => {
+    const cleanValue = value.replace(/\D/g, "");
+    setCart((prev) =>
+      recalculatePromotions(
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          if (cleanValue === "") return { ...item, quantityInput: "" };
+          const cleanQuantity = Math.max(1, Number(cleanValue) || 1);
+          return { ...item, quantity: cleanQuantity, quantityInput: cleanValue };
+        }),
+      ),
+    );
+  };
+
+  const commitQuantityInput = (id: string) => {
+    setCart((prev) =>
+      recalculatePromotions(
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          const cleanQuantity = Math.max(1, Math.floor(Number(item.quantityInput ?? item.quantity) || 1));
+          return { ...item, quantity: cleanQuantity, quantityInput: String(cleanQuantity) };
+        }),
+      ),
+    );
+  };
+
+  const updateDiscount = (id: string, newDiscount: number) => {
+    const cleanDiscount = Math.min(100, Math.max(0, Number.isFinite(newDiscount) ? newDiscount : 0));
+    setCart((prev) =>
+      prev.map((item) =>
         item.id === id
-          ? { ...item, discount: item.promotionType === "bogo" ? 50 : newDiscount }
+          ? {
+              ...item,
+              discount: item.promotionType === "bogo" ? 50 : cleanDiscount,
+              discountInput: item.promotionType === "bogo" ? "50" : String(cleanDiscount),
+            }
           : item,
       ),
     );
+  };
+
+  const updateDiscountInput = (id: string, value: string) => {
+    const cleanValue = value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1");
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || item.promotionType === "bogo") return item;
+        if (cleanValue === "") return { ...item, discountInput: "", discount: 0 };
+        const cleanDiscount = Math.min(100, Math.max(0, Number(cleanValue) || 0));
+        return { ...item, discountInput: cleanValue, discount: cleanDiscount };
+      }),
+    );
+  };
+
+  const commitDiscountInput = (id: string) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.id !== id || item.promotionType === "bogo") return item;
+        const cleanDiscount = Math.min(100, Math.max(0, Number(item.discountInput ?? item.discount) || 0));
+        return { ...item, discount: cleanDiscount, discountInput: String(cleanDiscount) };
+      }),
+    );
+  };
 
   const calculateSubtotal = () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const calculateTotalDiscount = () =>
@@ -1055,24 +1112,68 @@ export function PointOfSale() {
                             </span>
                           </TableCell>
                           <TableCell className="text-center align-middle px-2 py-2">
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
-                              className="w-16 mx-auto bg-red-600 border-red-800 text-yellow-200 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
+                            <div className="mx-auto flex w-[104px] items-center justify-center rounded-xl border border-yellow-400/25 bg-[#1D1D25] p-1">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                disabled={item.quantity <= 1}
+                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </Button>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                value={item.quantityInput ?? String(item.quantity)}
+                                onChange={(e) => updateQuantityInput(item.id, e.target.value)}
+                                onBlur={() => commitQuantityInput(item.id)}
+                                className="h-7 w-10 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219]"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-center align-middle px-2 py-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={item.discount}
-                              onChange={(e) => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
-                              className="w-16 mx-auto bg-red-600 border-red-800 text-yellow-200 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              disabled={item.promotionType === "bogo"}
-                            />
+                            <div className="mx-auto flex w-[122px] items-center justify-center rounded-xl border border-yellow-400/25 bg-[#1D1D25] p-1">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => updateDiscount(item.id, item.discount - 1)}
+                                disabled={item.promotionType === "bogo" || item.discount <= 0}
+                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </Button>
+                              <Input
+                                type="text"
+                                inputMode="decimal"
+                                value={item.discountInput ?? String(item.discount)}
+                                onChange={(e) => updateDiscountInput(item.id, e.target.value)}
+                                onBlur={() => commitDiscountInput(item.id)}
+                                className="h-7 w-14 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0"
+                                disabled={item.promotionType === "bogo"}
+                              />
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => updateDiscount(item.id, item.discount + 1)}
+                                disabled={item.promotionType === "bogo" || item.discount >= 100}
+                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell className="text-center align-middle px-2 py-2">
                             {item.promotionType ? (
