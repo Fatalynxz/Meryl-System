@@ -724,6 +724,30 @@ export function ReportsAnalytics() {
       const clean = sanitize(value);
       return clean.length > max ? `${clean.slice(0, Math.max(0, max - 3))}...` : clean;
     };
+    const maxCharsForWidth = (width: number, size = 10) => Math.max(4, Math.floor(width / (size * 0.56)));
+    const wrapText = (value: unknown, maxChars: number, maxLines = 2) => {
+      const clean = sanitize(value);
+      if (!clean) return [''];
+      const words = clean.split(' ');
+      const lines: string[] = [];
+      let currentLine = '';
+
+      words.forEach((word) => {
+        const nextLine = currentLine ? `${currentLine} ${word}` : word;
+        if (nextLine.length <= maxChars) {
+          currentLine = nextLine;
+          return;
+        }
+        if (currentLine) lines.push(currentLine);
+        currentLine = word.length > maxChars ? truncate(word, maxChars) : word;
+      });
+      if (currentLine) lines.push(currentLine);
+
+      if (lines.length <= maxLines) return lines;
+      const visible = lines.slice(0, maxLines);
+      visible[maxLines - 1] = truncate(visible[maxLines - 1], maxChars);
+      return visible;
+    };
     const drawHeader = (full = true) => {
       if (full) {
         text('MERYL SHOES', margin, y, 10, true, '0.55 0.42 0');
@@ -741,8 +765,12 @@ export function ReportsAnalytics() {
     };
     const drawMetric = (label: string, value: string, x: number, metricY: number, width: number) => {
       rect(x, metricY - 52, width, 52, '0.98 0.98 0.98');
-      text(label.toUpperCase(), x + 8, metricY - 18, 7, true, '0.45 0.45 0.45');
-      text(value, x + 8, metricY - 37, 13, true);
+      text(truncate(label.toUpperCase(), maxCharsForWidth(width - 16, 7)), x + 8, metricY - 18, 7, true, '0.45 0.45 0.45');
+      const lines = wrapText(value, maxCharsForWidth(width - 16, 12), 2);
+      const valueSize = lines.length > 1 ? 10 : 13;
+      lines.forEach((lineValue, index) => {
+        text(lineValue, x + 8, metricY - 35 - (index * 12), valueSize, true);
+      });
     };
     const drawMetricGrid = (items: Array<[string, string]>) => {
       ensureSpace(70);
@@ -767,7 +795,7 @@ export function ReportsAnalytics() {
       rect(margin, y - rowHeight, tableWidth, rowHeight, '0.12 0.12 0.15', '0.12 0.12 0.15');
       let x = margin;
       headers.forEach((header, index) => {
-        text(truncate(header, Math.floor(columnWidths[index] / 5)), x + 5, y - 15, 8, true, '1 1 1');
+        text(truncate(header, maxCharsForWidth((columnWidths[index] ?? 60) - 10, 8)), x + 5, y - 15, 8, true, '1 1 1');
         x += columnWidths[index];
       });
       y -= rowHeight;
@@ -780,7 +808,7 @@ export function ReportsAnalytics() {
           text(row[0], cellX + 5, y - 15, 8, false, '0.4 0.4 0.4');
         } else {
           row.forEach((cell, index) => {
-            text(truncate(cell, Math.floor((columnWidths[index] ?? 60) / 5)), cellX + 5, y - 15, 8);
+            text(truncate(cell, maxCharsForWidth((columnWidths[index] ?? 60) - 10, 8)), cellX + 5, y - 15, 8);
             cellX += columnWidths[index] ?? 60;
           });
         }
