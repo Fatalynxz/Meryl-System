@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Plus, Search, Eye, RotateCcw, AlertTriangle, ArrowRightLeft } from "lucide-react";
+import { Minus, Plus, Search, Eye, RotateCcw, AlertTriangle, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../lib/auth-context";
 import { useInventory, useProducts, useReturns, useSales } from "../../lib/hooks";
@@ -88,6 +88,55 @@ const defaultForm: ExchangeForm = {
   return_action: "Replacement",
   inventory_action: "Defective / Not Sellable",
 };
+
+function QuantityStepper({
+  value,
+  min = 1,
+  max = 999,
+  disabled = false,
+  onChange,
+}: {
+  value: number;
+  min?: number;
+  max?: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  const clamp = (nextValue: number) => Math.min(Math.max(min, Math.floor(Number(nextValue) || min)), max);
+
+  return (
+    <div className="mx-auto flex w-[116px] items-center justify-center rounded-xl border border-yellow-400/25 bg-[#1D1D25] p-1">
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        disabled={disabled || value <= min}
+        onClick={() => onChange(clamp(value - 1))}
+        className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Minus className="h-3.5 w-3.5" />
+      </Button>
+      <Input
+        type="text"
+        inputMode="numeric"
+        value={String(value)}
+        disabled={disabled}
+        onChange={(event) => onChange(clamp(Number(event.target.value.replace(/\D/g, ""))))}
+        className="h-7 w-12 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0 disabled:opacity-50"
+      />
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        disabled={disabled || value >= max}
+        onClick={() => onChange(clamp(value + 1))}
+        className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
 
 const REPLACEMENT_REASON_OPTIONS = [
   "Wrong size",
@@ -1134,24 +1183,16 @@ export function ReturnManagement() {
                                 <TableCell className="text-yellow-200 text-center">{detail.quantity}</TableCell>
                                 <TableCell className="text-yellow-200 text-center">{detail.returnable_quantity}</TableCell>
                                 <TableCell className="text-center">
-                                  <Input
-                                    type="number"
-                                    min={1}
-                                    max={Math.max(1, Number(detail.returnable_quantity ?? 1))}
+                                  <QuantityStepper
                                     value={rowQty}
                                     disabled={!isSelected}
-                                    onChange={(event) => {
-                                      const raw = Number(event.target.value || 1);
-                                      const nextQty = Math.min(
-                                        Math.max(1, raw),
-                                        Math.max(1, Number(detail.returnable_quantity ?? detail.quantity ?? 1)),
-                                      );
+                                    max={Math.max(1, Number(detail.returnable_quantity ?? detail.quantity ?? 1))}
+                                    onChange={(nextQty) => {
                                       setReturnedItemQtyByDetail((prev) => ({
                                         ...prev,
                                         [detail.sales_detail_id]: nextQty,
                                       }));
                                     }}
-                                    className="mx-auto h-8 w-20 bg-zinc-900 border-zinc-700 text-yellow-200 text-center disabled:opacity-50"
                                   />
                                 </TableCell>
                                 <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(detail.price)}</TableCell>
@@ -1301,13 +1342,10 @@ export function ReturnManagement() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label className="text-yellow-300">Step 4: Quantity</Label>
-                      <Input
-                        type="number"
-                        min={1}
+                      <QuantityStepper
+                        value={quantity}
                         max={maxReturnQty}
-                        value={formData.quantity}
-                        onChange={(e) => setFormData({ ...formData, quantity: Number(e.target.value || 1) })}
-                        className="bg-red-600 border-red-800 text-yellow-200"
+                        onChange={(nextQty) => setFormData({ ...formData, quantity: nextQty })}
                       />
                       {selectedReturnedItems.length > 1 && (
                         <p className="text-xs text-yellow-300">Tip: Set exact qty per selected item in Step 2 (Replace Qty column).</p>
