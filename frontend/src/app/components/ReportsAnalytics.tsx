@@ -78,6 +78,72 @@ function formatDateRange(start: Date, end: Date) {
   return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
 }
 
+type TrendBucketMode = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually';
+
+function startOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function localDateKey(date: Date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function weekStartMonday(date: Date) {
+  const copy = startOfDay(date);
+  const day = copy.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + diffToMonday);
+  return copy;
+}
+
+function trendBucketMode(timeRange: ReportPeriod, days: number): TrendBucketMode {
+  if (timeRange === 'daily' || timeRange === 'weekly') return 'daily';
+  if (timeRange === 'monthly') return 'weekly';
+  if (timeRange === 'quarterly') return 'monthly';
+  if (timeRange === 'annually') return 'monthly';
+  if (days <= 31) return 'daily';
+  if (days <= 120) return 'weekly';
+  if (days <= 730) return 'monthly';
+  return 'annually';
+}
+
+function bucketStartForDate(date: Date, mode: TrendBucketMode) {
+  const copy = startOfDay(date);
+  if (mode === 'weekly') return weekStartMonday(copy);
+  if (mode === 'monthly') return new Date(copy.getFullYear(), copy.getMonth(), 1);
+  if (mode === 'quarterly') return new Date(copy.getFullYear(), Math.floor(copy.getMonth() / 3) * 3, 1);
+  if (mode === 'annually') return new Date(copy.getFullYear(), 0, 1);
+  return copy;
+}
+
+function nextBucketStart(date: Date, mode: TrendBucketMode) {
+  const next = new Date(date);
+  if (mode === 'weekly') next.setDate(next.getDate() + 7);
+  else if (mode === 'monthly') next.setMonth(next.getMonth() + 1);
+  else if (mode === 'quarterly') next.setMonth(next.getMonth() + 3);
+  else if (mode === 'annually') next.setFullYear(next.getFullYear() + 1);
+  else next.setDate(next.getDate() + 1);
+  return next;
+}
+
+function trendBucketLabel(bucket: Date, mode: TrendBucketMode) {
+  if (mode === 'weekly') {
+    const end = new Date(bucket);
+    end.setDate(bucket.getDate() + 6);
+    return `${bucket.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
+  if (mode === 'monthly') return bucket.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  if (mode === 'quarterly') return `Q${Math.floor(bucket.getMonth() / 3) + 1} ${bucket.getFullYear()}`;
+  if (mode === 'annually') return String(bucket.getFullYear());
+  return bucket.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export function ReportsAnalytics() {
   const [timeRange, setTimeRange] = useState<ReportPeriod>('monthly');
   const [reportType, setReportType] = useState('overview');
@@ -139,29 +205,27 @@ export function ReportsAnalytics() {
   }, [customEndDate, customStartDate, salesRows, timeRange]);
 
   const filteredSalesTrends = useMemo(() => {
-    const { now, start } = rangeWindow(timeRange, customStartDate, customEndDate);
+    const { now, start, days } = rangeWindow(timeRange, customStartDate, customEndDate);
+    const mode = trendBucketMode(timeRange, days);
     const grouped = new Map<string, { sales: number; revenue: number; customers: Set<string>; firstDate: Date }>();
-    const bucketForDate = (date: Date) => {
-      const bucket = new Date(date);
-      if (timeRange === 'annually') {
-        bucket.setDate(1);
-      } else if (timeRange === 'quarterly') {
-        const day = bucket.getDay();
-        bucket.setDate(bucket.getDate() - day);
-      }
-      bucket.setHours(0, 0, 0, 0);
-      return bucket;
-    };
-    const makeLabel = (bucket: Date) => {
-      if (timeRange === 'annually') return bucket.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      if (timeRange === 'quarterly') return `Week of ${bucket.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-      return bucket.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    };
+    let cursor = bucketStartForDate(start, mode);
+
+    while (cursor <= now) {
+      const bucket = new Date(cursor);
+      grouped.set(localDateKey(bucket), {
+        sales: 0,
+        revenue: 0,
+        customers: new Set<string>(),
+        firstDate: bucket,
+      });
+      cursor = nextBucketStart(cursor, mode);
+    }
+
     salesRows.forEach((sale) => {
       const date = saleDate(sale);
       if (!date || date < start || date > now) return;
-      const bucket = bucketForDate(date);
-      const key = bucket.toISOString();
+      const bucket = bucketStartForDate(date, mode);
+      const key = localDateKey(bucket);
       const prev = grouped.get(key) ?? { sales: 0, revenue: 0, customers: new Set<string>(), firstDate: bucket };
       const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
       details.forEach((detail: any) => {
@@ -174,7 +238,7 @@ export function ReportsAnalytics() {
     return Array.from(grouped.entries())
       .map(([, agg], idx) => ({
         id: `flt-${idx}`,
-        date: makeLabel(agg.firstDate),
+        date: trendBucketLabel(agg.firstDate, mode),
         sortDate: agg.firstDate.getTime(),
         sales: Math.round(agg.sales),
         revenue: Math.round(agg.revenue),
