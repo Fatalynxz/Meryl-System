@@ -293,6 +293,22 @@
   input, textarea, select {
     color: #F5F5F7;
   }
+  .date-input-dark {
+    color-scheme: dark;
+  }
+  .date-input-dark::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 1;
+    filter: invert(82%) sepia(79%) saturate(1584%) hue-rotate(358deg) brightness(104%) contrast(102%);
+  }
+  .date-input-dark::-webkit-datetime-edit,
+  .date-input-dark::-webkit-datetime-edit-fields-wrapper,
+  .date-input-dark::-webkit-datetime-edit-text,
+  .date-input-dark::-webkit-datetime-edit-month-field,
+  .date-input-dark::-webkit-datetime-edit-day-field,
+  .date-input-dark::-webkit-datetime-edit-year-field {
+    color: #F5F5F7;
+  }
   table thead { background-color: #1D1D25 !important; }
   table tbody tr { border-color: rgba(255,255,255,0.06); }
   table tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }

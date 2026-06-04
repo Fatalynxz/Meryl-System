@@ -957,7 +957,7 @@ export function ReportsAnalytics() {
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="h-9 w-40 rounded-md border border-[#24242d] bg-[#0b0b0f] px-3 text-sm text-white outline-none focus:ring-2 focus:ring-yellow-400/50"
+                  className="date-input-dark h-9 w-40 rounded-md border border-[#24242d] bg-[#0b0b0f] px-3 text-sm text-white outline-none focus:ring-2 focus:ring-yellow-400/50"
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -966,7 +966,7 @@ export function ReportsAnalytics() {
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="h-9 w-40 rounded-md border border-[#24242d] bg-[#0b0b0f] px-3 text-sm text-white outline-none focus:ring-2 focus:ring-yellow-400/50"
+                  className="date-input-dark h-9 w-40 rounded-md border border-[#24242d] bg-[#0b0b0f] px-3 text-sm text-white outline-none focus:ring-2 focus:ring-yellow-400/50"
                 />
               </div>
             </>
