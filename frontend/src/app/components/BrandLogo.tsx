@@ -1,3 +1,5 @@
+import merylLogoUrl from '../../assets/Meryl_Logo_Red.svg';
+
 type BrandLogoProps = {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
@@ -35,7 +37,7 @@ export function BrandLogo({ size = 'md', className = '' }: BrandLogoProps) {
     >
       <div className={`${styles.inner} flex items-center justify-center rounded-[1rem]`}>
         <img
-          src="/Meryl_Logo_Red.svg"
+          src={merylLogoUrl}
           alt="Meryl Shoes"
           className={`${styles.image} w-full object-contain`}
           style={{ imageRendering: "auto" }}
