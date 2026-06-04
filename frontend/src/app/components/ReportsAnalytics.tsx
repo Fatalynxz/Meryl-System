@@ -594,41 +594,21 @@ export function ReportsAnalytics() {
 
   const inventoryTurnover = useMemo(() => {
     const { now, start, days } = rangeWindow(timeRange, customStartDate, customEndDate);
-    const bucketCount = timeRange === 'daily' ? 1 : timeRange === 'weekly' ? 7 : timeRange === 'monthly' ? 6 : timeRange === 'quarterly' ? 13 : 12;
-    const bucketDays = Math.max(1, Math.ceil(days / bucketCount));
     const buckets: Array<{ start: Date; end: Date; unitsBySku: Map<string, number> }> = [];
+    const mode = trendBucketMode(timeRange, days);
 
-    if (timeRange === 'annually') {
-      const cursor = new Date(start);
-      cursor.setDate(1);
-      cursor.setHours(0, 0, 0, 0);
-      while (cursor <= now) {
-        const bucketStart = new Date(cursor);
-        if (bucketStart < start) bucketStart.setTime(start.getTime());
-        const bucketEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 23, 59, 59, 999);
-        buckets.push({
-          start: bucketStart,
-          end: bucketEnd > now ? now : bucketEnd,
-          unitsBySku: new Map<string, number>(),
-        });
-        cursor.setMonth(cursor.getMonth() + 1);
-      }
-    } else {
-      Array.from({ length: bucketCount }, (_, index) => {
-        const bucketStart = new Date(start);
-        bucketStart.setDate(start.getDate() + (index * bucketDays));
-        const bucketEnd = new Date(bucketStart);
-        bucketEnd.setDate(bucketStart.getDate() + bucketDays - 1);
-        bucketEnd.setHours(23, 59, 59, 999);
-        if (bucketStart <= now) {
-          buckets.push({
-            start: bucketStart,
-            end: bucketEnd > now ? now : bucketEnd,
-            unitsBySku: new Map<string, number>(),
-          });
-        }
-        return null;
+    let cursor = bucketStartForDate(start, mode);
+    while (cursor <= now) {
+      const periodStart = new Date(cursor);
+      const nextStart = nextBucketStart(periodStart, mode);
+      const periodEnd = new Date(nextStart);
+      periodEnd.setMilliseconds(periodEnd.getMilliseconds() - 1);
+      buckets.push({
+        start: periodStart < start ? new Date(start) : periodStart,
+        end: periodEnd > now ? new Date(now) : periodEnd,
+        unitsBySku: new Map<string, number>(),
       });
+      cursor = nextStart;
     }
 
     salesRows.forEach((sale) => {
@@ -646,14 +626,9 @@ export function ReportsAnalytics() {
     return buckets.map((bucket, index) => {
       const bucketSpanDays = Math.max(1, Math.ceil((bucket.end.getTime() - bucket.start.getTime()) / 86400000) + 1);
       const { units, turnover, avgDays } = summarizeSkuTurnover(bucket.unitsBySku, bucketSpanDays);
-      const label = timeRange === 'annually'
-        ? bucket.start.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-        : timeRange === 'quarterly'
-        ? `W${index + 1}`
-        : bucket.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       return {
         id: `it${index}`,
-        month: label,
+        month: trendBucketLabel(bucket.start, mode),
         units,
         turnover,
         avgDays,
