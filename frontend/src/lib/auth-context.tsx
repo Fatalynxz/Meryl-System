@@ -291,8 +291,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Your account is not authorized to reset a password. Please contact the administrator.");
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: passwordResetRedirectUrl(),
+    await supabase.auth.signOut().catch(() => null);
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalizedEmail,
+      options: {
+        shouldCreateUser: false,
+      },
     });
 
     if (error) throw error;
@@ -347,28 +352,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Enter the OTP sent to your email.");
     }
 
-    const { error: recoveryOtpError } = await supabase.auth.verifyOtp({
+    await supabase.auth.signOut().catch(() => null);
+
+    const { error: emailOtpError } = await supabase.auth.verifyOtp({
       email: normalizedEmail,
       token: cleanOtp,
-      type: "recovery",
+      type: "email",
     });
 
-    if (recoveryOtpError) {
-      const { error: emailOtpError } = await supabase.auth.verifyOtp({
-        email: normalizedEmail,
-        token: cleanOtp,
-        type: "email",
-      });
-
-      if (emailOtpError) {
-        const recoveryMessage = getSupabaseErrorMessage(recoveryOtpError);
-        const emailMessage = getSupabaseErrorMessage(emailOtpError);
-        throw new Error(
-          recoveryMessage === emailMessage
-            ? recoveryMessage
-            : `Reset OTP failed: ${recoveryMessage}. Email OTP fallback: ${emailMessage}`,
-        );
-      }
+    if (emailOtpError) {
+      throw new Error(getSupabaseErrorMessage(emailOtpError));
     }
 
     await updatePasswordAfterRecovery(newPassword);
