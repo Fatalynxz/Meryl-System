@@ -9,9 +9,11 @@
 
 begin;
 
+-- Keep this RPC browser-friendly: Supabase JS sends UUID values as strings,
+-- so using text parameters avoids overloaded uuid/text ambiguity in PostgREST.
 create or replace function public.complete_sale(
-  p_user_id uuid,
-  p_customer_id uuid,
+  p_user_id text,
+  p_customer_id text,
   p_payment_method text,
   p_amount_paid numeric,
   p_items jsonb
@@ -27,6 +29,8 @@ declare
   v_total numeric(12, 2);
   v_change numeric(12, 2);
   v_item jsonb;
+  v_user_id uuid;
+  v_customer_id uuid;
   v_product_id uuid;
   v_qty integer;
   v_price numeric(12, 2);
@@ -34,9 +38,12 @@ declare
   v_subtotal numeric(12, 2);
   v_available integer;
 begin
-  if p_user_id is null then
+  if nullif(trim(coalesce(p_user_id, '')), '') is null then
     raise exception 'Cashier is required.';
   end if;
+
+  v_user_id := trim(p_user_id)::uuid;
+  v_customer_id := nullif(trim(coalesce(p_customer_id, '')), '')::uuid;
 
   if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
     raise exception 'Cart is empty.';
@@ -65,10 +72,10 @@ begin
   )
   values (
     v_sales_id,
-    p_customer_id,
+    v_customer_id,
     now(),
     v_total,
-    p_user_id
+    v_user_id
   );
 
   for v_item in select * from jsonb_array_elements(p_items)
@@ -171,7 +178,12 @@ begin
 end;
 $$;
 
-grant execute on function public.complete_sale(uuid, uuid, text, numeric, jsonb) to anon, authenticated;
+grant execute on function public.complete_sale(text, text, text, numeric, jsonb) to anon, authenticated;
+
+-- Remove the duplicate uuid overload created by an earlier patch. Leaving both
+-- text and uuid signatures makes Supabase RPC fail with "could not choose the
+-- best candidate function" because browser JSON values arrive as strings.
+drop function if exists public.complete_sale(uuid, uuid, text, numeric, jsonb);
 
 -- Backfill completed historical sale rows that are missing inventory_log sale movements.
 -- This intentionally does not deduct stock again. It only creates missing log rows.
@@ -204,3 +216,5 @@ where coalesce(sd.quantity, 0) > 0
   );
 
 commit;
+
+notify pgrst, 'reload schema';
