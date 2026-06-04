@@ -28,6 +28,10 @@ function money(value: number) {
   return `PHP ${value.toFixed(2)}`;
 }
 
+function moneyWhole(value: number) {
+  return `PHP ${Math.round(value).toLocaleString()}`;
+}
+
 function percentChange(current: number, previous: number) {
   if (!previous && !current) return 0;
   if (!previous) return 100;
@@ -1306,8 +1310,13 @@ export function ReportsAnalytics() {
                   <BarChart data={revenueByCategory}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#24242d" />
                     <XAxis dataKey="category" stroke="#fef08a" />
-                    <YAxis stroke="#fef08a" />
-                    <Tooltip contentStyle={{ backgroundColor: '#111118', border: '1px solid #24242d', color: '#fef08a' }} />
+                    <YAxis stroke="#fef08a" tickFormatter={(value) => Math.round(Number(value)).toLocaleString()} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#111118', border: '1px solid #24242d', color: '#fef08a' }}
+                      labelStyle={{ color: '#fef3c7', fontWeight: 700 }}
+                      itemStyle={{ color: '#fef08a' }}
+                      formatter={(value, name) => [moneyWhole(Number(value)), name]}
+                    />
                     <Legend wrapperStyle={{ color: '#fef08a' }} />
                     <Bar dataKey="revenue" fill="#fef08a" name="Revenue (PHP)" />
                   </BarChart>
@@ -1322,7 +1331,12 @@ export function ReportsAnalytics() {
                     <Pie data={categoryDistribution} cx="50%" cy="50%" labelLine={false} label={({ name, value }) => `${name} ${value}%`} outerRadius={100} dataKey="value">
                       {categoryDistribution.map((entry) => <Cell key={entry.id} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#111118', border: '1px solid #24242d', color: '#fef08a' }} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#111118', border: '1px solid #24242d', color: '#fef08a' }}
+                      labelStyle={{ color: '#fef3c7', fontWeight: 700 }}
+                      itemStyle={{ color: '#fef08a' }}
+                      formatter={(value, name) => [`${Math.round(Number(value))}%`, name]}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
