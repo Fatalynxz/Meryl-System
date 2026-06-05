@@ -323,22 +323,6 @@ export function Login() {
               </div>
             </div>
 
-            <div className="-mt-1 flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setForgotMode(true);
-                  setResetStep('email');
-                  setResetEmail(username.includes('@') ? username : '');
-                  setError('');
-                  setNotice('');
-                }}
-                className="text-xs font-medium text-[#FFD60A] hover:text-[#ffe36b]"
-              >
-                Forgot password?
-              </button>
-            </div>
-
             {error && (
               <div className="rounded-xl px-3 py-2.5 bg-[#E5202A]/15 border border-[#E5202A]/30 text-sm text-[#FF6B72]">
                 {error}
