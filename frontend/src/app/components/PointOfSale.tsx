@@ -204,6 +204,37 @@ function formatCurrency(value: number) {
     .replace(/^₱/, "PHP ");
 }
 
+function isBogoCartItem(item: Pick<CartItem, "promotionType">) {
+  return String(item.promotionType ?? "").toLowerCase().includes("bogo");
+}
+
+function getBogoFreeUnits(quantity: number) {
+  return Math.floor(Math.max(0, Number(quantity) || 0) / 2);
+}
+
+function getLineDiscountAmount(item: CartItem) {
+  const baseSubtotal = item.price * item.quantity;
+  if (isBogoCartItem(item)) {
+    return Math.min(baseSubtotal, getBogoFreeUnits(item.quantity) * item.price);
+  }
+  return baseSubtotal * (Math.max(0, Math.min(100, Number(item.discount) || 0)) / 100);
+}
+
+function getLineTotal(item: CartItem) {
+  return Math.max(0, item.price * item.quantity - getLineDiscountAmount(item));
+}
+
+function getLineEffectiveDiscountPercent(item: CartItem) {
+  const baseSubtotal = item.price * item.quantity;
+  if (baseSubtotal <= 0) return 0;
+  return (getLineDiscountAmount(item) / baseSubtotal) * 100;
+}
+
+function formatPercentValue(value: number) {
+  const clean = Math.max(0, Math.min(100, Number(value) || 0));
+  return Number.isInteger(clean) ? String(clean) : clean.toFixed(2).replace(/\.?0+$/, "");
+}
+
 export function PointOfSale() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -469,7 +500,12 @@ export function PointOfSale() {
 
       return {
         ...item,
-        discount: isBundle ? 0 : isBogo ? 50 : percent,
+        discount: isBundle ? 0 : isBogo ? getLineEffectiveDiscountPercent({ ...item, promotionType: "bogo" }) : percent,
+        discountInput: isBundle
+          ? "0"
+          : isBogo
+            ? formatPercentValue(getLineEffectiveDiscountPercent({ ...item, promotionType: "bogo" }))
+            : item.discountInput,
         promotionType: isBogo ? "bogo" : isBundle ? "bundle" : (type.includes("fixed") ? "fixed" : type.includes("percentage") ? "percentage" : undefined),
         promo_id: matched.promo.promoKey,
         _promo: matched.promo as ActivePromotionRule,
@@ -494,6 +530,7 @@ export function PointOfSale() {
       const bundlePercent = promoToPercent(promo.discountType, promo.discountValue, 100);
       matching.forEach((target: any) => {
         target.discount = bundlePercent;
+        target.discountInput = formatPercentValue(bundlePercent);
         target.promotionType = "bundle";
       });
     });
@@ -506,11 +543,6 @@ export function PointOfSale() {
       toast.error("This product is not sellable. Set it to Active and make sure it has stock first.");
       return false;
     }
-    if (requestedQuantity > selectedVariant.stock_quantity) {
-      toast.error(`Only ${selectedVariant.stock_quantity} units available in stock`);
-      return false;
-    }
-
     const meta = productMetaById.get(selectedVariant.product_id);
     const productNameLc = String(meta?.productName ?? selectedVariant.product_name).toLowerCase();
     const categoryLc = String(meta?.categoryName ?? "").toLowerCase();
@@ -542,6 +574,13 @@ export function PointOfSale() {
     const isBogoApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bogo"));
     const isBundleApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bundle"));
     const quantityToAdd = isBogoApplied ? requestedQuantity * 2 : requestedQuantity;
+    const existingQuantity = cart.find((item) => item.id === selectedVariant.product_id)?.quantity ?? 0;
+    const nextQuantity = existingQuantity + quantityToAdd;
+    if (nextQuantity > selectedVariant.stock_quantity) {
+      const promoHint = isBogoApplied ? " BOGO consumes 2 units for every paid pair." : "";
+      toast.error(`Only ${selectedVariant.stock_quantity} units available in stock.${promoHint}`);
+      return false;
+    }
     const shouldApplyBundleNow = (() => {
       if (!isBundleApplied || !matchedPromotion) return false;
       let qualifyingQty = requestedQuantity;
@@ -557,7 +596,18 @@ export function PointOfSale() {
     })();
 
     const finalDiscount = isBogoApplied
-      ? 50
+      ? getLineEffectiveDiscountPercent({
+          id: selectedVariant.product_id,
+          product_id: selectedVariant.product_id,
+          productName: selectedVariant.product_name,
+          brand: selectedVariant.brand,
+          color: selectedVariant.color,
+          size: selectedVariant.size,
+          price: selectedVariant.price,
+          quantity: quantityToAdd,
+          discount: 0,
+          promotionType: "bogo",
+        })
       : isBundleApplied
         ? (shouldApplyBundleNow ? promoDiscount : 0)
         : promoDiscount;
@@ -570,7 +620,12 @@ export function PointOfSale() {
               ? {
                   ...item,
                   quantity: item.quantity + quantityToAdd,
-                  discount: isBogoApplied ? 50 : finalDiscount,
+                  discount: isBogoApplied
+                    ? getLineEffectiveDiscountPercent({ ...item, quantity: item.quantity + quantityToAdd, promotionType: "bogo" })
+                    : finalDiscount,
+                  discountInput: isBogoApplied
+                    ? formatPercentValue(getLineEffectiveDiscountPercent({ ...item, quantity: item.quantity + quantityToAdd, promotionType: "bogo" }))
+                    : item.discountInput,
                   promotionType: isBogoApplied ? "bogo" : isBundleApplied ? "bundle" : item.promotionType,
                   promo_id: matchedPromotion?.promoKey ?? item.promo_id ?? null,
                 }
@@ -588,6 +643,7 @@ export function PointOfSale() {
               price: selectedVariant.price,
               quantity: quantityToAdd,
               discount: finalDiscount,
+              discountInput: isBogoApplied ? formatPercentValue(finalDiscount) : undefined,
               promotionType: isBogoApplied ? "bogo" : isBundleApplied ? "bundle" : undefined,
               promo_id: matchedPromotion?.promoKey ?? null,
             },
@@ -646,7 +702,12 @@ export function PointOfSale() {
     });
 
   const updateQuantity = (id: string, newQuantity: number) => {
-    const cleanQuantity = Math.max(1, Math.floor(Number(newQuantity) || 1));
+    const variant = sellableProductInventory.find((row) => row.product_id === id);
+    const maxQuantity = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
+    const cleanQuantity = Math.min(maxQuantity, Math.max(1, Math.floor(Number(newQuantity) || 1)));
+    if (variant && Math.floor(Number(newQuantity) || 1) > maxQuantity) {
+      toast.error(`Only ${maxQuantity} units available in stock`);
+    }
     setCart((prev) =>
       recalculatePromotions(
         prev.map((item) => (item.id === id ? { ...item, quantity: cleanQuantity, quantityInput: String(cleanQuantity) } : item)),
@@ -656,24 +717,28 @@ export function PointOfSale() {
 
   const updateQuantityInput = (id: string, value: string) => {
     const cleanValue = value.replace(/\D/g, "");
+    const variant = sellableProductInventory.find((row) => row.product_id === id);
+    const maxQuantity = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
     setCart((prev) =>
       recalculatePromotions(
         prev.map((item) => {
           if (item.id !== id) return item;
           if (cleanValue === "") return { ...item, quantityInput: "" };
-          const cleanQuantity = Math.max(1, Number(cleanValue) || 1);
-          return { ...item, quantity: cleanQuantity, quantityInput: cleanValue };
+          const cleanQuantity = Math.min(maxQuantity, Math.max(1, Number(cleanValue) || 1));
+          return { ...item, quantity: cleanQuantity, quantityInput: String(cleanQuantity) };
         }),
       ),
     );
   };
 
   const commitQuantityInput = (id: string) => {
+    const variant = sellableProductInventory.find((row) => row.product_id === id);
+    const maxQuantity = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
     setCart((prev) =>
       recalculatePromotions(
         prev.map((item) => {
           if (item.id !== id) return item;
-          const cleanQuantity = Math.max(1, Math.floor(Number(item.quantityInput ?? item.quantity) || 1));
+          const cleanQuantity = Math.min(maxQuantity, Math.max(1, Math.floor(Number(item.quantityInput ?? item.quantity) || 1)));
           return { ...item, quantity: cleanQuantity, quantityInput: String(cleanQuantity) };
         }),
       ),
@@ -687,8 +752,8 @@ export function PointOfSale() {
         item.id === id
           ? {
               ...item,
-              discount: item.promotionType === "bogo" ? 50 : cleanDiscount,
-              discountInput: item.promotionType === "bogo" ? "50" : String(cleanDiscount),
+              discount: isBogoCartItem(item) ? getLineEffectiveDiscountPercent(item) : cleanDiscount,
+              discountInput: isBogoCartItem(item) ? formatPercentValue(getLineEffectiveDiscountPercent(item)) : String(cleanDiscount),
             }
           : item,
       ),
@@ -699,7 +764,7 @@ export function PointOfSale() {
     const cleanValue = value.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1");
     setCart((prev) =>
       prev.map((item) => {
-        if (item.id !== id || item.promotionType === "bogo") return item;
+        if (item.id !== id || isBogoCartItem(item)) return item;
         if (cleanValue === "") return { ...item, discountInput: "", discount: 0 };
         const cleanDiscount = Math.min(100, Math.max(0, Number(cleanValue) || 0));
         return { ...item, discountInput: cleanValue, discount: cleanDiscount };
@@ -710,7 +775,7 @@ export function PointOfSale() {
   const commitDiscountInput = (id: string) => {
     setCart((prev) =>
       prev.map((item) => {
-        if (item.id !== id || item.promotionType === "bogo") return item;
+        if (item.id !== id || isBogoCartItem(item)) return item;
         const cleanDiscount = Math.min(100, Math.max(0, Number(item.discountInput ?? item.discount) || 0));
         return { ...item, discount: cleanDiscount, discountInput: String(cleanDiscount) };
       }),
@@ -718,8 +783,7 @@ export function PointOfSale() {
   };
 
   const calculateSubtotal = () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const calculateTotalDiscount = () =>
-    cart.reduce((sum, item) => sum + item.price * item.quantity * (item.discount / 100), 0);
+  const calculateTotalDiscount = () => cart.reduce((sum, item) => sum + getLineDiscountAmount(item), 0);
   const calculateTotal = () => calculateSubtotal() - calculateTotalDiscount();
 
   const normalizePhone = (value: string) => value.replace(/\D/g, "").slice(0, 11);
@@ -818,8 +882,8 @@ export function PointOfSale() {
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
-      discount_applied: item.discount,
-      subtotal: Number((item.price * item.quantity - item.price * item.quantity * (item.discount / 100)).toFixed(2)),
+      discount_applied: Number(getLineEffectiveDiscountPercent(item).toFixed(2)),
+      subtotal: Number(getLineTotal(item).toFixed(2)),
     }));
 
     const { data, error } = await supabase.rpc("complete_sale", {
@@ -1096,9 +1160,7 @@ export function PointOfSale() {
                   </TableHeader>
                   <TableBody>
                     {cart.map((item) => {
-                      const itemSubtotal = item.price * item.quantity;
-                      const itemDiscount = itemSubtotal * (item.discount / 100);
-                      const itemTotal = itemSubtotal - itemDiscount;
+                      const itemTotal = getLineTotal(item);
                       return (
                         <TableRow key={item.id} className="border-red-800">
                           <TableCell className="text-yellow-200 whitespace-nowrap align-middle px-3 py-2 truncate">
@@ -1178,9 +1240,16 @@ export function PointOfSale() {
                           </TableCell>
                           <TableCell className="text-center align-middle px-2 py-2">
                             {item.promotionType ? (
-                              <Badge className="bg-yellow-400 text-red-900">
-                                {getPromoBadgeLabel(item.promotionType)}
-                              </Badge>
+                              <div className="flex flex-col items-center gap-1">
+                                <Badge className="bg-yellow-400 text-red-900">
+                                  {getPromoBadgeLabel(item.promotionType)}
+                                </Badge>
+                                {isBogoCartItem(item) && (
+                                  <span className="text-[10px] text-yellow-200/70">
+                                    {getBogoFreeUnits(item.quantity)} free
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-yellow-200/60 text-xs">None</span>
                             )}
@@ -1475,10 +1544,15 @@ export function PointOfSale() {
                   <div key={index} className="text-yellow-200 text-sm mb-2">
                     <div className="flex justify-between">
                       <span>{item.productName} ({item.color} - Size {item.size})</span>
-                      <span>₱{(item.price * item.quantity - (item.price * item.quantity * item.discount) / 100).toFixed(2)}</span>
+                      <span>{formatCurrency(getLineTotal(item))}</span>
                     </div>
                     <div className="text-xs text-yellow-300/70 ml-2">
-                      Brand: {item.brand} | {item.quantity} x ₱{item.price} {item.discount > 0 && `(${item.discount}% off)`}
+                      Brand: {item.brand} | {item.quantity} x {formatCurrency(item.price)}{" "}
+                      {isBogoCartItem(item)
+                        ? `(BOGO: ${getBogoFreeUnits(item.quantity)} free)`
+                        : item.discount > 0
+                          ? `(${formatPercentValue(item.discount)}% off)`
+                          : ""}
                     </div>
                   </div>
                 ))}
