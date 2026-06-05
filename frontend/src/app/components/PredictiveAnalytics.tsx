@@ -1489,30 +1489,6 @@ export function PredictiveAnalytics() {
                   <p className="mt-1 text-xs text-emerald-300">Estimated items to prepare</p>
                 </div>
                 <div className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Direction Probability</p>
-                  <div className="mt-3 space-y-2">
-                    <div>
-                      <div className="mb-1 flex justify-between text-xs">
-                        <span className="font-semibold text-emerald-300">Higher</span>
-                        <span className="text-white">{analytics.higherProbability}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-[#24242f]">
-                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${analytics.higherProbability}%` }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="mb-1 flex justify-between text-xs">
-                        <span className="font-semibold text-rose-300">Lower</span>
-                        <span className="text-white">{analytics.lowerProbability}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-[#24242f]">
-                        <div className="h-full rounded-full bg-rose-400" style={{ width: `${analytics.lowerProbability}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xs text-white/55">Scenario band: +/- {Math.round(analytics.scenarioSpread * 100)}% from steady forecast.</p>
-                </div>
-                <div className="rounded-2xl border border-[#2b2b36] bg-white/[0.03] p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Confidence</p>
                   <p className="mt-2 text-2xl font-bold text-white">{analytics.forecastConfidence}%</p>
                   <p className="mt-1 text-xs text-white/55">{analytics.forecastNote}</p>
