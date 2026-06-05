@@ -1330,21 +1330,36 @@ export function ReportsAnalytics() {
           <Card className="bg-[#0b0b0f] border-[#24242d]">
             <CardHeader><CardTitle className="text-yellow-300">Inventory & Stock Status</CardTitle></CardHeader>
             <CardContent>
-              <Table className="overflow-hidden rounded-lg border border-[#24242d] bg-[#07070a]">
-                <TableHeader className="bg-[#0b0b0f]">
-                  <TableRow className="border-[#24242d] hover:bg-[#0b0b0f]">
-                    <TableHead className="text-yellow-300">Item ID</TableHead><TableHead className="text-yellow-300">Brand & Model</TableHead><TableHead className="text-yellow-300 text-center">Size</TableHead><TableHead className="text-yellow-300 text-center">Color</TableHead><TableHead className="text-yellow-300 text-center">In Stock</TableHead><TableHead className="text-yellow-300 text-center">Reorder</TableHead><TableHead className="text-yellow-300 text-center">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {inventoryStatusRows.map((row) => (
-                    <TableRow key={row.id} className="border-[#24242d] bg-[#07070a] hover:bg-white/[0.03]">
-                      <TableCell className="text-yellow-200">{row.itemId}</TableCell><TableCell className="text-yellow-200">{row.name}</TableCell><TableCell className="text-yellow-200 text-center">{row.size}</TableCell><TableCell className="text-yellow-200 text-center">{row.color}</TableCell><TableCell className="text-yellow-200 text-center">{row.stock}</TableCell><TableCell className="text-yellow-200 text-center">{row.reorder}</TableCell>
-                      <TableCell className="text-center"><Badge className={row.status === 'Critical' ? 'bg-red-900 text-red-200' : row.status === 'Reorder Required' ? 'bg-yellow-400 text-black' : row.status === 'Overstock' ? 'bg-blue-600 text-white' : 'bg-green-700 text-white'}>{row.status}</Badge></TableCell>
+              <div className="overflow-hidden rounded-lg border border-[#24242d] bg-[#07070a]">
+                <Table>
+                  <TableHeader className="bg-[#1d1d25]">
+                    <TableRow className="border-[#24242d] hover:bg-[#1d1d25]">
+                      <TableHead className="text-yellow-300 text-center font-semibold">Item ID</TableHead>
+                      <TableHead className="text-yellow-300 text-center font-semibold">Brand & Model</TableHead>
+                      <TableHead className="text-yellow-300 text-center font-semibold">Size</TableHead>
+                      <TableHead className="text-yellow-300 text-center font-semibold">Color</TableHead>
+                      <TableHead className="text-yellow-300 text-center font-semibold">In Stock</TableHead>
+                      <TableHead className="text-yellow-300 text-center font-semibold">Reorder</TableHead>
+                      <TableHead className="text-yellow-300 text-center font-semibold">Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {inventoryStatusRows.map((row) => (
+                      <TableRow key={row.id} className="border-[#24242d] bg-[#07070a] hover:bg-white/[0.03]">
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{row.itemId}</TableCell>
+                        <TableCell className="text-yellow-200 text-center font-medium">{row.name}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{row.size}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{row.color}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{row.stock}</TableCell>
+                        <TableCell className="text-yellow-200 text-center whitespace-nowrap">{row.reorder}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge className={row.status === 'Critical' ? 'bg-red-900 text-red-200' : row.status === 'Reorder Required' ? 'bg-yellow-400 text-black' : row.status === 'Overstock' ? 'bg-blue-600 text-white' : 'bg-green-700 text-white'}>{row.status}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
