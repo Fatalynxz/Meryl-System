@@ -91,6 +91,8 @@ const PROMO_TYPE_MARKERS = {
   bogo: "__TYPE_BOGO__",
 } as const;
 
+const BOGO_MAX_PAIRS_PER_TRANSACTION = 4;
+
 function parsePromotionTarget(rawValue: string | null | undefined) {
   const raw = String(rawValue ?? "").trim();
   if (!raw || raw.toLowerCase() === "all products") {
@@ -576,6 +578,10 @@ export function PointOfSale() {
     const quantityToAdd = isBogoApplied ? requestedQuantity * 2 : requestedQuantity;
     const existingQuantity = cart.find((item) => item.id === selectedVariant.product_id)?.quantity ?? 0;
     const nextQuantity = existingQuantity + quantityToAdd;
+    if (isBogoApplied && nextQuantity > BOGO_MAX_PAIRS_PER_TRANSACTION) {
+      toast.error(`BOGO limit is ${BOGO_MAX_PAIRS_PER_TRANSACTION} pairs per product per transaction.`);
+      return false;
+    }
     if (nextQuantity > selectedVariant.stock_quantity) {
       const promoHint = isBogoApplied ? " BOGO consumes 2 units for every paid pair." : "";
       toast.error(`Only ${selectedVariant.stock_quantity} units available in stock.${promoHint}`);
@@ -702,11 +708,19 @@ export function PointOfSale() {
     });
 
   const updateQuantity = (id: string, newQuantity: number) => {
+    const currentItem = cart.find((item) => item.id === id);
     const variant = sellableProductInventory.find((row) => row.product_id === id);
-    const maxQuantity = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
+    const stockMax = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
+    const maxQuantity = isBogoCartItem(currentItem ?? { promotionType: "" })
+      ? Math.min(stockMax, BOGO_MAX_PAIRS_PER_TRANSACTION)
+      : stockMax;
     const cleanQuantity = Math.min(maxQuantity, Math.max(1, Math.floor(Number(newQuantity) || 1)));
-    if (variant && Math.floor(Number(newQuantity) || 1) > maxQuantity) {
-      toast.error(`Only ${maxQuantity} units available in stock`);
+    if (Math.floor(Number(newQuantity) || 1) > maxQuantity) {
+      toast.error(
+        isBogoCartItem(currentItem ?? { promotionType: "" })
+          ? `BOGO limit is ${BOGO_MAX_PAIRS_PER_TRANSACTION} pairs per product per transaction.`
+          : `Only ${maxQuantity} units available in stock`,
+      );
     }
     setCart((prev) =>
       recalculatePromotions(
@@ -717,8 +731,12 @@ export function PointOfSale() {
 
   const updateQuantityInput = (id: string, value: string) => {
     const cleanValue = value.replace(/\D/g, "");
+    const currentItem = cart.find((item) => item.id === id);
     const variant = sellableProductInventory.find((row) => row.product_id === id);
-    const maxQuantity = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
+    const stockMax = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
+    const maxQuantity = isBogoCartItem(currentItem ?? { promotionType: "" })
+      ? Math.min(stockMax, BOGO_MAX_PAIRS_PER_TRANSACTION)
+      : stockMax;
     setCart((prev) =>
       recalculatePromotions(
         prev.map((item) => {
@@ -732,8 +750,12 @@ export function PointOfSale() {
   };
 
   const commitQuantityInput = (id: string) => {
+    const currentItem = cart.find((item) => item.id === id);
     const variant = sellableProductInventory.find((row) => row.product_id === id);
-    const maxQuantity = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
+    const stockMax = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
+    const maxQuantity = isBogoCartItem(currentItem ?? { promotionType: "" })
+      ? Math.min(stockMax, BOGO_MAX_PAIRS_PER_TRANSACTION)
+      : stockMax;
     setCart((prev) =>
       recalculatePromotions(
         prev.map((item) => {
