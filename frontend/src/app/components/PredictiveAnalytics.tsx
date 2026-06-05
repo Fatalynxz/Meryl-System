@@ -717,6 +717,7 @@ export function PredictiveAnalytics() {
     const forecastHistory = buildPeriodBuckets(salesForecastPeriod, getPeriodStart(salesForecastPeriod));
     const recentForecastBase = forecastHistory.filter((row) => row.revenue > 0 || row.units > 0).slice(-6);
     const forecastBase = recentForecastBase.length ? recentForecastBase : forecastHistory.slice(-3);
+    const selectedPeriodBase = forecastBase.length ? forecastBase : forecastHistory;
     const dailyModelStart = dailyRows[0]?.date && dailyRows[0].date > last90 ? new Date(dailyRows[0].date) : new Date(last90);
     dailyModelStart.setHours(0, 0, 0, 0);
     const dailyModelDays = countDaysInclusive(dailyModelStart, now);
@@ -753,11 +754,31 @@ export function PredictiveAnalytics() {
     const activeRevenueDays = dailyModelBase.filter((row) => row.revenue > 0).length;
     const revenueVariance = dailyModelBase.reduce((sum, row) => sum + Math.pow(row.revenue - averageDailyRevenue, 2), 0) / Math.max(1, dailyModelBase.length);
     const revenueVolatility = averageDailyRevenue > 0 ? Math.min(1, Math.sqrt(revenueVariance) / averageDailyRevenue) : 1;
-    const historyQuality = hasReliableForecastHistory ? Math.min(1, activeRevenueDays / 12) : 0.35;
-    const probabilitySignal = (dailyTrendRate * 0.6) + (recentMomentumRate * 0.4);
-    const probabilityConfidence = historyQuality * Math.max(0.35, 1 - revenueVolatility * 0.35);
+    const periodRevenueRows = selectedPeriodBase.map((row) => Number(row.revenue ?? 0));
+    const activeRevenuePeriods = periodRevenueRows.filter((value) => value > 0).length;
+    const firstPeriodHalf = periodRevenueRows.slice(0, Math.max(1, Math.floor(periodRevenueRows.length / 2)));
+    const secondPeriodHalf = periodRevenueRows.slice(Math.max(1, Math.floor(periodRevenueRows.length / 2)));
+    const firstPeriodAverage = firstPeriodHalf.reduce((sum, value) => sum + value, 0) / Math.max(1, firstPeriodHalf.length);
+    const secondPeriodAverage = secondPeriodHalf.reduce((sum, value) => sum + value, 0) / Math.max(1, secondPeriodHalf.length);
+    const periodTrendRate = firstPeriodAverage > 0
+      ? Math.max(-0.35, Math.min(0.35, (secondPeriodAverage - firstPeriodAverage) / firstPeriodAverage))
+      : dailyTrendRate;
+    const recentPeriodWindowSize = Math.min(3, Math.max(1, Math.floor(periodRevenueRows.length / 2)));
+    const recentPeriodWindow = periodRevenueRows.slice(-recentPeriodWindowSize);
+    const previousPeriodWindow = periodRevenueRows.slice(-recentPeriodWindowSize * 2, -recentPeriodWindowSize);
+    const recentPeriodAverage = recentPeriodWindow.reduce((sum, value) => sum + value, 0) / Math.max(1, recentPeriodWindow.length);
+    const previousPeriodAverage = previousPeriodWindow.reduce((sum, value) => sum + value, 0) / Math.max(1, previousPeriodWindow.length);
+    const periodMomentumRate = previousPeriodAverage > 0
+      ? Math.max(-0.35, Math.min(0.35, (recentPeriodAverage - previousPeriodAverage) / previousPeriodAverage))
+      : periodTrendRate;
+    const averagePeriodRevenue = periodRevenueRows.reduce((sum, value) => sum + value, 0) / Math.max(1, periodRevenueRows.length);
+    const periodRevenueVariance = periodRevenueRows.reduce((sum, value) => sum + Math.pow(value - averagePeriodRevenue, 2), 0) / Math.max(1, periodRevenueRows.length);
+    const periodRevenueVolatility = averagePeriodRevenue > 0 ? Math.min(1, Math.sqrt(periodRevenueVariance) / averagePeriodRevenue) : revenueVolatility;
+    const historyQuality = hasReliableForecastHistory ? Math.min(1, Math.max(activeRevenueDays / 12, activeRevenuePeriods / 4)) : 0.35;
+    const probabilitySignal = (periodTrendRate * 0.6) + (periodMomentumRate * 0.4);
+    const probabilityConfidence = historyQuality * Math.max(0.35, 1 - periodRevenueVolatility * 0.35);
     const scenarioSpread = hasReliableForecastHistory
-      ? Math.min(0.45, Math.max(0.12, Math.abs(dailyTrendRate) + 0.15))
+      ? Math.min(0.45, Math.max(0.12, Math.abs(periodTrendRate) + 0.15))
       : 0.35;
     const probabilityForHorizon = (horizonIndex = 0) => {
       const horizonDecay = Math.max(0.45, 1 - horizonIndex * 0.08);
