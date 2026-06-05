@@ -575,14 +575,17 @@ export function PointOfSale() {
 
     const isBogoApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bogo"));
     const isBundleApplied = Boolean(matchedPromotion?.discountType.toLowerCase().includes("bundle"));
-    const quantityToAdd = isBogoApplied ? requestedQuantity * 2 : requestedQuantity;
-    const existingQuantity = cart.find((item) => item.id === selectedVariant.product_id)?.quantity ?? 0;
-    const nextQuantity = existingQuantity + quantityToAdd;
-    if (isBogoApplied && nextQuantity > BOGO_MAX_PAIRS_PER_TRANSACTION) {
+    const quantityToAdd = isBogoApplied ? 2 : requestedQuantity;
+    const existingProductQuantity = cart
+      .filter((item) => item.product_id === selectedVariant.product_id)
+      .reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
+    const existingBogoPairs = cart.filter((item) => item.product_id === selectedVariant.product_id && isBogoCartItem(item)).length;
+    const nextProductQuantity = existingProductQuantity + quantityToAdd;
+    if (isBogoApplied && existingBogoPairs + 1 > BOGO_MAX_PAIRS_PER_TRANSACTION) {
       toast.error(`BOGO limit is ${BOGO_MAX_PAIRS_PER_TRANSACTION} pairs per product per transaction.`);
       return false;
     }
-    if (nextQuantity > selectedVariant.stock_quantity) {
+    if (nextProductQuantity > selectedVariant.stock_quantity) {
       const promoHint = isBogoApplied ? " BOGO consumes 2 units for every paid pair." : "";
       toast.error(`Only ${selectedVariant.stock_quantity} units available in stock.${promoHint}`);
       return false;
@@ -619,7 +622,7 @@ export function PointOfSale() {
         : promoDiscount;
 
     setCart((prev) => {
-      const existingItem = prev.find((item) => item.id === selectedVariant.product_id);
+      const existingItem = isBogoApplied ? undefined : prev.find((item) => item.id === selectedVariant.product_id);
       const next = existingItem
         ? prev.map((item) =>
             item.id === selectedVariant.product_id
@@ -640,7 +643,9 @@ export function PointOfSale() {
         : [
             ...prev,
             {
-              id: selectedVariant.product_id,
+              id: isBogoApplied
+                ? `${selectedVariant.product_id}:bogo:${matchedPromotion?.promoKey ?? "promo"}:${Date.now()}`
+                : selectedVariant.product_id,
               product_id: selectedVariant.product_id,
               productName: selectedVariant.product_name,
               brand: selectedVariant.brand,
@@ -662,7 +667,7 @@ export function PointOfSale() {
     setSelectedSize("");
     setQuantity("1");
     if (isBogoApplied) {
-      toast.success("BOGO applied: quantity doubled and charged as buy-1-get-1");
+      toast.success("BOGO applied: 2 pairs locked as buy-1-get-1");
     } else if (isBundleApplied && !shouldApplyBundleNow) {
       toast.success("Bundle selected. Add at least 2 qualifying items to activate discount.");
     } else if (isBundleApplied && shouldApplyBundleNow) {
@@ -715,18 +720,16 @@ export function PointOfSale() {
 
   const updateQuantity = (id: string, newQuantity: number) => {
     const currentItem = cart.find((item) => item.id === id);
-    const variant = sellableProductInventory.find((row) => row.product_id === id);
+    if (currentItem && isBogoCartItem(currentItem)) {
+      toast.error("BOGO quantity is locked to 2 pairs. Add another BOGO line for another pair.");
+      return;
+    }
+    const variant = sellableProductInventory.find((row) => row.product_id === currentItem?.product_id);
     const stockMax = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
-    const maxQuantity = isBogoCartItem(currentItem ?? { promotionType: "" })
-      ? Math.min(stockMax, BOGO_MAX_PAIRS_PER_TRANSACTION)
-      : stockMax;
+    const maxQuantity = stockMax;
     const cleanQuantity = Math.min(maxQuantity, Math.max(1, Math.floor(Number(newQuantity) || 1)));
     if (Math.floor(Number(newQuantity) || 1) > maxQuantity) {
-      toast.error(
-        isBogoCartItem(currentItem ?? { promotionType: "" })
-          ? `BOGO limit is ${BOGO_MAX_PAIRS_PER_TRANSACTION} pairs per product per transaction.`
-          : `Only ${maxQuantity} units available in stock`,
-      );
+      toast.error(`Only ${maxQuantity} units available in stock`);
     }
     setCart((prev) =>
       recalculatePromotions(
@@ -738,11 +741,10 @@ export function PointOfSale() {
   const updateQuantityInput = (id: string, value: string) => {
     const cleanValue = value.replace(/\D/g, "");
     const currentItem = cart.find((item) => item.id === id);
-    const variant = sellableProductInventory.find((row) => row.product_id === id);
+    if (currentItem && isBogoCartItem(currentItem)) return;
+    const variant = sellableProductInventory.find((row) => row.product_id === currentItem?.product_id);
     const stockMax = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
-    const maxQuantity = isBogoCartItem(currentItem ?? { promotionType: "" })
-      ? Math.min(stockMax, BOGO_MAX_PAIRS_PER_TRANSACTION)
-      : stockMax;
+    const maxQuantity = stockMax;
     setCart((prev) =>
       recalculatePromotions(
         prev.map((item) => {
@@ -757,11 +759,10 @@ export function PointOfSale() {
 
   const commitQuantityInput = (id: string) => {
     const currentItem = cart.find((item) => item.id === id);
-    const variant = sellableProductInventory.find((row) => row.product_id === id);
+    if (currentItem && isBogoCartItem(currentItem)) return;
+    const variant = sellableProductInventory.find((row) => row.product_id === currentItem?.product_id);
     const stockMax = Math.max(1, Number(variant?.stock_quantity ?? Number.MAX_SAFE_INTEGER));
-    const maxQuantity = isBogoCartItem(currentItem ?? { promotionType: "" })
-      ? Math.min(stockMax, BOGO_MAX_PAIRS_PER_TRANSACTION)
-      : stockMax;
+    const maxQuantity = stockMax;
     setCart((prev) =>
       recalculatePromotions(
         prev.map((item) => {
@@ -1195,6 +1196,7 @@ export function PointOfSale() {
                   <TableBody>
                     {cart.map((item) => {
                       const itemTotal = getLineTotal(item);
+                      const itemIsBogo = isBogoCartItem(item);
                       return (
                         <TableRow key={item.id} className="border-red-800">
                           <TableCell className="text-yellow-200 whitespace-nowrap align-middle px-3 py-2 truncate">
@@ -1215,7 +1217,7 @@ export function PointOfSale() {
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                disabled={item.quantity <= 1}
+                                disabled={itemIsBogo || item.quantity <= 1}
                                 className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 <Minus className="h-3.5 w-3.5" />
@@ -1227,12 +1229,14 @@ export function PointOfSale() {
                                 onChange={(e) => updateQuantityInput(item.id, e.target.value)}
                                 onBlur={() => commitQuantityInput(item.id)}
                                 className="h-7 w-10 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                disabled={itemIsBogo}
                               />
                               <Button
                                 type="button"
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                disabled={itemIsBogo}
                                 className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219]"
                               >
                                 <Plus className="h-3.5 w-3.5" />
@@ -1246,7 +1250,7 @@ export function PointOfSale() {
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => updateDiscount(item.id, item.discount - 1)}
-                                disabled={item.promotionType === "bogo" || item.discount <= 0}
+                                disabled={itemIsBogo || item.discount <= 0}
                                 className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 <Minus className="h-3.5 w-3.5" />
@@ -1258,14 +1262,14 @@ export function PointOfSale() {
                                 onChange={(e) => updateDiscountInput(item.id, e.target.value)}
                                 onBlur={() => commitDiscountInput(item.id)}
                                 className="h-7 w-14 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0"
-                                disabled={item.promotionType === "bogo"}
+                                disabled={itemIsBogo}
                               />
                               <Button
                                 type="button"
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => updateDiscount(item.id, item.discount + 1)}
-                                disabled={item.promotionType === "bogo" || item.discount >= 100}
+                                disabled={itemIsBogo || item.discount >= 100}
                                 className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 <Plus className="h-3.5 w-3.5" />
