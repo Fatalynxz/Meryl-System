@@ -20,6 +20,32 @@ function asDate(value: string | null | undefined) {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function latestDate(...values: Array<string | null | undefined>) {
+  const dates = values.map(asDate).filter((date): date is Date => Boolean(date));
+  if (!dates.length) return null;
+  return dates.sort((a, b) => b.getTime() - a.getTime())[0];
+}
+
+function compactParts(parts: Array<string | null | undefined>) {
+  return parts
+    .map((part) => String(part ?? "").trim())
+    .filter((part) => part && part.toLowerCase() !== "n/a" && part.toLowerCase() !== "default");
+}
+
+function stockVariantLabel(product: any, inventory: any) {
+  const name = String(product?.product_name ?? "Unknown Product").trim();
+  const brand = String(product?.brand ?? "").trim();
+  const sku = String(product?.sku ?? product?.product_id ?? "").trim();
+  const variant = compactParts([
+    product?.color,
+    product?.gender,
+    product?.size ? `Size ${product.size}` : null,
+  ]);
+  const variantText = variant.length ? ` - ${variant.join(" / ")}` : "";
+  const skuText = sku ? ` (${sku.slice(0, 8)})` : "";
+  return `${brand ? `${brand} ` : ""}${name}${variantText}${skuText}`;
+}
+
 export function NotificationCenter() {
   const READ_STORAGE_KEY = "meryl_notifications_read_ids";
   const DISMISSED_STORAGE_KEY = "meryl_notifications_dismissed_ids";
@@ -48,29 +74,50 @@ export function NotificationCenter() {
         const inventory = Array.isArray(p.inventory) ? p.inventory[0] : p.inventory;
         const stock = Number(inventory?.stock_quantity ?? 0);
         const reorder = Number(p.reorder_level ?? inventory?.reorder_level ?? 10);
-        return { name: String(p.product_name ?? "Unknown Product"), stock, reorder };
+        const productId = String(p.product_id ?? p.id ?? p.sku ?? p.product_name ?? "product");
+        const eventDate =
+          latestDate(
+            inventory?.last_updated,
+            inventory?.updated_at,
+            p.last_updated,
+            p.updated_at,
+            p.created_at,
+          ) ?? now;
+        return {
+          productId,
+          label: stockVariantLabel(p, inventory),
+          stock,
+          reorder,
+          eventDate,
+        };
       })
-      .filter((x) => x.stock <= x.reorder);
+      .filter((x) => x.stock <= x.reorder)
+      .sort((a, b) => {
+        const stockDiff = a.stock - b.stock;
+        if (stockDiff !== 0) return stockDiff;
+        return b.eventDate.getTime() - a.eventDate.getTime();
+      });
 
     const criticalStock = lowStock.filter((x) => x.stock <= Math.max(2, Math.floor(x.reorder * 0.4)));
     if (criticalStock.length > 0) {
       const top = criticalStock[0];
       generated.push({
-        id: `stock-critical-${top.name}`,
+        id: `stock-critical-${top.productId}-${top.stock}-${top.reorder}-${top.eventDate.getTime()}`,
         type: "critical",
         title: "Critical Stock Alert",
-        message: `${top.name} has only ${top.stock} units left and is below safe stock level.`,
-        timestamp: now,
+        message: `${top.label} has only ${top.stock} units left and is below safe stock level.`,
+        timestamp: top.eventDate,
         icon: "stock",
       });
     }
     if (lowStock.length > 0) {
+      const latest = [...lowStock].sort((a, b) => b.eventDate.getTime() - a.eventDate.getTime())[0];
       generated.push({
-        id: "stock-low-summary",
+        id: `stock-low-summary-${lowStock.length}-${latest.productId}-${latest.stock}-${latest.eventDate.getTime()}`,
         type: "warning",
         title: "Low Stock Warning",
-        message: `${lowStock.length} products are at or below reorder level.`,
-        timestamp: new Date(now.getTime() - 10 * 60000),
+        message: `${lowStock.length} variants are at or below reorder level. Latest: ${latest.label} (${latest.stock}/${latest.reorder} units).`,
+        timestamp: latest.eventDate,
         icon: "stock",
       });
     }
