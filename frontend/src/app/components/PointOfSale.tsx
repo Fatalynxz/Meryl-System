@@ -249,7 +249,7 @@ export function PointOfSale() {
   const [selectedProductKey, setSelectedProductKey] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<string>("1");
   const [customerName, setCustomerName] = useState<string>("walk-in");
   const [saveWalkInDetails, setSaveWalkInDetails] = useState(false);
   const [walkInCustomerName, setWalkInCustomerName] = useState("");
@@ -660,7 +660,7 @@ export function PointOfSale() {
     setSelectedProductKey("");
     setSelectedColor("");
     setSelectedSize("");
-    setQuantity(1);
+    setQuantity("1");
     if (isBogoApplied) {
       toast.success("BOGO applied: quantity doubled and charged as buy-1-get-1");
     } else if (isBundleApplied && !shouldApplyBundleNow) {
@@ -685,13 +685,19 @@ export function PointOfSale() {
     );
     if (!selectedVariant) return;
 
-    const added = addVariantToCart(selectedVariant, quantity);
+    const requestedQuantity = Math.floor(Number(quantity));
+    if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0) {
+      toast.error("Please enter a valid quantity");
+      return;
+    }
+
+    const added = addVariantToCart(selectedVariant, requestedQuantity);
     if (!added) return;
 
     setSelectedProductKey("");
     setSelectedColor("");
     setSelectedSize("");
-    setQuantity(1);
+    setQuantity("1");
   };
 
   const selectProductVariant = (variant: ProductVariant) => {
@@ -1139,7 +1145,13 @@ export function PointOfSale() {
                   type="number"
                   min="1"
                   value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  onChange={(e) => {
+                    const cleanValue = e.target.value.replace(/[^\d]/g, "");
+                    setQuantity(cleanValue);
+                  }}
+                  onBlur={() => {
+                    if (!quantity || Number(quantity) <= 0) setQuantity("1");
+                  }}
                   className="bg-red-600 border-red-800 text-yellow-200"
                 />
               </div>
