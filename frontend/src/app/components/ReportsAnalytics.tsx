@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
-import { useProducts, usePromotions, useSales } from '../../lib/hooks';
+import { useProducts, useSales } from '../../lib/hooks';
 
 function isCompletedSale(sale: any) {
   const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
@@ -194,11 +194,9 @@ export function ReportsAnalytics() {
   const [showComparison, setShowComparison] = useState(true);
   const salesQuery = useSales();
   const productsQuery = useProducts();
-  const promotionsQuery = usePromotions();
 
   const salesRows = ((salesQuery.data as any[]) ?? []).filter(isCompletedSale);
   const productRows = (productsQuery.data as any[]) ?? [];
-  const promotionRows = (promotionsQuery.data as any[]) ?? [];
 
   const productLookup = useMemo(() => {
     const map = new Map<string, any>();
@@ -635,43 +633,12 @@ export function ReportsAnalytics() {
     });
   }, [customEndDate, customStartDate, salesRows, stockBySku, timeRange]);
 
-  const promotionEffectiveness = useMemo(() => {
-    const totalUnits = Math.max(currentMetrics.current.units, 1);
-    return promotionRows.map((promo: any, index) => {
-      const promoProducts = Array.isArray(promo.promo_product) ? promo.promo_product : [];
-      const productIds = new Set(promoProducts.map((row: any) => String(row.product_id ?? row.product?.product_id ?? '')));
-      const start = new Date(promo.start_date ?? '');
-      const end = new Date(promo.end_date ?? '');
-      let revenue = 0;
-      let units = 0;
-      salesRows.forEach((sale) => {
-        const date = saleDate(sale);
-        if (!date || (!Number.isNaN(start.getTime()) && date < start) || (!Number.isNaN(end.getTime()) && date > end)) return;
-        const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
-        details.forEach((detail: any) => {
-          const productId = String(detail.product_id ?? '');
-          if (productIds.size && !productIds.has(productId)) return;
-          revenue += Number(detail.subtotal ?? 0);
-          units += Number(detail.quantity ?? 0);
-        });
-      });
-      return {
-        id: String(promo.promo_id ?? `pe${index}`),
-        promotion: String(promo.promo_name ?? 'Promotion'),
-        revenue,
-        roi: Math.min(100, Math.round((units / totalUnits) * 100)),
-        conversion: Number(((units / totalUnits) * 100).toFixed(1)),
-      };
-    }).sort((a, b) => b.revenue - a.revenue);
-  }, [currentMetrics.current.units, promotionRows, salesRows]);
-
   const handleExportReport = () => {
     const reportNames: Record<string, string> = {
       overview: 'Executive Overview Report',
       sales: 'Sales Report',
       revenue: 'Revenue Report',
       inventory: 'Inventory Report',
-      promotions: 'Promotions Report',
     };
     const generatedAt = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
     const sanitize = (value: unknown) => String(value ?? '')
@@ -838,9 +805,6 @@ export function ReportsAnalytics() {
       drawTable(['Period', 'Units Sold', 'Turnover', 'Avg Days'], inventoryTurnover.map((row) => [row.month, row.units, `${row.turnover.toFixed(2)}x`, row.avgDays || 0]));
       drawTitle('Inventory and Stock Status');
       drawTable(['Item ID', 'Brand and Model', 'Size', 'Color', 'Stock', 'Reorder', 'Status'], inventoryStatusRows.map((row) => [row.itemId, row.name, row.size, row.color, row.stock, row.reorder, row.status]));
-    } else if (reportType === 'promotions') {
-      drawTitle('Promotion Performance');
-      drawTable(['Promotion', 'Revenue', 'ROI', 'Conversion'], promotionEffectiveness.map((row) => [row.promotion, money(row.revenue), `${row.roi}%`, `${row.conversion}%`]));
     }
 
     pages.forEach((page, index) => {
@@ -953,7 +917,6 @@ export function ReportsAnalytics() {
                 <SelectItem value="sales">Sales Report</SelectItem>
                 <SelectItem value="revenue">Revenue Report</SelectItem>
                 <SelectItem value="inventory">Inventory Report</SelectItem>
-                <SelectItem value="promotions">Promotions Report</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1382,38 +1345,6 @@ export function ReportsAnalytics() {
                   ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {reportType === 'promotions' && (
-        <div className="space-y-4">
-          <Card className="bg-[#0b0b0f] border-[#24242d]">
-            <CardHeader><CardTitle className="text-yellow-300">Promotion Effectiveness Analysis</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={promotionEffectiveness}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#24242d" />
-                  <XAxis dataKey="promotion" stroke="#fef08a" />
-                  <YAxis stroke="#fef08a" />
-                  <Tooltip contentStyle={{ backgroundColor: '#111118', border: '1px solid #24242d', color: '#fef08a' }} />
-                  <Legend wrapperStyle={{ color: '#fef08a' }} />
-                  <Bar dataKey="revenue" fill="#fef08a" name="Revenue (PHP)" />
-                  <Bar dataKey="roi" fill="#facc15" name="ROI (%)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card className="bg-[#0b0b0f] border-[#24242d]">
-            <CardHeader><CardTitle className="text-yellow-300">Promotion Performance Summary</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {promotionEffectiveness.map((promo) => (
-                <div key={promo.id} className="flex justify-between items-center border-b border-[#24242d] pb-3">
-                  <div><p className="text-yellow-200">{promo.promotion}</p><p className="text-yellow-300 text-xs">Conversion: {promo.conversion}%</p></div>
-                  <div className="flex gap-3"><Badge className="bg-yellow-400 text-black">{money(promo.revenue)}</Badge><Badge className="bg-green-600 text-white">{promo.roi}% ROI</Badge></div>
-                </div>
-              ))}
             </CardContent>
           </Card>
         </div>
