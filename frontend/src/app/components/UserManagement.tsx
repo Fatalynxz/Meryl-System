@@ -88,7 +88,7 @@ export function UserManagement() {
   const { user: currentUser } = useAuth();
   const usersQuery = useUsers();
   const rolesQuery = useRoles();
-  const { createMutation, updateMutation } = useUsersMutations();
+  const { createMutation, updateMutation, removeMutation } = useUsersMutations();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -272,6 +272,46 @@ export function UserManagement() {
     }
   };
 
+  const handleDeleteUser = async (target: UserRow) => {
+    if (target.role === 'admin' || target.user_id === currentUser?.user_id) {
+      toast.error('Protected accounts cannot be deleted here');
+      return;
+    }
+
+    if (target.status === 'Active') {
+      await handleDeactivateUser(target);
+      return;
+    }
+
+    const confirmed = window.confirm(`Permanently delete inactive user ${target.name}? This cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      await removeMutation.mutateAsync(target.user_id);
+      await writeAuditLog({
+        actorUserId: currentUser?.user_id,
+        actionType: "delete_user",
+        entityType: "user",
+        entityId: target.user_id,
+        oldData: {
+          name: target.name,
+          username: target.username,
+          role: target.role,
+          status: target.status,
+          email: target.email ?? null,
+        },
+      });
+      toast.success('Inactive user deleted successfully!');
+    } catch (error: any) {
+      const message = String(error?.message ?? '');
+      if (message.toLowerCase().includes('foreign key')) {
+        toast.error('This user has linked records, so keep the account inactive instead of deleting it.');
+      } else {
+        toast.error(message || 'Could not delete user');
+      }
+    }
+  };
+
   const openEditDialog = (item: UserRow) => {
     setEditingUser(item);
     setFormData({
@@ -303,7 +343,7 @@ export function UserManagement() {
     }
   };
 
-  const isBusy = createMutation.isPending || updateMutation.isPending;
+  const isBusy = createMutation.isPending || updateMutation.isPending || removeMutation.isPending;
 
   return (
     <div className="space-y-4">
@@ -427,10 +467,10 @@ export function UserManagement() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            title={isProtected ? 'Protected account' : 'Deactivate user'}
+                            title={isProtected ? 'Protected account' : item.status === 'Active' ? 'Deactivate user' : 'Delete inactive user'}
                             className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600 disabled:opacity-40"
-                            onClick={() => handleDeactivateUser(item)}
-                            disabled={isProtected || item.status === 'Inactive' || isBusy}
+                            onClick={() => void handleDeleteUser(item)}
+                            disabled={isProtected || isBusy}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
