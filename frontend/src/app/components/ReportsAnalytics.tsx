@@ -593,19 +593,18 @@ export function ReportsAnalytics() {
   };
 
   const inventoryTurnover = useMemo(() => {
-    const { now, start, days } = rangeWindow(timeRange, customStartDate, customEndDate);
+    const { end, mode, start } = salesTrendFrame(timeRange, customStartDate, customEndDate);
     const buckets: Array<{ start: Date; end: Date; unitsBySku: Map<string, number> }> = [];
-    const mode = trendBucketMode(timeRange, days);
 
     let cursor = bucketStartForDate(start, mode);
-    while (cursor <= now) {
+    while (cursor <= end) {
       const periodStart = new Date(cursor);
       const nextStart = nextBucketStart(periodStart, mode);
       const periodEnd = new Date(nextStart);
       periodEnd.setMilliseconds(periodEnd.getMilliseconds() - 1);
       buckets.push({
         start: periodStart < start ? new Date(start) : periodStart,
-        end: periodEnd > now ? new Date(now) : periodEnd,
+        end: periodEnd > end ? new Date(end) : periodEnd,
         unitsBySku: new Map<string, number>(),
       });
       cursor = nextStart;
@@ -613,7 +612,7 @@ export function ReportsAnalytics() {
 
     salesRows.forEach((sale) => {
       const date = saleDate(sale);
-      if (!date || date < start || date > now) return;
+      if (!date || date < start || date > end) return;
       const bucket = buckets.find((item) => date >= item.start && date <= item.end);
       if (!bucket) return;
       const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
