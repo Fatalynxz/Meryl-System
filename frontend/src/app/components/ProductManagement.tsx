@@ -990,26 +990,16 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                           </button>
 
                           {isOpen && (
-                            <div className="space-y-1 border-t border-[#2d2d3a] p-2">
+                            <div className="grid gap-2 border-t border-[#2d2d3a] p-2 sm:grid-cols-2 xl:grid-cols-3">
                               {group.variants.map((product) => {
                                 const isSelected = stockForm.product_id === product.product_id;
                                 return (
-                                  <button
-                                    type="button"
+                                  <ProductSizeCard
                                     key={product.product_id}
-                                    onClick={() => selectProductForSettings(product.product_id)}
-                                    className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition ${
-                                      isSelected
-                                        ? "bg-yellow-400 text-red-950"
-                                        : "bg-[#111118] text-yellow-100 hover:bg-yellow-400/10 hover:text-white"
-                                    }`}
-                                  >
-                                    <span className="min-w-0">
-                                      <span className="font-semibold">{product.color} / Size {product.size}</span>
-                                      <span className={`ml-2 text-xs ${isSelected ? "text-red-950/70" : "text-yellow-200/45"}`}>{shortId(product.sku)}</span>
-                                    </span>
-                                    <span className="shrink-0 font-semibold">{formatMoney(product.unit_price)}</span>
-                                  </button>
+                                    product={product}
+                                    isSelected={isSelected}
+                                    onSelect={() => selectProductForSettings(product.product_id)}
+                                  />
                                 );
                               })}
                             </div>
@@ -1293,6 +1283,39 @@ function DetailPill({ label, value }: { label: string; value: string }) {
       <p className="text-[10px] uppercase tracking-wide text-yellow-300/60">{label}</p>
       <p className="mt-0.5 truncate text-sm font-semibold leading-tight text-yellow-50">{value || "N/A"}</p>
     </div>
+  );
+}
+
+function ProductSizeCard({ product, isSelected, onSelect }: { product: UiProduct; isSelected: boolean; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`min-h-[120px] rounded-lg border p-3 text-left transition ${
+        isSelected
+          ? "border-yellow-300 bg-yellow-400 text-red-950 shadow-md shadow-yellow-950/20"
+          : "border-[#2d2d3a] bg-[#111118] text-yellow-100 hover:border-yellow-400/60 hover:bg-yellow-400/10 hover:text-white"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${isSelected ? "text-red-950/65" : "text-yellow-300/55"}`}>
+            Size
+          </p>
+          <p className="mt-1 text-2xl font-bold leading-none">{product.size || "N/A"}</p>
+        </div>
+        <Badge className={isSelected ? "bg-red-950 text-yellow-100" : "bg-[#20202a] text-yellow-100"}>
+          {product.available_stock} available
+        </Badge>
+      </div>
+      <div className="mt-3 space-y-1 text-xs">
+        <p className="truncate font-semibold">{product.color || "No color set"}</p>
+        <div className={`flex items-center justify-between gap-2 ${isSelected ? "text-red-950/70" : "text-yellow-200/50"}`}>
+          <span className="truncate">{shortId(product.sku)}</span>
+          <span className="shrink-0 font-semibold">{formatMoney(product.unit_price)}</span>
+        </div>
+      </div>
+    </button>
   );
 }
 
