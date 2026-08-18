@@ -757,7 +757,7 @@ function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit:
       <Table className="w-full min-w-[980px]">
         <TableHeader>
           <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-            {['SKU', 'Product', 'Brand', 'Category', 'Color', 'Gender', 'Size', 'Unit Price', 'Actions'].map((head) => (
+            {['SKU', 'Product', 'Brand', 'Category', 'Color', 'Intended For', 'Size', 'Unit Price', 'Actions'].map((head) => (
               <TableHead key={head} className="text-yellow-300 text-center whitespace-nowrap">{head}</TableHead>
             ))}
           </TableRow>
@@ -1044,7 +1044,7 @@ function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduc
                 <div className="grid gap-1.5">
                   <DetailPill label="Category" value={selectedProduct.category} />
                   <DetailPill label="Variant" value={`${selectedProduct.color} / ${selectedProduct.size}`} />
-                  <DetailPill label="Gender" value={selectedProduct.gender} />
+                  <DetailPill label="Intended For" value={selectedProduct.gender} />
                   <DetailPill label="Unit Price" value={formatMoney(selectedProduct.unit_price)} />
                   <DetailPill label="On-Hand Stock" value={`${selectedProduct.stock} units`} />
                   <DetailPill label="Held Stock" value={`${selectedProduct.reserved_stock} units`} />
@@ -1186,9 +1186,9 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
       <div className="grid gap-4 md:grid-cols-3">
         <TextField label="Color" value={formData.color} onChange={(value) => setFormData({ ...formData, color: value })} />
         <div className="space-y-2">
-          <Label className="text-yellow-300">Gender</Label>
+          <Label className="text-yellow-300">Intended For</Label>
           <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
-            <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200"><SelectValue placeholder="Select gender" /></SelectTrigger>
+            <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200"><SelectValue placeholder="Select intended audience" /></SelectTrigger>
             <SelectContent className="bg-red-700 border-red-800 text-yellow-200"><SelectItem value="Men">Men</SelectItem><SelectItem value="Women">Women</SelectItem><SelectItem value="Kids">Kids</SelectItem><SelectItem value="Unisex">Unisex</SelectItem></SelectContent>
           </Select>
         </div>
