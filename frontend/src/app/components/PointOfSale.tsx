@@ -333,7 +333,7 @@ export function PointOfSale() {
   const filteredProductInventory = useMemo(() => {
     const term = productSearch.trim().toLowerCase();
     const sourceProducts = sellableProductInventory;
-    if (!term) return sourceProducts;
+    if (!term) return [];
     return sourceProducts.filter((product) =>
       [
         product.product_id,
@@ -1002,7 +1002,13 @@ export function PointOfSale() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Dialog open={isProductGridOpen} onOpenChange={setIsProductGridOpen}>
+            <Dialog
+              open={isProductGridOpen}
+              onOpenChange={(open) => {
+                setIsProductGridOpen(open);
+                setProductSearch("");
+              }}
+            >
               <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[92vw] !max-w-[1040px] max-h-[84vh] overflow-hidden p-0 shadow-2xl">
                 <div className="border-b border-red-800 p-5">
                   <DialogHeader>
@@ -1033,7 +1039,7 @@ export function PointOfSale() {
                       <div>Action</div>
                     </div>
                     <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
-                      {filteredProductInventory.map((product) => {
+                      {filteredProductInventory.length > 0 ? filteredProductInventory.map((product) => {
                         const sellable = isSellableProduct(product);
                         return (
                           <div
@@ -1062,7 +1068,11 @@ export function PointOfSale() {
                             </div>
                           </div>
                         );
-                      })}
+                      }) : (
+                        <div className="border-t border-red-800 px-4 py-10 text-center text-sm text-yellow-200/70">
+                          Search for an active product with available stock.
+                        </div>
+                      )}
                     </div>
                   </div>
                   <p className="mt-3 text-center text-xs text-yellow-200/70">
