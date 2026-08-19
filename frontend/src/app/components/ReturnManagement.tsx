@@ -255,6 +255,11 @@ export function ReturnManagement() {
   const returnRows = (returnsQuery.data as any[]) ?? [];
   const isAdmin = String(user?.role_name ?? "").trim().toLowerCase().includes("admin");
   const selectedReplacementReason = reasonOption === "Others" ? customReason.trim() : reasonOption.trim();
+  const normalizedReplacementReason = selectedReplacementReason.toLowerCase();
+  const isUnsellableReason = normalizedReplacementReason.includes("damaged") || normalizedReplacementReason.includes("defective");
+  const effectiveInventoryAction: ExchangeForm["inventory_action"] = isUnsellableReason
+    ? "Defective / Not Sellable"
+    : formData.inventory_action;
   const replacedSalesIds = useMemo(() => {
     const ids = new Set<string>();
     for (const row of returnRows) {
@@ -386,17 +391,25 @@ export function ReturnManagement() {
       : Number(selectedOriginalItem?.price ?? 0) * quantity;
   const replacementTotal =
     selectedReturnedItemsWithQty.length > 0
-      ? selectedReturnedItemsWithQty.reduce((sum, item) => sum + Number(replacementProduct?.price ?? 0) * Number(item.selectedQty ?? 1), 0)
+      ? selectedReturnedItemsWithQty.reduce((sum, item) => {
+          const sameProduct = productMap.get(item.product_id);
+          return sum + Number(sameProduct?.price ?? item.price ?? 0) * Number(item.selectedQty ?? 1);
+        }, 0)
       : Number(replacementProduct?.price ?? 0) * quantity;
   const priceDifference = replacementTotal - originalTotal;
   const customerPays = Math.max(0, priceDifference);
   const totalAdditionalPayment = replacementLines.reduce((sum, line) => sum + Math.max(0, line.price_difference), 0);
   const hasSaleSelected = Boolean(selectedSale);
   const hasReturnedSelected = selectedReturnedItems.length > 0;
-  const hasReplacementSelected = Boolean(replacementProduct);
+  const hasReplacementSelected =
+    selectedReturnedItemsWithQty.length > 0 &&
+    selectedReturnedItemsWithQty.every((item) => Boolean(productMap.get(item.product_id)));
   const eligibleReplacementProducts = useMemo(
-    () => products,
-    [products],
+    () => {
+      const selectedProductIds = new Set(selectedReturnedItemsWithQty.map((item) => item.product_id));
+      return products.filter((product) => selectedProductIds.has(product.product_id));
+    },
+    [products, selectedReturnedItemsWithQty],
   );
 
   const filteredSaleOptions = useMemo(() => {
@@ -467,25 +480,36 @@ export function ReturnManagement() {
           delete copy[salesDetailId];
           return copy;
         });
+        const nextSelectedProductId = selectedSale?.details.find((detail: any) => next.includes(detail.sales_detail_id))?.product_id ?? "";
         if (next.length === 0) {
-          setFormData((current) => ({ ...current, returned_product_id: "" }));
+          setFormData((current) => ({ ...current, returned_product_id: "", replacement_product_id: "" }));
+        } else {
+          setFormData((current) => ({
+            ...current,
+            returned_product_id: nextSelectedProductId,
+            replacement_product_id: nextSelectedProductId,
+          }));
         }
         return next;
       }
-      setFormData((current) => ({ ...current, returned_product_id: productId }));
+      setFormData((current) => ({ ...current, returned_product_id: productId, replacement_product_id: productId }));
       setReturnedItemQtyByDetail((qtyPrev) => ({ ...qtyPrev, [salesDetailId]: Number(formData.quantity || 1) }));
       return [...prev, salesDetailId];
     });
   };
 
   const selectReplacementProduct = (productId: string) => {
+    if (!selectedReturnedItems.some((item) => item.product_id === productId)) {
+      toast.error("Replacement must be the same product as the returned item.");
+      return;
+    }
     setFormData((current) => ({ ...current, replacement_product_id: productId }));
     setIsReplacementPickerOpen(false);
   };
 
   const addReplacementLine = () => {
-    if (!selectedSale || selectedReturnedItemsWithQty.length === 0 || !replacementProduct) {
-      toast.error("Select sale, replaced item(s), and replacement item first");
+    if (!selectedSale || selectedReturnedItemsWithQty.length === 0 || !hasReplacementSelected) {
+      toast.error("Select sale and replaced item(s) first");
       return;
     }
     const duplicate = selectedReturnedItemsWithQty.find((item) =>
@@ -500,29 +524,37 @@ export function ReturnManagement() {
       toast.error(`Only ${invalidQty.returnable_quantity} unit(s) can be returned from ${invalidQty.productName}`);
       return;
     }
-    const stockNeeded = selectedReturnedItemsWithQty.reduce((sum, item) => sum + Number(item.selectedQty ?? 1), 0);
-    if (replacementProduct.stock < stockNeeded) {
-      toast.error(`Only ${replacementProduct.stock} replacement unit(s) available, but ${stockNeeded} needed`);
-      return;
+    const stockNeededByProduct = selectedReturnedItemsWithQty.reduce((map, item) => {
+      const productId = String(item.product_id ?? "");
+      map.set(productId, (map.get(productId) ?? 0) + Number(item.selectedQty ?? 1));
+      return map;
+    }, new Map<string, number>());
+    for (const [productId, stockNeeded] of stockNeededByProduct) {
+      const sameProduct = productMap.get(productId);
+      if (!sameProduct || sameProduct.stock < stockNeeded) {
+        toast.error(`Only ${sameProduct?.stock ?? 0} replacement unit(s) available for ${sameProduct?.name ?? "this product"}, but ${stockNeeded} needed`);
+        return;
+      }
     }
 
     setReplacementLines((prev) => {
       const additions = selectedReturnedItemsWithQty.map((item) => {
+        const sameProduct = productMap.get(item.product_id)!;
         const lineQty = Number(item.selectedQty ?? 1);
         const originalLineTotal = Number(item.price ?? 0) * lineQty;
-        const replacementLineTotal = Number(replacementProduct.price ?? 0) * lineQty;
+        const replacementLineTotal = Number(sameProduct.price ?? 0) * lineQty;
         return {
           line_id: buildClientId(),
           sales_detail_id: item.sales_detail_id,
           returned_product_id: item.product_id,
           returned_product_name: item.productName,
-          replacement_product_id: replacementProduct.product_id,
-          replacement_product_name: replacementProduct.name,
+          replacement_product_id: sameProduct.product_id,
+          replacement_product_name: sameProduct.name,
           quantity: lineQty,
           returned_price_unit: Number(item.price ?? 0),
-          replacement_price_unit: Number(replacementProduct.price ?? 0),
+          replacement_price_unit: Number(sameProduct.price ?? 0),
           price_difference: replacementLineTotal - originalLineTotal,
-          inventory_action: formData.inventory_action,
+          inventory_action: effectiveInventoryAction,
         };
       });
       return [...prev, ...additions];
@@ -748,6 +780,9 @@ export function ReturnManagement() {
       const replacementStockUsed = new Map<string, number>();
 
       for (const line of replacementLines) {
+        if (line.replacement_product_id !== line.returned_product_id) {
+          throw new Error("Replacement must use the same product as the returned item.");
+        }
         const saleDetail = saleDetailById.get(line.sales_detail_id);
         if (!saleDetail) {
           throw new Error(`Unable to find sale detail for ${line.returned_product_name}`);
@@ -813,6 +848,9 @@ export function ReturnManagement() {
       for (const line of replacementLines) {
         const saleDetail = saleDetailById.get(line.sales_detail_id);
         if (!saleDetail) continue;
+        const effectiveLineInventoryAction = isUnsellableReason
+          ? "Defective / Not Sellable"
+          : line.inventory_action;
 
         const additionalPayment = Math.max(0, line.price_difference);
         const replacementNote = [
@@ -821,7 +859,7 @@ export function ReturnManagement() {
           `Replacement: ${line.replacement_product_name}`,
           `Rule: ${line.price_difference > 0 ? `Customer adds ${formatCurrency(additionalPayment)}` : "No refund/store credit. Replacement only."}`,
           `Mode of payment: ${additionalPayment > 0 ? formData.mode_of_payment : "N/A"}`,
-          `Inventory action: ${line.inventory_action}`,
+          `Inventory action: ${effectiveLineInventoryAction}`,
           `Reason: ${selectedReplacementReason}`,
         ].join(" | ");
 
@@ -843,7 +881,7 @@ export function ReturnManagement() {
             new_quantity: line.quantity,
             new_price_unit: line.replacement_price_unit,
             net_difference: line.price_difference,
-            inventory_action: line.inventory_action,
+            inventory_action: effectiveLineInventoryAction,
           },
           {
             return_detail_id: buildClientId(),
@@ -869,12 +907,19 @@ export function ReturnManagement() {
           // Older schemas may not have return-tracking columns on sales_details yet.
         }
 
-        if (line.inventory_action === "Return to Stock") {
-          await updateInventoryStock(line.returned_product_id, line.quantity);
-          await createInventoryLog(line.returned_product_id, line.quantity, "return", returnId);
+        if (effectiveLineInventoryAction === "Return to Stock") {
+          if (line.replacement_product_id !== line.returned_product_id) {
+            await updateInventoryStock(line.returned_product_id, line.quantity);
+            await createInventoryLog(line.returned_product_id, line.quantity, "return", returnId);
+            await updateInventoryStock(line.replacement_product_id, -line.quantity);
+            await createInventoryLog(line.replacement_product_id, -line.quantity, "adjustment", returnId);
+          } else {
+            await createInventoryLog(line.replacement_product_id, 0, "adjustment", returnId);
+          }
+        } else {
+          await updateInventoryStock(line.replacement_product_id, -line.quantity);
+          await createInventoryLog(line.replacement_product_id, -line.quantity, "adjustment", returnId);
         }
-        await updateInventoryStock(line.replacement_product_id, -line.quantity);
-        await createInventoryLog(line.replacement_product_id, -line.quantity, "adjustment", returnId);
       }
 
       await tryUpdateById("sales_transaction", "sales_id", selectedSale.sales_id, [
@@ -1020,7 +1065,9 @@ export function ReturnManagement() {
                       </div>
                       <div className={`rounded-lg border p-2 ${hasReplacementSelected ? "border-emerald-600 bg-emerald-900/20" : "border-zinc-700 bg-zinc-950"}`}>
                         <p className="text-[11px] text-zinc-400">3. Replacement</p>
-                        <p className="text-sm text-zinc-100">{replacementProduct?.name ?? "Not selected"}</p>
+                        <p className="text-sm text-zinc-100">
+                          {hasReplacementSelected ? "Same product only" : "Not selected"}
+                        </p>
                       </div>
                       <div className="rounded-lg border border-zinc-700 bg-zinc-950 p-2">
                         <p className="text-[11px] text-zinc-400">4. Difference</p>
@@ -1106,10 +1153,11 @@ export function ReturnManagement() {
                     <div className="space-y-2">
                       <Label className="text-yellow-300">Replaced Item Inventory Action *</Label>
                       <Select
-                        value={formData.inventory_action}
+                        value={effectiveInventoryAction}
                         onValueChange={(value) =>
                           setFormData({ ...formData, inventory_action: value as ExchangeForm["inventory_action"] })
                         }
+                        disabled={isUnsellableReason}
                       >
                         <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
                           <SelectValue placeholder="Select inventory action" />
@@ -1119,6 +1167,11 @@ export function ReturnManagement() {
                           <SelectItem value="Return to Stock">Back to Stock</SelectItem>
                         </SelectContent>
                       </Select>
+                      {isUnsellableReason && (
+                        <p className="text-xs text-yellow-300">
+                          Damaged or defective items cannot be returned to sellable stock.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1216,7 +1269,7 @@ export function ReturnManagement() {
                   {requiresReplacement && (
                     <div className={`space-y-3 rounded-xl border border-zinc-800 bg-zinc-950 p-4 ${!hasReturnedSelected ? "opacity-50" : ""}`}>
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <Label className="text-yellow-300">Step 3: Select Replacement Product</Label>
+                        <Label className="text-yellow-300">Step 3: Same Product Replacement</Label>
                         <Dialog open={isReplacementPickerOpen} onOpenChange={setIsReplacementPickerOpen}>
                           <DialogTrigger asChild>
                             <Button
@@ -1224,13 +1277,13 @@ export function ReturnManagement() {
                               disabled={!hasReturnedSelected}
                               className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-50"
                             >
-                              {replacementProduct ? "Change Replacement Product" : "Choose Replacement Product"}
+                              View Same Product Options
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 !w-[92vw] !max-w-[980px] max-h-[84vh] overflow-hidden p-0">
                             <div className="border-b border-zinc-800 p-4">
                               <DialogHeader>
-                                <DialogTitle className="text-yellow-300">Select Replacement Product</DialogTitle>
+                                <DialogTitle className="text-yellow-300">Same Product Replacement Options</DialogTitle>
                               </DialogHeader>
                             </div>
                             <div className="max-h-[66vh] overflow-y-auto p-4 space-y-3">
@@ -1239,7 +1292,7 @@ export function ReturnManagement() {
                                 <Input
                                   value={replacementSearch}
                                   onChange={(event) => setReplacementSearch(event.target.value)}
-                                  placeholder="Search replacement by SKU, name, brand..."
+                                  placeholder="Search same product by SKU, name, brand..."
                                   className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
                                 />
                               </div>
@@ -1285,11 +1338,11 @@ export function ReturnManagement() {
                       </div>
                       {!hasReturnedSelected && <p className="text-xs text-zinc-300">Select the replaced product first.</p>}
                       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
-                        <p className="text-xs text-yellow-300">Selected Replacement Product</p>
+                        <p className="text-xs text-yellow-300">Replacement Rule</p>
                         <p className="text-sm text-yellow-200">
-                          {replacementProduct
-                            ? `${replacementProduct.name} (${formatCurrency(replacementProduct.price)})`
-                            : "No replacement product selected yet"}
+                          {hasReplacementSelected
+                            ? "Replacement will use the same product variant as each returned item."
+                            : "Select the replaced product first."}
                         </p>
                       </div>
                     </div>
@@ -1410,7 +1463,7 @@ export function ReturnManagement() {
                     <Button
                       type="button"
                       onClick={addReplacementLine}
-                      disabled={!hasReturnedSelected || !replacementProduct}
+                      disabled={!hasReturnedSelected || !hasReplacementSelected}
                       className="border border-yellow-400/70 bg-transparent text-yellow-300 hover:bg-yellow-400/15"
                     >
                       Add Selected Item
