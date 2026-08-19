@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Minus, Plus, Search, Eye, RotateCcw, AlertTriangle, ArrowRightLeft } from "lucide-react";
+import { FileImage, Minus, Plus, Search, Eye, RotateCcw, AlertTriangle, ArrowRightLeft, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../lib/auth-context";
 import { useInventory, useProducts, useReturns, useSales } from "../../lib/hooks";
@@ -50,6 +50,10 @@ type ReturnRow = {
   processedBy: string;
   staffCode: string;
   salesStatus: string;
+  receiptProofName: string;
+  receiptProofPath: string;
+  receiptProofUrl: string;
+  receiptVerifiedAt: string;
   returnDetails: ReturnDetail[];
 };
 
@@ -147,6 +151,8 @@ const REPLACEMENT_REASON_OPTIONS = [
   "Customer changed preference",
   "Others",
 ];
+
+const RECEIPT_PROOF_BUCKET = "return-receipts";
 
 function buildClientId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -248,6 +254,8 @@ export function ReturnManagement() {
   const [replacementLines, setReplacementLines] = useState<ReplacementLine[]>([]);
   const [reasonOption, setReasonOption] = useState("");
   const [customReason, setCustomReason] = useState("");
+  const [receiptProofFile, setReceiptProofFile] = useState<File | null>(null);
+  const [receiptProofPreview, setReceiptProofPreview] = useState("");
 
   const sales = (salesQuery.data as any[]) ?? [];
   const productRows = (productsQuery.data as any[]) ?? [];
@@ -629,6 +637,10 @@ export function ReturnManagement() {
         processedBy: processedUser?.name ?? processedUser?.username ?? "Staff",
         staffCode: String(processedUser?.staff_code ?? processedUser?.staffCode ?? "N/A"),
         salesStatus: normalizeSaleStatus(sale?.sales_status ?? sale?.status),
+        receiptProofName: String(row.receipt_proof_name ?? ""),
+        receiptProofPath: String(row.receipt_proof_path ?? ""),
+        receiptProofUrl: String(row.receipt_proof_url ?? ""),
+        receiptVerifiedAt: formatDate(row.receipt_verified_at),
         returnDetails: details.map((detail: any) => {
           const product = Array.isArray(detail.product) ? detail.product[0] : detail.product;
           const replacementJoin = Array.isArray(detail.replacement_product) ? detail.replacement_product[0] : detail.replacement_product;
@@ -755,6 +767,50 @@ export function ReturnManagement() {
     ]);
   };
 
+  const handleReceiptProofChange = (file?: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Upload a receipt photo or image file.");
+      return;
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      toast.error("Receipt photo must be 6MB or smaller.");
+      return;
+    }
+    setReceiptProofFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setReceiptProofPreview(String(reader.result ?? ""));
+    reader.readAsDataURL(file);
+  };
+
+  const clearReceiptProof = () => {
+    setReceiptProofFile(null);
+    setReceiptProofPreview("");
+  };
+
+  const uploadReceiptProof = async (returnId: string) => {
+    if (!receiptProofFile) throw new Error("Upload a printed receipt photo before finalizing the replacement.");
+    const extension = receiptProofFile.name.split(".").pop()?.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() || "jpg";
+    const proofPath = `${returnId}/${Date.now()}-${buildClientId()}.${extension}`;
+    const { error } = await supabase.storage
+      .from(RECEIPT_PROOF_BUCKET)
+      .upload(proofPath, receiptProofFile, {
+        cacheControl: "3600",
+        contentType: receiptProofFile.type || "image/jpeg",
+        upsert: false,
+      });
+    if (error) {
+      throw new Error("Receipt proof upload failed. Run the return receipt proof migration, then try again.");
+    }
+    const { data } = supabase.storage.from(RECEIPT_PROOF_BUCKET).getPublicUrl(proofPath);
+    return {
+      receiptProofName: receiptProofFile.name,
+      receiptProofPath: proofPath,
+      receiptProofUrl: data.publicUrl ?? "",
+      receiptVerifiedAt: new Date().toISOString(),
+    };
+  };
+
   const handleAddReturn = async () => {
     if (!selectedSale) {
       toast.error("Please select the original sale");
@@ -766,6 +822,10 @@ export function ReturnManagement() {
     }
     if (!selectedReplacementReason) {
       toast.error("Please add a replacement reason");
+      return;
+    }
+    if (!receiptProofFile) {
+      toast.error("Upload the customer's printed receipt photo before finalizing.");
       return;
     }
     if (replacedSalesIds.has(selectedSale.sales_id)) {
@@ -804,11 +864,13 @@ export function ReturnManagement() {
       }
 
       const returnId = buildClientId();
+      const receiptProof = await uploadReceiptProof(returnId);
       const adjustedTotal = Math.max(0, Number(selectedSale.total_amount ?? 0) + totalAdditionalPayment);
       const replacementSummary = [
         "Replacement",
         `Lines: ${replacementLines.length}`,
         `Additional payment: ${formatCurrency(totalAdditionalPayment)}`,
+        `Receipt proof: ${receiptProof.receiptProofName}`,
         "No refund/store credit. Replacement only.",
         `Mode of payment: ${totalAdditionalPayment > 0 ? formData.mode_of_payment : "N/A"}`,
         `Reason: ${selectedReplacementReason}`,
@@ -834,6 +896,10 @@ export function ReturnManagement() {
           total_credits_issued: 0,
           net_amount: adjustedTotal,
           last_activity_date: new Date().toISOString(),
+          receipt_proof_name: receiptProof.receiptProofName,
+          receipt_proof_path: receiptProof.receiptProofPath,
+          receipt_proof_url: receiptProof.receiptProofUrl,
+          receipt_verified_at: receiptProof.receiptVerifiedAt,
           remarks: replacementSummary,
         },
         {
@@ -952,6 +1018,7 @@ export function ReturnManagement() {
       setReplacementLines([]);
       setReasonOption("");
       setCustomReason("");
+      clearReceiptProof();
       toast.success(`${replacementLines.length} replacement item(s) recorded successfully.`);
     } catch (error: any) {
       toast.error(error?.message ?? "Failed to record replacement");
@@ -984,6 +1051,7 @@ export function ReturnManagement() {
     setReturnedItemQtyByDetail({});
     setReasonOption("");
     setCustomReason("");
+    clearReceiptProof();
   };
 
   return (
@@ -1127,6 +1195,67 @@ export function ReturnManagement() {
                         </Table>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="space-y-2 rounded-xl border border-red-800 p-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <Label className="text-yellow-300">Receipt Proof *</Label>
+                        <p className="mt-1 text-xs text-yellow-200/70">
+                          Take or upload a photo of the printed receipt to validate the buyer.
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Label
+                          htmlFor="receipt-proof-upload"
+                          className="inline-flex h-9 cursor-pointer items-center rounded-md bg-yellow-400 px-3 text-sm font-semibold text-red-900 hover:bg-yellow-500"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Receipt
+                        </Label>
+                        {receiptProofFile && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={clearReceiptProof}
+                            className="h-9 border border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      id="receipt-proof-upload"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(event) => handleReceiptProofChange(event.target.files?.[0])}
+                    />
+                    {receiptProofPreview ? (
+                      <div className="grid gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 md:grid-cols-[160px_1fr] md:items-center">
+                        <img
+                          src={receiptProofPreview}
+                          alt="Receipt proof preview"
+                          className="h-28 w-full rounded-md border border-zinc-800 object-cover md:w-40"
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-100">{receiptProofFile?.name}</p>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            This proof will be saved with the replacement record for buyer validation.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[96px] items-center justify-center rounded-lg border border-dashed border-zinc-700 bg-zinc-950 text-center text-sm text-zinc-400">
+                        <div>
+                          <FileImage className="mx-auto mb-2 h-7 w-7 text-yellow-300/70" />
+                          No receipt photo uploaded
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1585,6 +1714,35 @@ export function ReturnManagement() {
                                   <p className="text-zinc-100">{returnItem.return_status}</p>
                                 </div>
                               </div>
+                            </div>
+
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                              <p className="mb-3 text-xs uppercase tracking-wide text-zinc-400">Receipt Proof</p>
+                              {returnItem.receiptProofUrl ? (
+                                <div className="grid gap-3 md:grid-cols-[180px_1fr] md:items-center">
+                                  <a href={returnItem.receiptProofUrl} target="_blank" rel="noreferrer">
+                                    <img
+                                      src={returnItem.receiptProofUrl}
+                                      alt="Uploaded receipt proof"
+                                      className="h-32 w-full rounded-md border border-zinc-800 object-cover md:w-44"
+                                    />
+                                  </a>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-zinc-100">{returnItem.receiptProofName || "Receipt photo"}</p>
+                                    <p className="mt-1 text-sm text-zinc-400">Verified: {returnItem.receiptVerifiedAt}</p>
+                                    <a
+                                      href={returnItem.receiptProofUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="mt-2 inline-flex text-sm font-semibold text-yellow-300 hover:text-yellow-200"
+                                    >
+                                      Open receipt proof
+                                    </a>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-zinc-400">No receipt proof uploaded for this replacement.</p>
+                              )}
                             </div>
 
                             <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
