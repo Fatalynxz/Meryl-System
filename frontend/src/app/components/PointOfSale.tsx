@@ -355,6 +355,7 @@ export function PointOfSale() {
         .includes(term),
     );
   }, [sellableProductInventory, productSearch]);
+  const hasProductSearch = productSearch.trim().length > 0;
 
   const filteredCustomerOptions = useMemo(() => {
     const term = customerSearch.trim().toLowerCase();
@@ -1027,58 +1028,60 @@ export function PointOfSale() {
                     />
                   </div>
                 </div>
-                <div className="p-5">
-                  <div className="overflow-hidden rounded-xl border border-red-800">
-                    <div className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
-                      <div>Product</div>
-                      <div>Brand</div>
-                      <div>Category</div>
-                      <div>Variant</div>
-                      <div>Price</div>
-                      <div>Stock</div>
-                      <div>Action</div>
-                    </div>
-                    <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
-                      {filteredProductInventory.length > 0 ? filteredProductInventory.map((product) => {
-                        const sellable = isSellableProduct(product);
-                        return (
-                          <div
-                            key={product.product_id}
-                            className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
-                          >
-                            <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
-                            <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
-                            <div className="truncate text-yellow-200" title={product.category}>{product.category}</div>
-                            <div className="truncate text-yellow-200" title={productVariantLabel(product)}>
-                              {productVariantLabel(product)}
+                {hasProductSearch && (
+                  <div className="p-5">
+                    <div className="overflow-hidden rounded-xl border border-red-800">
+                      <div className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
+                        <div>Product</div>
+                        <div>Brand</div>
+                        <div>Category</div>
+                        <div>Variant</div>
+                        <div>Price</div>
+                        <div>Stock</div>
+                        <div>Action</div>
+                      </div>
+                      <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
+                        {filteredProductInventory.length > 0 ? filteredProductInventory.map((product) => {
+                          const sellable = isSellableProduct(product);
+                          return (
+                            <div
+                              key={product.product_id}
+                              className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
+                            >
+                              <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
+                              <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
+                              <div className="truncate text-yellow-200" title={product.category}>{product.category}</div>
+                              <div className="truncate text-yellow-200" title={productVariantLabel(product)}>
+                                {productVariantLabel(product)}
+                              </div>
+                              <div className="truncate font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</div>
+                              <div className="min-w-0">
+                                <Badge className="max-w-full truncate rounded-full bg-yellow-400 px-3 py-1 text-red-900">{product.stock_quantity} units</Badge>
+                              </div>
+                              <div className="flex justify-center">
+                                <Button
+                                  size="sm"
+                                  disabled={!sellable}
+                                  onClick={() => selectProductVariant(product)}
+                                  className="h-8 rounded-full bg-yellow-400 px-4 font-semibold text-red-900 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-300"
+                                >
+                                  {sellable ? "Add" : "Locked"}
+                                </Button>
+                              </div>
                             </div>
-                            <div className="truncate font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</div>
-                            <div className="min-w-0">
-                              <Badge className="max-w-full truncate rounded-full bg-yellow-400 px-3 py-1 text-red-900">{product.stock_quantity} units</Badge>
-                            </div>
-                            <div className="flex justify-center">
-                              <Button
-                                size="sm"
-                                disabled={!sellable}
-                                onClick={() => selectProductVariant(product)}
-                                className="h-8 rounded-full bg-yellow-400 px-4 font-semibold text-red-900 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-300"
-                              >
-                                {sellable ? "Add" : "Locked"}
-                              </Button>
-                            </div>
+                          );
+                        }) : (
+                          <div className="border-t border-red-800 px-4 py-10 text-center text-sm text-yellow-200/70">
+                            No active products with available stock match your search.
                           </div>
-                        );
-                      }) : (
-                        <div className="border-t border-red-800 px-4 py-10 text-center text-sm text-yellow-200/70">
-                          Search for an active product with available stock.
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
+                    <p className="mt-3 text-center text-xs text-yellow-200/70">
+                      Only active, non-expired products with POS-available stock are shown. Held stock is excluded from cashier availability.
+                    </p>
                   </div>
-                  <p className="mt-3 text-center text-xs text-yellow-200/70">
-                    Only active, non-expired products with POS-available stock are shown. Held stock is excluded from cashier availability.
-                  </p>
-                </div>
+                )}
               </DialogContent>
             </Dialog>
 
