@@ -86,6 +86,19 @@ function isSellableProduct(product: ProductVariant) {
   );
 }
 
+function ProductPhotoPlaceholder({ productName }: { productName: string }) {
+  const initial = String(productName || "P").trim().charAt(0).toUpperCase() || "P";
+
+  return (
+    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-yellow-400/25 bg-[#211b18] text-yellow-200 shadow-inner shadow-black/25">
+      <Package className="h-6 w-6 text-yellow-300/75" />
+      <span className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-tl-md bg-yellow-400 text-[10px] font-bold text-red-950">
+        {initial}
+      </span>
+    </div>
+  );
+}
+
 const PROMO_TYPE_MARKERS = {
   bundle: "__TYPE_BUNDLE__",
   bogo: "__TYPE_BOGO__",
@@ -1031,7 +1044,8 @@ export function PointOfSale() {
                 {hasProductSearch && (
                   <div className="p-5">
                     <div className="overflow-hidden rounded-xl border border-red-800">
-                      <div className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
+                      <div className="grid grid-cols-[0.55fr_1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
+                        <div>Photo</div>
                         <div>Product</div>
                         <div>Brand</div>
                         <div>Category</div>
@@ -1046,8 +1060,11 @@ export function PointOfSale() {
                           return (
                             <div
                               key={product.product_id}
-                              className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
+                              className="grid grid-cols-[0.55fr_1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
                             >
+                              <div className="flex justify-center">
+                                <ProductPhotoPlaceholder productName={product.product_name} />
+                              </div>
                               <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
                               <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
                               <div className="truncate text-yellow-200" title={product.category}>{product.category}</div>
