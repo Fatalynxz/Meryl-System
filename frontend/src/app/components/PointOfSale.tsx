@@ -219,6 +219,19 @@ function formatCurrency(value: number) {
     .replace(/^₱/, "PHP ");
 }
 
+const VAT_RATE = 0.12;
+
+function getVatBreakdown(total: number) {
+  const grossTotal = Math.max(0, Number(total) || 0);
+  const vatAmount = grossTotal * (VAT_RATE / (1 + VAT_RATE));
+  return {
+    vatableSales: grossTotal - vatAmount,
+    vatAmount,
+    vatExemptSales: 0,
+    zeroRatedSales: 0,
+  };
+}
+
 function isBogoCartItem(item: Pick<CartItem, "promotionType">) {
   return String(item.promotionType ?? "").toLowerCase().includes("bogo");
 }
@@ -960,6 +973,8 @@ export function PointOfSale() {
       );
     }
 
+    const receiptTotal = Number(data?.total_amount ?? total);
+    const vatBreakdown = getVatBreakdown(receiptTotal);
     const receipt = {
       receiptNumber: data?.sales_id ?? `RCP-${Date.now()}`,
       date: new Date().toLocaleString(),
@@ -967,7 +982,11 @@ export function PointOfSale() {
       items: cart,
       subtotal: calculateSubtotal(),
       discount: calculateTotalDiscount(),
-      total: Number(data?.total_amount ?? total),
+      total: receiptTotal,
+      vatableSales: vatBreakdown.vatableSales,
+      vatAmount: vatBreakdown.vatAmount,
+      vatExemptSales: vatBreakdown.vatExemptSales,
+      zeroRatedSales: vatBreakdown.zeroRatedSales,
       change_amount: Number(data?.change_amount ?? Math.max(0, paid - total)),
       paymentMethod,
       cashier: user.name,
@@ -1622,6 +1641,10 @@ export function PointOfSale() {
               <div className="space-y-1">
                 <div className="flex justify-between text-yellow-200"><span>Subtotal:</span><span>₱{receiptData.subtotal.toFixed(2)}</span></div>
                 <div className="flex justify-between text-yellow-200"><span>Discount:</span><span>-₱{receiptData.discount.toFixed(2)}</span></div>
+                <div className="flex justify-between text-yellow-200 text-sm"><span>VATable Sales:</span><span>{formatCurrency(receiptData.vatableSales)}</span></div>
+                <div className="flex justify-between text-yellow-200 text-sm"><span>VAT Amount (12%):</span><span>{formatCurrency(receiptData.vatAmount)}</span></div>
+                <div className="flex justify-between text-yellow-200 text-sm"><span>VAT-Exempt Sales:</span><span>{formatCurrency(receiptData.vatExemptSales)}</span></div>
+                <div className="flex justify-between text-yellow-200 text-sm"><span>Zero-Rated Sales:</span><span>{formatCurrency(receiptData.zeroRatedSales)}</span></div>
                 <div className="flex justify-between text-yellow-300 text-lg border-t border-red-600 pt-2"><span>Total:</span><span>₱{receiptData.total.toFixed(2)}</span></div>
                 <div className="flex justify-between text-yellow-200 text-sm"><span>Change:</span><span>₱{receiptData.change_amount.toFixed(2)}</span></div>
                 <div className="flex justify-between text-yellow-200 text-sm"><span>Payment Method:</span><span>{receiptData.paymentMethod}</span></div>
