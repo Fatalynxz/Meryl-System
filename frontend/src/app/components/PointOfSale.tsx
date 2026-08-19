@@ -1023,14 +1023,13 @@ export function PointOfSale() {
                 </div>
                 <div className="p-5">
                   <div className="overflow-hidden rounded-xl border border-red-800">
-                    <div className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.8fr_0.75fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
+                    <div className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
                       <div>Product</div>
                       <div>Brand</div>
                       <div>Category</div>
                       <div>Variant</div>
                       <div>Price</div>
                       <div>Stock</div>
-                      <div>Status</div>
                       <div>Action</div>
                     </div>
                     <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
@@ -1039,7 +1038,7 @@ export function PointOfSale() {
                         return (
                           <div
                             key={product.product_id}
-                            className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.8fr_0.75fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
+                            className="grid grid-cols-[1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
                           >
                             <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
                             <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
@@ -1050,11 +1049,6 @@ export function PointOfSale() {
                             <div className="truncate font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</div>
                             <div className="min-w-0">
                               <Badge className="max-w-full truncate rounded-full bg-yellow-400 px-3 py-1 text-red-900">{product.stock_quantity} units</Badge>
-                            </div>
-                            <div className="min-w-0">
-                              <Badge className={sellable ? "rounded-full bg-green-700 px-3 py-1 text-white" : "rounded-full bg-gray-600 px-3 py-1 text-white"}>
-                                {sellable ? "Sellable" : product.status}
-                              </Badge>
                             </div>
                             <div className="flex justify-center">
                               <Button
