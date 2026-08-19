@@ -1010,7 +1010,7 @@ export function PointOfSale() {
                 setProductSearch("");
               }}
             >
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[92vw] !max-w-[1040px] max-h-[84vh] overflow-hidden p-0 shadow-2xl">
+              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[96vw] !max-w-[1240px] max-h-[88vh] overflow-hidden p-0 shadow-2xl">
                 <div className="border-b border-red-800 p-5">
                   <DialogHeader>
                     <DialogTitle className="text-yellow-300 flex items-center gap-2">
@@ -1040,7 +1040,7 @@ export function PointOfSale() {
                         <div>Stock</div>
                         <div>Action</div>
                       </div>
-                      <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
+                      <div className="max-h-[58vh] overflow-y-auto overflow-x-hidden">
                         {filteredProductInventory.length > 0 ? filteredProductInventory.map((product) => {
                           const sellable = isSellableProduct(product);
                           return (
