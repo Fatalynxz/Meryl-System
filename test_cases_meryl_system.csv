@@ -1,0 +1,654 @@
+id,title,description,preconditions,postconditions,priority,severity,type,behavior,layer,automation,status,is_flaky,suite,tags,steps_actions,steps_results,steps_data
+,"TC-LOGIN-001: Administrator logs into the system","Verify that an Administrator can log in with valid credentials and is redirected to the admin portal with full admin access including Dashboard, User Management, Product List, Promotions, Notifications, Reports, Analytics, and Predictions.","The administrator account exists in the user table and has an active status.","Administrator is authenticated and redirected to the administrator portal with full admin access.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Login","login,admin,authentication","1. The Administrator opens the login page.
+2. The Administrator enters a valid username and password.
+3. The system validates the credentials against the user and role records.
+4. The system redirects the Administrator to the administrator portal.","1. The login page is displayed with username and password fields.
+2. Credentials are accepted in the respective input fields.
+3. The system authenticates the account successfully and identifies the admin role.
+4. The Administrator portal (Dashboard) is displayed with admin functions: User Management, Product List, Product Settings, Inventory, Sales, Customers, Replacement, Analytics, Promotions, Reports, Users.","1. URL: /login
+2. username: admin, password: Admin@123
+3. 
+4. "
+,"TC-LOGIN-002: Cashier/Sales Staff logs into the system","Verify that a Cashier/Sales Staff can log in with valid credentials and is redirected to the sales portal with access to POS, Sales History, Returns, and Customer-related functions.","The sales staff account exists in the user table and has an active status.","Cashier is authenticated and redirected to the sales portal with cashier-specific access.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Login","login,cashier,sales,authentication","1. The Cashier opens the login page.
+2. The Cashier enters a valid username and password.
+3. The system validates the login credentials and role assignment.
+4. The system redirects the Cashier to the sales portal.","1. The login page is displayed with username and password fields.
+2. Credentials are accepted in the respective input fields.
+3. The system authenticates the account and identifies the cashier/sales_staff role.
+4. The sales portal is displayed with access to Point of Sale, Sales History, Replacement, and Customers.","1. URL: /login
+2. username: cashier1, password: Cashier@123
+3. 
+4. "
+,"TC-LOGIN-003: Inventory Staff logs into the system","Verify that Inventory Staff can log in with valid credentials and is redirected to inventory-related modules.","The inventory staff account exists in the user table and has an active status.","Inventory Staff is authenticated and redirected to inventory modules.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Login","login,inventory,authentication","1. The Inventory Staff opens the login page.
+2. The Inventory Staff enters a valid username and password.
+3. The system validates the account status and role.
+4. The system redirects the Inventory Staff to inventory-related modules.","1. The login page is displayed with username and password fields.
+2. Credentials are accepted in the respective input fields.
+3. The system authenticates the account and identifies the inventory_staff role.
+4. The inventory portal is displayed with access to Product List, Product Settings, Inventory Stock, and Inventory Log.","1. URL: /login
+2. username: inventory1, password: Inventory@123
+3. 
+4. "
+,"TC-LOGIN-004: Login with invalid credentials","Verify that the system rejects login attempts with invalid username or password.","The login page is accessible. A valid user account exists in the system.","The user is not authenticated and remains on the login page with an error message.",high,critical,functional,negative,e2e,is-not-automated,actual,0,"Login","login,negative,security,validation","1. The user opens the login page.
+2. The user enters an invalid username or password.
+3. The system validates the credentials against the user and role records.","1. The login page is displayed with username and password fields.
+2. Credentials are entered in the respective fields.
+3. The system displays an error message indicating invalid credentials. User is not redirected to any portal.","1. URL: /login
+2. username: admin, password: WrongPass@123
+3. "
+,"TC-LOGIN-005: Login with inactive/deactivated account","Verify that the system prevents login for deactivated user accounts.","A user account exists in the system with status set to 'inactive'.","The user is not authenticated and receives an appropriate error message.",high,major,functional,negative,e2e,is-not-automated,actual,0,"Login","login,negative,inactive,security","1. The user opens the login page.
+2. The user enters valid credentials for an inactive account.
+3. The system validates the credentials and checks account status.","1. The login page is displayed.
+2. Credentials are entered in the respective fields.
+3. The system rejects the login and displays a message indicating the account is inactive or deactivated.","1. URL: /login
+2. Valid username and password for inactive account
+3. "
+,"TC-LOGIN-006: Login with empty fields","Verify that the system validates required login fields and prevents submission with empty fields.","The login page is accessible.","The user sees validation errors for empty required fields.",medium,normal,functional,negative,e2e,is-not-automated,actual,0,"Login","login,negative,validation","1. The user opens the login page.
+2. The user leaves the username and/or password fields empty and attempts to submit.
+3. The system validates the required fields.","1. The login page is displayed.
+2. The form submission is attempted with empty fields.
+3. The system displays validation errors indicating that username and password are required.","1. URL: /login
+2. username: (empty), password: (empty)
+3. "
+
+,"TC-USER-001: Administrator creates a user account","Verify that the Administrator can create a new user account with all required fields and the system generates a staff code.","The Administrator is logged into the system with admin role.","A new user account is created with a generated staff_code (ADM-xxx, CSH-xxx, or INV-xxx) and visible in the user list.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"User Management","user-management,create,admin","1. The Administrator opens the User Management page.
+2. The Administrator enters the user's first name, last name, username, password, email, role, and status.
+3. The system validates required fields, password strength, email format, and checks for duplicate usernames.
+4. The system stores the account in the user table, links it to the role table, and generates a staff_code.","1. The User Management page is displayed with a list of existing users and an option to add a new user.
+2. All fields accept input. Role dropdown shows available roles: Admin, Sales Staff, Inventory Staff.
+3. The system confirms all fields are valid, username is unique, password meets strength requirements, and email is properly formatted.
+4. The new user account appears in the user list with the assigned role, generated staff_code, and active status.","1. 
+2. first_name, last_name, username, password, email, role_id (admin/cashier/inventory), status (active)
+3. 
+4. "
+,"TC-USER-002: Administrator creates user with duplicate username","Verify that the system prevents creation of a user account with an existing username.","The Administrator is logged into the system. A user with the username 'admin' already exists.","The user account is not created and an error message about duplicate username is displayed.",high,major,functional,negative,e2e,is-not-automated,actual,0,"User Management","user-management,create,negative,validation","1. The Administrator opens the User Management page.
+2. The Administrator enters user details using an existing username.
+3. The system validates required fields and checks for duplicate usernames.","1. The User Management page is displayed.
+2. All fields accept input.
+3. The system detects a duplicate username and displays an error message. The user account is not created.","1. 
+2. username: admin (already exists in the system)
+3. "
+,"TC-USER-003: Administrator creates user with missing required fields","Verify that the system validates all required fields when creating a user account.","The Administrator is logged into the system.","The user account is not created and validation errors are shown for missing fields.",medium,normal,functional,negative,e2e,is-not-automated,actual,0,"User Management","user-management,create,negative,validation","1. The Administrator opens the User Management page.
+2. The Administrator submits the user creation form with one or more required fields left empty (e.g., missing username, password, email, or role).
+3. The system validates required fields.","1. The User Management page is displayed.
+2. The form is submitted with incomplete data.
+3. The system displays validation error messages for the missing required fields. The account is not created.","1. 
+2. Missing: username or password or email or role
+3. "
+,"TC-USER-004: Administrator updates user account details","Verify that the Administrator can update an existing user account's details (name, email, role, or status).","The Administrator is logged in. The user account already exists in the system.","The user record is updated with new information and changes are reflected in the user list.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"User Management","user-management,update,admin","1. The Administrator selects an existing user account from the user list.
+2. The Administrator updates user details such as name, email, role, or status.
+3. The system validates the updated information.
+4. The system updates the user record and syncs with auth_accounts.json.","1. The selected user's details are displayed in an edit form.
+2. The fields accept new values.
+3. The system confirms the updated information is valid.
+4. The user list reflects the updated information. Changes are persisted in the database and local auth file.","1. 
+2. Updated name, email, role, or status values
+3. 
+4. "
+,"TC-USER-005: Administrator activates a user account","Verify that the Administrator can activate an inactive user account, allowing the user to log in.","The Administrator is logged in. An inactive user account exists in the system.","The user account status is changed to 'active' and the user can log in.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"User Management","user-management,activate,status","1. The Administrator selects an inactive user account.
+2. The Administrator changes the account status to active.
+3. The system validates the request.
+4. The system updates the status in the user table.","1. The user account details are displayed showing inactive status.
+2. The status toggle or dropdown changes to active.
+3. The system accepts the status change.
+4. The user list shows the account as active. The user can now log in to the system.","1. 
+2. status: active
+3. 
+4. "
+,"TC-USER-006: Administrator deactivates a user account","Verify that the Administrator can deactivate an active user account, preventing the user from logging in.","The Administrator is logged in. An active user account exists in the system.","The user account status is changed to 'inactive' and the user cannot log in.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"User Management","user-management,deactivate,status","1. The Administrator selects an active user account.
+2. The Administrator changes the account status to inactive.
+3. The system validates the request.
+4. The system updates the status in the user table.","1. The user account details are displayed showing active status.
+2. The status toggle or dropdown changes to inactive.
+3. The system accepts the status change.
+4. The user list shows the account as inactive. The user can no longer log in to the system.","1. 
+2. status: inactive
+3. 
+4. "
+,"TC-PROD-001: Inventory Staff adds a new product","Verify that Inventory Staff can add a new product to the product master list with all required fields. An inventory record should be auto-created.","The Inventory Staff is logged into the system with inventory role.","A new product is saved in the product table, linked to category, and an inventory record is auto-created.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Product Master List Management","product,create,inventory","1. The Inventory Staff opens the Product List page.
+2. The Inventory Staff enters product name, brand, category, size (EU numeric), color, gender/type, and unit price.
+3. The system validates the product information.
+4. The system saves the product in the product table, links it to the category table, and creates an inventory record automatically.","1. The Product List page is displayed with existing products and an option to add a new product.
+2. All product fields accept input. Category dropdown shows available categories (Sneakers, Loafers, Boots, Sandals, Heels, Running, Casual, Formal, Kids). Size uses EU numeric format (36-50).
+3. All required fields are validated successfully.
+4. The new product appears in the Product List with all entered details. An inventory record is created with initial stock of 0.","1. 
+2. product_name, brand (default: Meryl), category_id, size (EU), color, gender (Male/Female/Kids Boy/Kids Girl), unit_price
+3. 
+4. "
+,"TC-PROD-002: Inventory Staff updates product details","Verify that Inventory Staff can update an existing product's master data.","The Inventory Staff is logged in. The product exists in the product table.","The product record is updated with new information.",high,major,functional,positive,e2e,is-not-automated,actual,0,"Product Master List Management","product,update,inventory","1. The Inventory Staff selects a product from the Product List.
+2. The Inventory Staff edits product information (name, brand, category, size, color, gender, unit price).
+3. The system validates the updated fields.
+4. The system updates the product record.","1. The selected product's details are displayed in an edit form.
+2. The fields accept updated values.
+3. The system confirms the updates are valid.
+4. The Product List reflects the updated product details.","1. 
+2. Updated product values
+3. 
+4. "
+,"TC-PROD-003: Inventory Staff categorizes products","Verify that Inventory Staff can assign or update categories, size, brand, and price for products.","The Inventory Staff is logged in. Product categories exist in the category table (Sneakers, Loafers, Boots, Sandals, Heels, Running, Casual, Formal, Kids).","The product and category relationship is updated. Products are organized for inventory, sales, and analytics use.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Product Master List Management","product,category,classify","1. The Inventory Staff selects a product.
+2. The Inventory Staff assigns or updates category, size, brand, and price information.
+3. The system validates category and product references.
+4. The system updates the product and category relationship.","1. The product details are displayed.
+2. The category dropdown, size (EU numeric), brand, and price fields accept input.
+3. The system confirms the category assignment is valid.
+4. The product is organized under the correct category for inventory, sales, and analytics use.","1. 
+2. category_id, size (EU numeric), brand, unit_price
+3. 
+4. "
+,"TC-PROD-004: Inventory Staff adds product with missing required fields","Verify that the system validates required fields when adding a product and displays appropriate errors.","The Inventory Staff is logged into the system.","The product is not created and validation errors are displayed.",medium,normal,functional,negative,e2e,is-not-automated,actual,0,"Product Master List Management","product,create,negative,validation","1. The Inventory Staff opens the Product List page.
+2. The Inventory Staff submits the product form with required fields left empty.
+3. The system validates the product information.","1. The Product List page is displayed.
+2. The form is submitted with incomplete data.
+3. The system displays validation error messages for missing required fields (product_name, category_id, unit_price). The product is not created.","1. 
+2. Missing: product_name or category_id or unit_price
+3. "
+,"TC-PROD-005: Manage product categories (CRUD)","Verify that categories can be created, updated, and deleted by authorized users.","The Administrator or Inventory Staff is logged in.","Categories are created, updated, or deleted successfully.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Product Master List Management","product,category,crud","1. Navigate to category management via the Product List page.
+2. Create a new category with name and description.
+3. Update an existing category's name or description.
+4. Delete a category that has no linked products.","1. Category management options are available.
+2. The new category is saved and appears in the category dropdown list.
+3. The category record is updated successfully.
+4. The category is removed from the system. Categories with linked products cannot be deleted.","1. 
+2. category_name, description
+3. Updated category_name or description
+4. "
+,"TC-INV-001: Inventory Staff records newly arrived stocks (stock-in)","Verify that Inventory Staff can record stock-in for an existing product, including SRP, reorder level, dates, and status.","The Inventory Staff is logged in. The product already exists in the product table with an inventory record.","Inventory stock is updated and the stock-in transaction is logged in inventory_log with change_type 'restock'.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,stock-in,restock","1. The Inventory Staff opens the Product Settings page.
+2. The Inventory Staff selects an existing product from the product master list.
+3. The Inventory Staff enters stock-in quantity, SRP (selling retail price), reorder level, manufacturer date, expiration date, and inventory status.
+4. The system creates or updates the inventory record and records the movement in inventory_log.","1. The Product Settings (Inventory Management) page is displayed with inventory items.
+2. The product's inventory details are displayed (current stock, SRP, reorder level, dates).
+3. All inventory fields accept input. SRP is auto-calculated based on markup rate.
+4. The inventory record is updated with new stock quantity. An inventory_log entry is created with transaction_type 'restock' and the quantity_change.","1. 
+2. 
+3. stock_quantity (increment), srp, reorder_level, mfg_date, exp_date, inventory_status (active/inactive)
+4. "
+,"TC-INV-002: Inventory Staff adjusts stock quantity (stock-out)","Verify that Inventory Staff can record a stock-out adjustment for an existing inventory record.","The Inventory Staff is logged in. The product has an existing inventory record with stock_quantity > 0.","Stock quantity is reduced and the stock-out movement is recorded in inventory_log.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,stock-out,adjustment","1. The Inventory Staff selects an inventory item.
+2. The Inventory Staff enters the stock-out quantity.
+3. The system validates that the resulting stock quantity will not become negative.
+4. The system updates inventory and records the adjustment in inventory_log.","1. The inventory item details are displayed with current stock quantity.
+2. The stock-out quantity field accepts numeric input.
+3. The system confirms the adjustment is valid (resulting stock >= 0).
+4. The inventory reflects the new stock quantity. An inventory_log entry records the stock movement with transaction_type 'adjustment'.","1. 
+2. stock-out quantity <= current stock_quantity
+3. 
+4. "
+,"TC-INV-003: Stock-out validation prevents negative stock","Verify that the system rejects stock adjustments that would result in negative stock quantity.","The Inventory Staff is logged in. The product has an inventory record with a known stock quantity.","The stock-out is rejected and stock remains unchanged.",high,critical,functional,negative,e2e,is-not-automated,actual,0,"Inventory Management","inventory,stock-out,negative,validation","1. The Inventory Staff selects an inventory item.
+2. The Inventory Staff enters a stock-out quantity greater than the current available stock.
+3. The system validates that stock quantity will not become negative.","1. The inventory item details are displayed with current stock quantity.
+2. The quantity field accepts the input.
+3. The system displays an error message indicating insufficient stock. The adjustment is rejected and stock quantity remains unchanged.","1. 
+2. stock-out quantity > current stock_quantity
+3. "
+,"TC-INV-004: Inventory Staff monitors low stock products","Verify that the system correctly identifies and displays products with stock at or below reorder level.","The Inventory Staff is logged in. Inventory records contain stock_quantity and reorder_level values. Some products have stock at or below reorder level.","Low-stock products are identified and displayed with indicators or alerts.",high,major,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,low-stock,monitoring","1. The Inventory Staff opens the Inventory page.
+2. The system displays current stock quantity, reorder level, and inventory status for each product.
+3. The system identifies products with stock_quantity at or below reorder_level.
+4. The system displays low-stock indicators or alerts.","1. The Inventory page is displayed with current stock information.
+2. All inventory data (stock_quantity, reorder_level, inventory_status) is visible in the list.
+3. Products at or below reorder level are identified and flagged.
+4. Low-stock products are clearly highlighted. Dashboard shows the low stock count in the summary statistics.","1. 
+2. 
+3. stock_quantity <= reorder_level
+4. "
+,"TC-INV-005: System displays near-expiry products","Verify that the system identifies inventory items nearing expiration (within 30 days).","Inventory records contain products with expiration dates. Some products have exp_date within 30 days.","Near-expiry products are displayed with appropriate warnings on the inventory dashboard.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,near-expiry,monitoring","1. The Inventory Staff opens the Inventory page.
+2. The system retrieves inventory items with expiration dates within 30 days.
+3. The system displays near-expiry indicators.","1. The Inventory page is displayed.
+2. Near-expiry products are identified from inventory data.
+3. Products nearing expiration are highlighted with warnings. Dashboard summary shows the near-expiry count.","1. 
+2. exp_date within 30 days of current date
+3. "
+,"TC-INV-006: Inventory dashboard statistics accuracy","Verify the inventory dashboard correctly displays total products, low stock count, out of stock count, and near expiry count.","Inventory records exist with various stock levels and statuses.","Dashboard correctly shows all summary statistics matching actual data.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,dashboard,statistics","1. Navigate to the Inventory dashboard.
+2. Verify total products count matches actual product records in the system.
+3. Verify low stock count matches products where stock_quantity <= reorder_level.
+4. Verify out of stock count and near expiry count match actual data.","1. Dashboard statistics section is displayed.
+2. Total products count is accurate.
+3. Low stock count is accurate.
+4. Out of stock count and near expiry count are all accurate.","1. 
+2. 
+3. 
+4. "
+,"TC-SALE-001: Cashier creates a new sales transaction","Verify that a Cashier can initiate a new sales transaction in the POS, select a customer, and prepare for product entry.","The Cashier is logged into the sales portal. Inventory contains active sellable products with stock > 0.","A new sales transaction is initialized with customer info and ready for product entry.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Sales Transaction","sales,pos,create-transaction","1. The Cashier opens the Point of Sale page.
+2. The Cashier starts a new sales transaction.
+3. The Cashier selects an existing customer or enters walk-in customer information.
+4. The system prepares a new transaction for product entry.","1. The POS page is displayed with product selection grid (searchable by name, filterable by brand, category, gender, size), cart area, and customer selection.
+2. The POS interface is ready for a new transaction.
+3. Customer is associated with the transaction (existing customer_id or walk-in).
+4. The transaction is initialized and the cart is empty, ready for product additions.","1. 
+2. 
+3. customer_id or walk-in customer details
+4. "
+,"TC-SALE-002: Cashier adds products to the transaction cart","Verify that the Cashier can search, select, and add products to the cart with quantity validation against inventory.","The Cashier is logged in. Products are active and available in inventory with stock_quantity > 0.","Products are added to the transaction cart with correct quantities, prices, and line totals.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Sales Transaction","sales,pos,add-product","1. The Cashier searches or selects a product from the product selection grid.
+2. The Cashier enters the quantity to be sold.
+3. The system checks inventory availability (stock_quantity - reserved_quantity) and product status.
+4. The system adds the product to the cart if stock is sufficient.","1. The product is found and displayed with name, brand, size, color, SRP, and available stock.
+2. The quantity field accepts numeric input.
+3. The system confirms available sellable stock is sufficient for the requested quantity.
+4. The product appears in the cart with correct quantity, unit price (SRP), and line total.","1. 
+2. quantity: e.g. 2
+3. Available stock = stock_quantity - reserved_quantity
+4. "
+,"TC-SALE-003: Adding product with insufficient stock","Verify that the system prevents adding products to the cart when inventory stock is insufficient.","The Cashier is logged in. A product has limited stock (e.g., only 1 available).","The product is not added to the cart and a stock availability error is displayed.",high,critical,functional,negative,e2e,is-not-automated,actual,0,"Sales Transaction","sales,pos,negative,stock-validation","1. The Cashier selects a product from the product selection grid.
+2. The Cashier enters a quantity greater than available stock.
+3. The system checks inventory availability.","1. The product is displayed with available stock info.
+2. The quantity is entered.
+3. The system detects insufficient stock and displays an error message. The product is not added to the cart.","1. 
+2. quantity > available stock (stock_quantity - reserved_quantity)
+3. "
+,"TC-SALE-004: System computes subtotal, discount, and total amount","Verify that the system correctly computes transaction totals including automatic promotion discounts (percentage, fixed, BOGO, bundle).","The Cashier is logged in. At least one product is added to the transaction cart. Active promotions may exist for products in the cart.","The system correctly computes and displays subtotal, discount amount (from promotions), and total amount.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Sales Transaction","sales,pos,computation,discount,promotion","1. The Cashier reviews the cart with added products.
+2. The system checks for active promotions linked to products in the cart via promo_product.
+3. The system applies valid discounts (percentage discount, fixed amount, BOGO, or bundle) when applicable.
+4. The system computes subtotal, discount amount, and total amount and displays the final amount.","1. The cart displays products with quantities, unit prices (SRP), and line totals.
+2. Active promotions within valid date/time window are identified for eligible products.
+3. Discounts are calculated: percentage of price, fixed amount off, BOGO logic, or bundle discount. Margin safety check prevents negative margins.
+4. The POS screen shows subtotal (sum of line_totals), discount_amount (sum of applied discounts), and total_amount (subtotal - discount). Store credit can also be applied.","1. 
+2. 
+3. Active promotion: discount_type (percentage/fixed/BOGO/bundle), discount_value
+4. "
+,"TC-PAY-001: Cashier records customer payment (cash)","Verify that the Cashier can record a cash payment for a sales transaction with correct change calculation.","A sales transaction has been prepared with a computed total amount. Products are in the cart.","Payment is recorded in the payment table with status 'paid'. Change amount is calculated correctly.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Payment Processing","payment,cash,process","1. The Cashier selects cash as the payment method.
+2. The Cashier enters the amount paid (equal to or greater than total amount).
+3. The system validates the payment amount against the total amount.
+4. The system records payment details in the payment table.","1. Payment method options are displayed: Cash, GCash, Card, Store Credit.
+2. The amount paid field accepts the input.
+3. The system confirms the payment amount is sufficient (amount_paid >= total_amount).
+4. Payment record is created with payment_method='cash', amount_paid, change_amount, payment_status='paid'.","1. payment_method: cash
+2. amount_paid >= total_amount (e.g., total=500, paid=1000)
+3. 
+4. "
+,"TC-PAY-002: System rejects insufficient payment amount","Verify that the system rejects payment when the amount paid is less than the total amount.","A sales transaction is prepared with a computed total amount.","Payment is rejected and an error message is displayed.",high,critical,functional,negative,e2e,is-not-automated,actual,0,"Payment Processing","payment,negative,validation,insufficient","1. The Cashier selects a payment method.
+2. The Cashier enters an amount less than the total amount.
+3. The system validates the payment amount against the total amount.","1. Payment method is selected.
+2. The amount is entered.
+3. The system rejects the payment and displays an error indicating the amount paid is insufficient.","1. 
+2. amount_paid < total_amount (e.g., total=500, paid=300)
+3. "
+,"TC-PAY-003: System generates change, finalizes transaction, deducts stock, and generates receipt","Verify that completing a payment finalizes the transaction: computes change, deducts inventory, creates inventory_log entries, and generates a printable receipt.","Payment amount is valid (amount_paid >= total_amount).","Transaction is finalized. Stock is deducted. Inventory_log entries are created (type: 'sale'). Receipt is generated. Sales analytics and summary are updated.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Payment Processing","payment,receipt,finalize,stock-deduction","1. The system computes the change amount (amount_paid - total_amount).
+2. The system sets the payment_status to 'paid' and sales_status to 'Completed'.
+3. The system saves sales_transaction, sales_details, and payment records.
+4. The system deducts stock from inventory for each sold product and creates inventory_log entries.
+5. The system updates sales_analytics and sales_summary.
+6. The system generates receipt details and displays the receipt dialog.","1. Change amount is calculated correctly.
+2. Payment and sales statuses are updated.
+3. All transaction records are persisted in the database.
+4. Stock quantities are reduced by sold quantities. Inventory_log entries with transaction_type='sale' are created for each product.
+5. Sales analytics and daily sales summary are synchronized.
+6. Receipt is available for viewing and printing with full transaction details: products, quantities, prices, discounts, subtotal, total, payment info, change, cashier, date/time.","1. 
+2. 
+3. 
+4. 
+5. 
+6. "
+,"TC-PAY-004: Payment with GCash method","Verify that the Cashier can process a payment using GCash electronic payment method.","A sales transaction is prepared with a computed total amount.","Payment is recorded with payment_method='gcash' and transaction is completed.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Payment Processing","payment,gcash,electronic","1. The Cashier selects GCash as the payment method.
+2. The Cashier enters the amount paid.
+3. The system validates and processes the payment.
+4. The system records payment and finalizes the transaction.","1. GCash option is available in the payment method dropdown.
+2. Amount is entered.
+3. Payment is validated successfully.
+4. Payment record is created with payment_method='gcash', payment_status='paid'. Transaction is completed.","1. payment_method: gcash
+2. amount_paid >= total_amount
+3. 
+4. "
+,"TC-PAY-005: Payment with store credit applied","Verify that accumulated customer store credit can be applied to reduce the transaction total.","A sales transaction is prepared. The customer has available store credit in customer_credits.","Store credit is deducted from total. Remaining balance is paid via another method.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Payment Processing","payment,store-credit,deduction","1. The Cashier selects a customer who has available store credit.
+2. The Cashier applies store credit to the transaction.
+3. The system deducts the store credit from the total amount.
+4. The Cashier pays any remaining balance using cash or electronic payment.","1. Customer's available_credit is displayed.
+2. Store credit amount is applied to reduce the invoice total.
+3. The total is reduced by the applied store credit. customer_credits.available_credit is updated.
+4. Payment is completed for the remaining amount. A customer_credit_transaction with txn_type='use' is recorded.","1. 
+2. store_credit_amount to apply
+3. 
+4. "
+,"TC-RET-001: Cashier records a return/replacement request","Verify that the Cashier can look up an original sales transaction and initiate a return/replacement process.","The Cashier is logged in. The original sales transaction exists with sales_status 'Completed'.","The original transaction details are displayed and the return process is initiated.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Return and Replacement Management","return,replacement,lookup","1. The Cashier opens the Return or Replacement page.
+2. The Cashier searches for the original sales transaction by transaction ID.
+3. The system retrieves sales_transaction and sales_details records.
+4. The Cashier selects the product being returned.","1. The Return/Replacement page is displayed with a transaction search option.
+2. The search field accepts the transaction ID.
+3. The original transaction details are displayed including all products, quantities, prices, and item statuses.
+4. The product is selected for return processing. Return options are shown.","1. 
+2. sales_id of the original transaction
+3. 
+4. "
+,"TC-RET-002: Cashier selects returned and replacement products","Verify that the Cashier can select a returned product and choose a replacement product from available inventory.","The Cashier is logged in. The returned product is part of the original transaction. Replacement products are available in inventory.","The return and replacement products are validated and ready for processing.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Return and Replacement Management","return,replacement,product-selection","1. The Cashier selects the returned product from the original transaction.
+2. The Cashier selects the replacement product from available inventory.
+3. The system checks replacement product availability in inventory.
+4. The system validates return quantity and stock availability.","1. The returned product details are displayed with original quantity and price.
+2. The replacement product selection interface shows available products with stock, SRP, and sizes.
+3. The system confirms the replacement product has sufficient stock.
+4. The return request is validated. The Cashier specifies the inventory action for the returned item: 'Return to Stock' or 'Defective / Not Sellable'.","1. 
+2. replacement product_id from available inventory
+3. 
+4. Inventory action: Return to Stock or Defective"
+,"TC-RET-003: System processes replacement with price difference (replacement more expensive)","Verify the system correctly handles replacement when the new product costs more than the original, requiring additional payment.","The return/replacement request is valid. Original product price < replacement product price.","Additional payment is collected. Return is recorded. Inventory is adjusted. No-full-refund policy is enforced.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Return and Replacement Management","return,replacement,price-difference,additional-payment","1. The system compares the original product price with the replacement product price.
+2. The system computes the additional payment required (replacement price - original price).
+3. The Cashier collects additional payment from the customer (cash or GCash).
+4. The system records the return in returns and return_details tables.
+5. The system updates inventory: restocks returned item (if 'Return to Stock'), deducts replacement product.
+6. The system creates inventory_log entries and preserves the original sales transaction.","1. Price comparison is displayed showing original vs replacement price.
+2. The additional_payment (price_difference) amount is calculated and displayed.
+3. Additional payment is collected via selected mode_of_payment.
+4. Return record is created with return_type='Replacement', return_status='Completed', additional_payment amount.
+5. Returned product stock is restored (if applicable). Replacement product stock is deducted. inventory_log entries are created.
+6. Original sales_transaction is preserved (not deleted). sales_transaction.return_status is updated to 'Replaced'.","1. 
+2. Original unit_price: 500, Replacement unit_price: 750, price_difference: 250
+3. mode_of_payment: cash or gcash
+4. 
+5. 
+6. "
+,"TC-RET-004: System processes replacement with lower value (store credit issued)","Verify the system issues store credit when the replacement product costs less than the original (no cash refund policy).","The return/replacement request is valid. Original product price > replacement product price.","Store credit is issued to the customer. No cash refund is given.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Return and Replacement Management","return,replacement,store-credit,no-refund","1. The system compares the original product price with the replacement product price.
+2. The system computes the price difference (original price - replacement price).
+3. The system issues store credit to the customer for the difference amount.
+4. The system records the return and updates all related records.","1. Price comparison shows original > replacement.
+2. The net_difference is calculated.
+3. Store credit is added to customer_credits.available_credit. A customer_credit_transaction with txn_type='issue' is created. No cash refund is given.
+4. Returns, return_details, inventory, and inventory_log are updated. Original sales_transaction is preserved.","1. 
+2. Original unit_price: 750, Replacement unit_price: 500, difference: 250
+3. store_credit_amount: 250
+4. "
+,"TC-RET-005: Return with equal value replacement","Verify that a direct item swap occurs when original and replacement products have the same price.","The return/replacement request is valid. Original product price = replacement product price.","Direct swap is processed. No additional payment or store credit. Inventory is adjusted.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Return and Replacement Management","return,replacement,equal-value,swap","1. The system compares the original product price with the replacement product price.
+2. The system determines the prices are equal (price_difference = 0).
+3. The system processes the direct item swap.
+4. The system updates inventory and records.","1. Price comparison shows equal values.
+2. No additional payment required. No store credit issued.
+3. Return is processed as a direct swap.
+4. Returned product stock is restored (if applicable). Replacement product stock is deducted. Records are updated.","1. 
+2. Original unit_price: 500, Replacement unit_price: 500
+3. 
+4. "
+,"TC-RET-006: Return with receipt proof upload","Verify that the Cashier can upload a receipt proof photo for the return transaction.","The return/replacement process is in progress.","Receipt proof is uploaded to Supabase storage and URL is recorded in the returns table.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Return and Replacement Management","return,receipt-proof,upload","1. During the return process, the Cashier uploads a receipt photo as proof of purchase.
+2. The system uploads the file to the Supabase storage bucket 'return-receipts'.
+3. The system records the receipt_proof_url and receipt_verified_at timestamp in the returns record.","1. File upload interface is available during return processing.
+2. The file is successfully uploaded to cloud storage.
+3. The receipt proof URL is stored and the verification timestamp is recorded.","1. 
+2. Image file (receipt photo)
+3. "
+,"TC-PROMO-001: Administrator creates a promotion","Verify that the Administrator can create a new promotion with discount type, value, date window, and target sales goal.","The Administrator is logged into the system. Product records exist in the system.","The promotion is saved in the promotion table with all details.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Promotion Management","promotion,create,admin","1. The Administrator opens the Promotion Management page.
+2. The Administrator enters promotion name, discount type, discount value, start date, end date, start time, end time, status, and target sales goal.
+3. The system validates the promotion details (date range, discount value, margin safety).
+4. The system saves the promotion in the promotion table.","1. The Promotion Management page is displayed with existing promotions and an option to create a new one.
+2. All promotion fields accept input. Discount type dropdown shows: Percentage, Fixed Amount, BOGO, Bundle.
+3. All required fields are validated. Date range is logical (end >= start). Margin safety check ensures discount won't cause negative margins.
+4. The new promotion appears in the promotion list with all entered details.","1. 
+2. promo_name, discount_type (percentage/fixed/BOGO/bundle), discount_value, start_date, end_date, start_time, end_time, status (active/inactive), target_sales_goal (default: 10000)
+3. 
+4. "
+,"TC-PROMO-002: Administrator selects products for a promotion","Verify that the Administrator can link specific products or categories to a promotion via promo_product.","The Administrator is logged in. A promotion exists. Products exist in the product table.","Products are linked to the promotion through promo_product records. Eligible products will receive the discount during POS transactions.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Promotion Management","promotion,products,link","1. The Administrator selects a promotion to edit or creates a new one.
+2. The Administrator selects products or product categories to include (All Products, specific Categories, or specific Product variants).
+3. The system validates the selected products.
+4. The system links products to the promotion through promo_product records.","1. The promotion details are displayed.
+2. Product selection interface shows available products with filter options.
+3. The system confirms the selected products are valid.
+4. The promotion shows the linked products. These products will receive the promotion discount during POS sales transactions.","1. 
+2. product_ids or category selection (All Products, specific categories, specific variants)
+3. 
+4. "
+,"TC-PROMO-003: Administrator removes product from promotion","Verify that a product can be unlinked from a promotion.","The Administrator is logged in. A promotion exists with linked products in promo_product.","The promo_product record is deleted. The product no longer receives the promotion discount.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Promotion Management","promotion,products,unlink","1. The Administrator selects a promotion.
+2. The Administrator removes a product from the promotion's linked product list.
+3. The system deletes the promo_product record.","1. Promotion details and linked products are displayed.
+2. The product is removed from the list.
+3. The product is no longer linked to the promotion and will not receive the discount during future sales.","1. 
+2. product_id to remove
+3. "
+,"TC-PROMO-004: System suggests promotions using analytics and prediction","Verify that the system provides data-driven promotion recommendations based on sales analytics, prediction, and inventory data.","The Administrator is logged in. Sales analytics, prediction, and inventory records are available.","The system displays promotion suggestions identifying slow-moving products, best-selling categories, and products suitable for promotion.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Promotion Management","promotion,analytics,suggestions,prediction,recommendation","1. The Administrator views promotion recommendations on the Analytics/Prediction page.
+2. The system analyzes sales_analytics, prediction, analytics_product_snapshot, and inventory data.
+3. The system identifies slow-moving products, dead stock, best-selling categories, and products suitable for promotion.
+4. The system displays promotion suggestions with recommendation_type (markdown, bundle_or_bogo, restock_before_promoting), severity, and suggested discount range.","1. The recommendations interface is displayed.
+2. Analysis is performed on persisted analytics data.
+3. Products are categorized by movement_label (fast, steady, slow, dead_stock) and recommendation types are generated.
+4. Promotion recommendations are shown with product names, recommendation titles, messages, severity levels, and suggested_discount_min/max values.","1. 
+2. 
+3. 
+4. "
+,"TC-PROMO-005: Active promotions auto-apply at POS","Verify that active promotions within their valid date/time window automatically apply discounts to eligible products during POS sales.","An active promotion exists linked to specific products via promo_product. The promotion is within its valid start_date/end_date and start_time/end_time window.","Discount is automatically applied to eligible products in the POS cart. promo_id and promo_discount_applied are recorded in sales_details.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Promotion Management","promotion,pos,auto-apply,integration","1. The Cashier opens the POS and starts a new sales transaction.
+2. The Cashier adds a product that is linked to an active promotion.
+3. The system detects the active promotion and calculates the discount (percentage, fixed, BOGO, or bundle).
+4. The system applies the discount to the cart and records promo_id in sales_details.","1. POS is ready for a new transaction.
+2. The product is added to the cart.
+3. The discount is automatically calculated. Margin safety check ensures the discount doesn't result in a negative margin.
+4. The cart shows the discounted subtotal, discount amount, and total. sales_details records include promo_id and promo_discount_applied values.","1. 
+2. Product linked to active promotion (within valid date/time window)
+3. discount_type and discount_value from the promotion
+4. "
+,"TC-NOTIF-001: Administrator sends promotion notification to customers","Verify that the Administrator can send promotional email notifications to all active customers via Gmail API.","The Administrator is logged in. A promotion exists. Customer records contain valid email addresses. Gmail API OAuth2 credentials are configured.","Email notifications are sent and notification records are created in the notification table with email_status.",high,major,functional,positive,e2e,is-not-automated,actual,0,"Notification Management","notification,promotion,send,email,gmail","1. The Administrator selects a promotion on the Notification/Promotion Management page.
+2. The Administrator initiates promotion notification sending (email blast).
+3. The system retrieves active customer records with email addresses.
+4. The system sends emails via Gmail API OAuth2 and records the result in the notification table for each customer.","1. The promotion details are displayed with a send notification option.
+2. The email blast is initiated.
+3. Active customers with valid emails are retrieved.
+4. Notification records are created with promo_id, customer_id, email_status ('sent' or 'failed'), and date_sent.","1. 
+2. 
+3. 
+4. "
+,"TC-NOTIF-002: System records notification status (sent)","Verify that the system correctly records 'sent' status for successfully delivered notifications.","Notification sending has been initiated. Customer has a valid email address.","Notification record shows email_status='sent' with date_sent timestamp.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Notification Management","notification,status,sent,tracking","1. The system sends the notification email to a customer with a valid email.
+2. The email is delivered successfully via Gmail API.
+3. The system records the notification status in the notification table.
+4. The notification result is displayed.","1. Email sending is attempted.
+2. Email delivery succeeds.
+3. notification record: email_status='sent', date_sent=current timestamp.
+4. The notification list shows the sent status with timestamp.","1. 
+2. Valid customer email address
+3. 
+4. "
+,"TC-NOTIF-003: System records notification status (failed)","Verify that the system correctly records 'failed' status for undeliverable notifications.","Notification sending has been initiated. Customer has an invalid or missing email address.","Notification record shows email_status='failed'.",medium,normal,functional,negative,e2e,is-not-automated,actual,0,"Notification Management","notification,status,failed,tracking","1. The system attempts to send the notification email to a customer with an invalid email.
+2. The email delivery fails.
+3. The system records the notification as failed in the notification table.
+4. The notification result is displayed.","1. Email sending is attempted.
+2. Email delivery fails due to invalid recipient.
+3. notification record: email_status='failed'.
+4. The notification list shows the failed status.","1. 
+2. Invalid or missing customer email
+3. 
+4. "
+,"TC-REPORT-001: Administrator generates sales report with date range","Verify that the Administrator can generate a sales report filtered by date range showing revenue, units sold, and transaction summaries.","The Administrator is logged in. Sales transaction and payment records exist in the system.","A sales report is generated displaying revenue, units sold, transaction count, and summaries for the selected period.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Report Generation","report,sales,generate,date-range","1. The Administrator opens the Reports page.
+2. The Administrator selects the sales report type and specifies a date range (daily, weekly, monthly, quarterly, annually, or custom).
+3. The system retrieves sales_transaction, sales_details, and payment records within the date range.
+4. The system generates and displays the sales report.","1. The Reports page is displayed with report type options and date range filters.
+2. Report type and date range filters are selected.
+3. The system queries and aggregates the data for the selected period.
+4. The report shows: Gross & Net Revenue, Total Transactions, Average Order Value (AOV), Total Units Sold, and transaction summaries. CSV export and PDF print options are available.","1. 
+2. report_type: sales, period: daily/weekly/monthly/quarterly/annually/custom, start_date, end_date
+3. 
+4. "
+,"TC-REPORT-002: Administrator generates inventory report","Verify that the Administrator can generate an inventory report showing stock levels, low-stock items, and movement history.","The Administrator is logged in. Inventory and inventory_log records exist.","An inventory report is generated with current stock levels, low-stock items, out-of-stock items, and stock movement history.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Report Generation","report,inventory,generate","1. The Administrator selects the inventory report option on the Reports page.
+2. The system retrieves product, category, inventory, and inventory_log data.
+3. The system identifies stock levels, low-stock items, and movement history.
+4. The system displays the inventory report.","1. The inventory report section is displayed.
+2. All relevant data is fetched from the database.
+3. Stock analysis is performed: current levels, items at/below reorder level, out-of-stock items.
+4. The report shows current stock levels per product, low-stock warnings, out-of-stock items, and stock movement history (restocks, sales, adjustments, returns).","1. 
+2. 
+3. 
+4. "
+,"TC-REPORT-003: Administrator views best-selling and slow-moving items report","Verify that the Administrator can view product performance rankings based on quantity sold and revenue.","The Administrator is logged in. Sales details and analytics records are available.","Product performance report shows ranked products with quantity sold, revenue, and performance indicators.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Report Generation","report,products,performance,ranking","1. The Administrator opens the analytics or reports section.
+2. The system analyzes product sales performance from sales_details.
+3. The system ranks products by quantity sold and revenue.
+4. The system displays best-selling and slow-moving products.","1. The product performance section is displayed.
+2. Sales data is aggregated per product.
+3. Products are ranked from best-selling to slow-moving with trend_type indicators.
+4. The report shows product rankings with product name, brand, category, quantity sold, revenue, and performance indicators (top_seller, slow_mover, stable).","1. 
+2. 
+3. 
+4. "
+,"TC-REPORT-004: Report with no data in selected date range","Verify that the system handles report generation gracefully when no data exists for the selected period.","The Administrator is logged in. No sales transactions exist for the selected date range.","The system displays an appropriate empty state or 'no data' message instead of an error.",medium,normal,functional,negative,e2e,is-not-automated,actual,0,"Report Generation","report,empty,no-data,edge-case","1. The Administrator opens the Reports page.
+2. The Administrator selects a date range with no transaction data.
+3. The system attempts to retrieve records for the date range.
+4. The system displays the result.","1. The Reports page is displayed.
+2. Date range filter is applied.
+3. No records are found for the selected period.
+4. The report page shows a message like 'No data available for the selected period' or displays zeroed summaries without throwing errors.","1. 
+2. Date range with no data (e.g., future dates)
+3. 
+4. "
+,"TC-REPORT-005: Export sales report as CSV","Verify that the Administrator can export the sales report as a downloadable CSV file.","The Administrator is logged in. Sales transaction data exists.","A CSV file is downloaded containing the sales report data.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Report Generation","report,sales,export,csv","1. The Administrator generates a sales report.
+2. The Administrator clicks the CSV export option.
+3. The system generates a CSV file with sales data.","1. Sales report is displayed.
+2. Export option is available.
+3. A CSV file is downloaded with completed and pending sales transaction data.","1. 
+2. 
+3. "
+,"TC-ANALYTICS-001: Administrator requests sales analytics with period filter","Verify that the Administrator can view sales analytics filtered by period (daily, weekly, monthly, quarterly, annually).","The Administrator is logged in. Sales transaction and sales details data exist.","Sales analytics are displayed with revenue trends, product performance, and category breakdowns.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Sales Analytics","analytics,sales,view,period-filter","1. The Administrator opens the Analytics page.
+2. The Administrator selects the analytics category (sales) and period (daily, weekly, monthly, quarterly, annually).
+3. The system retrieves sales_details, product, category, inventory, and sales_analytics data.
+4. The system displays analytics results.","1. The Analytics page is displayed with category and period filter options.
+2. Filter options are applied.
+3. Data is fetched and processed for the selected period.
+4. Sales analytics are shown with revenue trends (area charts), product performance rankings, category breakdown (bar charts), and Top 5 Selling Products.","1. 
+2. period: daily/weekly/monthly/quarterly/annually
+3. 
+4. "
+,"TC-ANALYTICS-002: System analyzes sales performance per product","Verify that the system correctly computes per-product sales performance metrics: total sales, total quantity sold, average sales, and ranking.","The Administrator is logged in. Completed sales transactions exist with sales_details records.","Product-level analytics are displayed with accurate metrics and rankings.",high,major,functional,positive,e2e,is-not-automated,actual,0,"Sales Analytics","analytics,product-performance,computation","1. The system groups sales data by product (from sales_details).
+2. The system computes total_revenue, total_quantity_sold, and avg_unit_price for each product.
+3. The system ranks products based on performance (quantity sold and revenue).
+4. The system stores or displays the results in sales_analytics.","1. Sales data is aggregated per product_id.
+2. Metrics are calculated accurately: total_revenue (sum of subtotals), total_quantity_sold (sum of quantities), avg_unit_price.
+3. Products are sorted and ranked. rank_in_period is assigned.
+4. Product ranking, sales totals, transaction_count, and trend_type (top_seller/slow_mover/stable) indicators are shown.","1. 
+2. 
+3. 
+4. "
+,"TC-ANALYTICS-003: System identifies best-selling and slow-moving products","Verify that the system correctly categorizes products by sales velocity: fast-moving, steady, slow-moving, and dead stock.","The Administrator is logged in. Product sales and inventory data are available.","Products are categorized with movement_label indicators (fast, steady, slow, dead_stock) supporting inventory and promotion decisions.",high,major,functional,positive,e2e,is-not-automated,actual,0,"Sales Analytics","analytics,best-selling,slow-moving,dead-stock,trend","1. The system compares quantity sold and stock levels for each product.
+2. The system identifies fast-moving products (high sales velocity, good turnover).
+3. The system identifies slow-moving or dead-stock products (low sales, high stock, low turnover ratio).
+4. The system displays trend type, movement_label, and ranking.","1. Sales velocity and stock turnover ratios are calculated per product.
+2. Fast-moving products are labeled with movement_label='fast' or trend_type='top_seller'.
+3. Slow-moving and dead-stock products are labeled with movement_label='slow'/'dead_stock' or trend_type='slow_mover'.
+4. Products are displayed with movement classifications, turnover ratios, and days of stock remaining. This supports restocking, promotion, and pricing decisions.","1. 
+2. 
+3. 
+4. "
+,"TC-ANALYTICS-004: Inventory analytics (stock health and turnover)","Verify that inventory analytics correctly display stock health, turnover rates, velocity classification, and reorder alerts.","The Administrator is logged in. Inventory and sales data exist.","Inventory analytics show 30-day turnover ratios, velocity classification (high/medium/slow/dead_stock), and reorder alerts.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Sales Analytics","analytics,inventory,turnover,stock-health","1. The Administrator navigates to the Inventory Analytics page.
+2. The system calculates 30-day stock turnover ratios per product.
+3. The system classifies stock velocity: high_velocity, medium_velocity, slow_mover, dead_stock.
+4. The system displays turnover rates, velocity classification, days of stock remaining, and reorder alerts.","1. Inventory analytics page is displayed.
+2. Turnover ratios are calculated from inventory_log movements over the last 30 days.
+3. Each product is classified based on its turnover and sales velocity.
+4. Analytics show stock health metrics, category-level inventory summaries, movement trends, and recommendations for restocking.","1. 
+2. 
+3. 
+4. "
+,"TC-ANALYTICS-005: Promotion analytics display effectiveness","Verify that promotion analytics show each promotion's effectiveness: revenue impact, discount totals, and transaction usage.","The Administrator is logged in. Promotions have been used in sales transactions (promo_id recorded in sales_details).","Promotion analytics show revenue generated vs target_sales_goal, total discounts given, and number of transactions using each promotion.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Sales Analytics","analytics,promotion,effectiveness,revenue-impact","1. The Administrator navigates to the Promotion Analytics section.
+2. The system aggregates promotion usage from sales_details (promo_id, promo_discount_applied).
+3. The system calculates: total discounts given, revenue generated, number of transactions using promos, revenue vs target_sales_goal.
+4. The system displays promotion analytics results.","1. Promotion analytics section is displayed.
+2. Promotion data is aggregated across all sales transactions.
+3. Metrics are computed per promotion: total discount amount, revenue generated, usage count, progress toward target_sales_goal.
+4. Charts and tables show each promotion's performance, effectiveness, and revenue impact.","1. 
+2. 
+3. 
+4. "
+,"TC-ANALYTICS-006: Persist analytics data (product snapshots and recommendations)","Verify that the system can rebuild and persist analytics snapshots and recommendations to the database.","The Administrator is logged in. Sales data exists for analysis.","Analytics snapshots are persisted to analytics_product_snapshot, analytics_dimension_snapshot, and analytics_recommendation tables.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Sales Analytics","analytics,persist,snapshot,rebuild","1. The Administrator triggers the analytics rebuild/persist action.
+2. The system recalculates product snapshots, dimension shares, and recommendations.
+3. The system persists results to analytics_product_snapshot, analytics_dimension_snapshot, and analytics_recommendation tables.
+4. The persisted snapshots are available for viewing.","1. The rebuild process starts.
+2. Product-level metrics (units_sold, revenue, turnover_ratio, movement_label), dimension distributions (brand/size/category share), and recommendations (markdown, BOGO, restock) are calculated.
+3. Records are inserted or updated in the analytics persistence tables with period_key, period_start, period_end, and computed_at timestamps.
+4. The snapshots can be retrieved and displayed on the analytics page.","1. 
+2. 
+3. 
+4. "
+,"TC-PRED-001: Administrator views product demand prediction","Verify that the Administrator can view demand prediction (forecasted demand) per product based on historical sales data.","The Administrator is logged in. Sales history and product records are available with sufficient historical data.","Predicted product demand is displayed per product with prediction period and forecasting method details.",high,critical,functional,positive,e2e,is-not-automated,actual,0,"Demand Prediction","prediction,demand,view,forecast","1. The Administrator opens the Prediction / Predictive Analytics page.
+2. The system retrieves historical sales data from sales_transaction and sales_details.
+3. The system calculates predicted product demand using forecasting algorithms (Weighted Moving Average, Linear Regression, Blended Recent Forecast).
+4. The system displays predicted demand per product.","1. The Prediction page is displayed with forecasting options.
+2. Historical sales data is loaded for analysis.
+3. Predicted demand values are computed using multiple algorithms with accuracy tracking.
+4. Prediction results show product name, predicted demand quantity, prediction_period (weekly/monthly/quarterly), prediction_date, and confidence indicators.","1. 
+2. 
+3. 
+4. "
+,"TC-PRED-002: System generates and stores demand predictions","Verify that the system can generate predictions and persist them to the prediction table.","The Administrator is logged in. Sufficient sales history exists for prediction computation.","Predictions are generated and stored in the prediction table with product_id, predicted_demand, prediction_period, and prediction_date.",high,major,functional,positive,e2e,is-not-automated,actual,0,"Demand Prediction","prediction,generate,store,persist","1. The Administrator triggers demand prediction generation.
+2. The system analyzes historical sales data using forecasting algorithms (WMA, Linear Regression, Blended).
+3. The system stores prediction results in the prediction table.
+4. The prediction results are displayed.","1. The system begins generating predictions.
+2. Predictions are calculated for each product with predicted_demand values.
+3. Prediction records are created with product_id, predicted_demand, prediction_period (weekly/monthly/quarterly), and prediction_date.
+4. Predictions are shown per product with method and confidence information.","1. 
+2. 
+3. 
+4. "
+,"TC-PRED-003: System stores prediction history and compares with actual sales","Verify that the system compares predicted demand with actual sales data and stores comparison results with accuracy metrics.","Prediction results have been generated. Actual sales data is available for the prediction period.","Prediction accuracy is computed and stored in prediction_history with predicted_value, actual_value, variance, and accuracy_percentage.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Demand Prediction","prediction,history,comparison,accuracy","1. The system retrieves prediction results from the prediction table.
+2. The system retrieves actual sales data for the prediction period from sales_details.
+3. The system compares predicted_demand with actual_sales and computes variance and prediction_accuracy.
+4. The system stores comparison results in prediction_history.","1. Predictions are loaded.
+2. Actual sales quantities are fetched and aggregated per product.
+3. Comparison results are calculated: variance = predicted - actual, accuracy_percentage.
+4. prediction_history records contain prediction_id, actual_sales, prediction_accuracy, and comparison timestamp.","1. 
+2. 
+3. 
+4. "
+,"TC-PRED-004: System provides inventory and marketing decision support","Verify that prediction results provide actionable insights and recommendations for restocking and marketing decisions.","The Administrator is logged in. Prediction, analytics, and inventory records exist.","The system displays prediction-based insights: suggested restocking quantities, promotion candidates, and inventory planning recommendations.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Demand Prediction","prediction,recommendations,insights,decision-support","1. The system compares demand prediction with current inventory levels (stock_quantity).
+2. The system identifies products likely to have high demand (potential stockouts) or low demand (overstock risk).
+3. The system generates promotion suggestions (markdown, BOGO, bundle) and restocking recommendations.
+4. The system displays prediction-based insights on the Predictive Analytics page.","1. Predicted demand vs current stock comparison is performed.
+2. Products are categorized by predicted demand level and stockout/overstock risk.
+3. Recommendations are generated: restock quantities for high-demand items, promotion candidates for slow-moving items, markdown suggestions with discount ranges.
+4. The page shows actionable recommendations with severity levels, suggested discount ranges, and inventory planning insights.","1. 
+2. 
+3. 
+4. "
+,"TC-CUST-001: Cashier creates a new customer record","Verify that the Cashier can add a new customer with all demographic fields.","The Cashier is logged into the system.","A new customer record is created and visible in the customer list.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Customer Management","customer,create","1. The Cashier navigates to the Customer List page.
+2. The Cashier enters customer details: first name, last name, email, phone, address, city, state, zip code, date of birth, gender, customer type, status.
+3. The system validates the customer information.
+4. The new customer appears in the customer list.","1. Customer List page is displayed with existing customers and an add option.
+2. All fields accept input. Gender options: Male, Female, Kids (Boy), Kids (Girl).
+3. The system saves the customer record with a generated customer_id and date_registered.
+4. Customer record is visible with all entered details.","1. 
+2. first_name, last_name, email, phone, address, city, state, zip_code, date_of_birth, gender, customer_type, status
+3. 
+4. "
+,"TC-CUST-002: Cashier updates customer information","Verify that a Cashier can update an existing customer's details.","The Cashier is logged in. A customer record exists in the system.","The customer record is updated with new information.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Customer Management","customer,update","1. The Cashier selects an existing customer from the Customer List.
+2. The Cashier updates customer fields (email, phone, address, etc.).
+3. The system validates and saves the updated customer record.
+4. The customer list reflects the changes.","1. Customer details are displayed in an edit form.
+2. Fields accept updated values.
+3. The system persists the changes.
+4. Updated information is displayed in the customer list.","1. 
+2. Updated customer fields
+3. 
+4. "
+,"TC-CUST-003: Cashier searches for a customer","Verify that the Cashier can search for customers by name, email, or phone.","The Cashier is logged in. Customer records exist in the system.","Search results display matching customers.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Customer Management","customer,search","1. The Cashier navigates to the Customer List page.
+2. The Cashier enters a search query (customer name, email, or phone).
+3. The system filters customer records matching the query.","1. Customer List is displayed with a search field.
+2. Search field accepts input.
+3. Matching customers are displayed in the filtered list.","1. 
+2. Search query: customer name, email, or phone number
+3. "
+,"TC-CUST-004: Delete customer with no sales history","Verify that a customer with no associated sales transactions can be deleted.","The Administrator or Cashier is logged in. A customer record exists with no linked sales transactions.","The customer record is deleted from the system.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Customer Management","customer,delete","1. Select a customer with no sales history.
+2. Initiate deletion of the customer record.
+3. The system checks for linked sales transactions.
+4. The system deletes the customer record.","1. Customer details are displayed.
+2. Delete option is clicked.
+3. No linked sales_transaction records are found (safe to delete).
+4. The customer is removed from the customer list.","1. 
+2. 
+3. 
+4. "
+,"TC-CUST-005: Prevent deletion of customer with sales history","Verify that the system prevents deletion of customers who have associated sales transactions.","A customer record exists with linked sales transactions.","Deletion is blocked and an appropriate error message is displayed.",medium,normal,functional,negative,e2e,is-not-automated,actual,0,"Customer Management","customer,delete,negative,guard","1. Select a customer who has existing sales transactions.
+2. Attempt to delete the customer record.
+3. The system checks for linked sales transactions.","1. Customer details are displayed.
+2. Delete option is clicked.
+3. The system detects linked sales_transaction records and prevents deletion with an appropriate error message.","1. 
+2. 
+3. "
+,"TC-ACTLOG-001: System logs user login and logout activity","Verify that the system logs user login and logout activities with timestamps, IP address, and user details.","Users have performed login and logout actions. The Administrator is logged in.","Activity/audit logs display login and logout entries with user, action, details, IP address, and timestamps.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Activity Log","activity-log,audit,login,logout","1. The Administrator navigates to the Activity Log page.
+2. Review logged activities for login and logout events.
+3. Verify that each entry contains: user_id, action_type, entity_type, details, IP address, and timestamp.","1. The Activity Log page is displayed with a list of activities.
+2. Login and logout entries are visible with correct user information.
+3. Each audit_log entry contains actor_user_id, action_type, entity_type, entity_id, old_data/new_data (JSONB), and created_at timestamp.","1. 
+2. 
+3. "
+,"TC-ACTLOG-002: System logs transactional activities","Verify that the system logs key business activities: user account changes, sales transactions, returns, and inventory adjustments.","Business operations have been performed. The Administrator is logged in.","Audit log entries exist for user management actions, completed sales, processed returns, and inventory changes.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Activity Log","activity-log,audit,transactions","1. The Administrator opens the Activity Log page.
+2. Review audit entries for various business activities.
+3. Verify that user account creation/updates, sales completions, return processing, and inventory adjustments are all logged.","1. The Activity Log page is displayed.
+2. Multiple activity types are visible in the log.
+3. audit_log entries contain: action_type (create/update/delete/complete), entity_type (user/sales/return/inventory), entity_id, old_data and new_data JSONB showing what changed, and metadata.","1. 
+2. 
+3. "
+,"TC-NOTIFCENTER-001: Notification center displays real-time alerts","Verify that the in-app notification center displays real-time alerts for critical events.","The user is logged in. Various alert conditions exist (low stock, pending sales, expiring promotions).","Notification bell displays alerts for: low stock warnings, pending sales, high sales volume, expiring promotions, and pending returns.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Notification Management","notification-center,alerts,real-time","1. Log into the system as any role.
+2. The notification bell icon displays a count of active alerts.
+3. Click the notification bell to view alerts.
+4. Verify alerts appear for relevant conditions: critical/low stock items, pending sales awaiting approval, high sales volume in 24h, promotions expiring in <48h, pending return requests.","1. User is logged in.
+2. Alert count badge is visible on the notification bell.
+3. Alert dropdown or panel is displayed.
+4. Alerts are categorized by type with appropriate severity indicators and actionable links.","1. 
+2. 
+3. 
+4. "
+
