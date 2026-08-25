@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
-import { ArrowLeft, KeyRound, LogIn, Mail, User, Lock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, KeyRound, LogIn, Mail, User, Lock, ShieldCheck, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { getPostLoginPath, useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
 
@@ -47,12 +47,15 @@ export function Login() {
       const user = await login(username, password);
       if (!user) {
         setError('Invalid username or password');
+        setSubmitting(false);
         return;
       }
-      navigate(getPostLoginPath(user));
+      setNotice('Login successful! Redirecting to portal...');
+      setTimeout(() => {
+        navigate(getPostLoginPath(user));
+      }, 700);
     } catch {
       setError('Invalid username or password');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -339,8 +342,9 @@ export function Login() {
             )}
 
             {notice && (
-              <div className="rounded-xl px-3 py-2.5 bg-emerald-500/10 border border-emerald-400/25 text-sm text-emerald-200">
-                {notice}
+              <div className="rounded-xl px-3 py-2.5 bg-emerald-500/15 border border-emerald-400/30 text-sm text-emerald-200 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{notice}</span>
               </div>
             )}
 
