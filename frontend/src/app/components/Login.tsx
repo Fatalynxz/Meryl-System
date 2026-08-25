@@ -53,7 +53,7 @@ export function Login() {
       setNotice('Login successful! Redirecting to portal...');
       setTimeout(() => {
         navigate(getPostLoginPath(user));
-      }, 700);
+      }, 1500);
     } catch {
       setError('Invalid username or password');
       setSubmitting(false);
@@ -342,9 +342,9 @@ export function Login() {
             )}
 
             {notice && (
-              <div className="rounded-xl px-3 py-2.5 bg-emerald-500/15 border border-emerald-400/30 text-sm text-emerald-200 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>{notice}</span>
+              <div className="rounded-xl px-4 py-3 bg-emerald-500/20 border border-emerald-400/40 text-sm text-emerald-200 flex items-center gap-2.5 transition-all duration-300">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span className="font-medium">{notice}</span>
               </div>
             )}
 
