@@ -1375,7 +1375,7 @@ function formatReceiptNumber(salesId?: string) {
             {cart.length === 0 ? (
               <div className="text-center py-8 text-yellow-200/50 text-sm">Cart is empty. Add products to begin transaction.</div>
             ) : (
-              <div className="border border-[#262636] rounded-xl overflow-hidden bg-[#14141e]">
+              <div className="border border-[#262636] rounded-xl overflow-x-auto overflow-y-auto max-h-[420px] bg-[#14141e]">
                 <Table className="w-full">
                   <TableHeader>
                     <TableRow className="bg-[#1a1a28] hover:bg-[#1a1a28] border-b border-[#262636]">
@@ -1517,7 +1517,8 @@ function formatReceiptNumber(salesId?: string) {
       </div>
 
       {/* TRANSACTION SUMMARY & PAYMENT CARD */}
-      <div className="space-y-4">
+      {/* RIGHT COLUMN - TRANSACTION SUMMARY */}
+      <div className="space-y-4 lg:sticky lg:top-0 self-start">
         <Card className="bg-[#101017] border-[#24242f] shadow-xl">
           <CardHeader className="border-b border-[#24242f] pb-3">
             <CardTitle className="text-yellow-300 flex items-center gap-2 text-lg">
@@ -1761,12 +1762,9 @@ function formatReceiptNumber(salesId?: string) {
               {/* STORE HEADER */}
               <div className="text-center space-y-1 border-b border-dashed border-zinc-400 pb-3">
                 <h2 className="text-base font-black tracking-wider text-black font-sans uppercase">MERYL SHOES</h2>
-                <p className="text-[10px] text-zinc-600">Official Retailer & Shoe Center</p>
                 <p className="text-[10px] text-zinc-600">Araneta Ave, Bacolod, 6100 Negros Occidental</p>
                 <p className="text-[10px] text-zinc-600 font-semibold">TIN: 432-891-002-000-VAT • TEL: (034) 435 0128</p>
               </div>
-
-              {/* RECEIPT METADATA */}
               <div className="space-y-1 text-[11px] border-b border-dashed border-zinc-400 pb-3">
                 <div className="flex justify-between font-bold text-zinc-900">
                   <span>OR / INVOICE NO:</span>
