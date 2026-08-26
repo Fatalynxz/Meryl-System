@@ -1267,20 +1267,20 @@ export function ReturnManagement() {
                         <Receipt className="w-5 h-5 text-yellow-400" />
                         Step 1: Validate Receipt / Original Sale *
                       </Label>
-                      <Badge className="bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 text-xs">
+                      <Badge className="bg-yellow-400/15 text-yellow-300 border border-yellow-400/30 text-xs font-medium">
                         7-Day Policy Check
                       </Badge>
                     </div>
 
-                    <div className="space-y-3 rounded-xl border border-red-800 p-4 bg-red-950/40">
+                    <div className="space-y-3 rounded-xl border border-zinc-800 p-4 bg-zinc-950">
                       {/* Receipt Number Validation Bar */}
                       <div className="space-y-1.5">
-                        <p className="text-xs text-yellow-200/80">
+                        <p className="text-xs text-zinc-300">
                           Enter or scan the Receipt # (e.g. <span className="font-semibold text-yellow-300">SALES-001</span> or <span className="font-semibold text-yellow-300">RCP-...</span>) to verify purchase validity:
                         </p>
                         <div className="flex gap-2">
                           <div className="relative flex-1">
-                            <Receipt className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                            <Receipt className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400/80" />
                             <Input
                               value={receiptNumberInput}
                               onChange={(event) => setReceiptNumberInput(event.target.value)}
@@ -1291,15 +1291,15 @@ export function ReturnManagement() {
                                 }
                               }}
                               placeholder="Enter Receipt Number (e.g. SALES-001)..."
-                              className="h-11 rounded-xl pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400 font-medium"
+                              className="h-11 rounded-xl pl-10 bg-[#1D1D25] border-zinc-700 text-white placeholder:text-zinc-500 focus-visible:ring-[#FFD60A]/40 font-medium"
                             />
                           </div>
                           <Button
                             type="button"
                             onClick={() => validateReceiptNumber()}
-                            className="h-11 rounded-xl bg-yellow-400 px-5 text-red-950 font-semibold hover:bg-yellow-500 shadow-md flex items-center gap-2"
+                            className="h-11 rounded-xl bg-[#FFD60A] hover:bg-[#ffcf24] px-5 text-[#15151B] font-bold shadow-md flex items-center gap-2"
                           >
-                            <ShieldCheck className="w-4 h-4" />
+                            <ShieldCheck className="w-4 h-4 text-[#15151B]" />
                             Verify Receipt
                           </Button>
                         </div>
@@ -1307,7 +1307,7 @@ export function ReturnManagement() {
 
                       {/* Receipt Validation Result Feedback Box */}
                       {receiptValidationStatus.state === "valid" && (
-                        <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3.5 space-y-2">
+                        <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/40 p-3.5 space-y-2">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
@@ -1315,7 +1315,7 @@ export function ReturnManagement() {
                                 Valid Receipt Verified — {receiptValidationStatus.displayId}
                               </span>
                             </div>
-                            <Badge className="bg-emerald-500/30 text-emerald-200 border-emerald-400 text-[11px]">
+                            <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-400/40 text-[11px]">
                               Within 7-Day Window
                             </Badge>
                           </div>
@@ -1343,7 +1343,7 @@ export function ReturnManagement() {
                       )}
 
                       {receiptValidationStatus.state === "expired_warning" && (
-                        <div className="rounded-xl border border-amber-500/40 bg-amber-950/60 p-3.5 space-y-2">
+                        <div className="rounded-xl border border-amber-500/40 bg-amber-950/40 p-3.5 space-y-2">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
@@ -1351,7 +1351,7 @@ export function ReturnManagement() {
                                 Policy Notice — {receiptValidationStatus.displayId}
                               </span>
                             </div>
-                            <Badge className="bg-amber-500/30 text-amber-200 border-amber-400 text-[11px]">
+                            <Badge className="bg-amber-500/20 text-amber-200 border-amber-400/40 text-[11px]">
                               {receiptValidationStatus.daysAgo} Days Ago (&gt;7 Days)
                             </Badge>
                           </div>
@@ -1380,7 +1380,7 @@ export function ReturnManagement() {
                       )}
 
                       {receiptValidationStatus.state === "already_replaced" && (
-                        <div className="rounded-xl border border-red-500/40 bg-red-950/60 p-3.5 flex items-start gap-2.5">
+                        <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-3.5 flex items-start gap-2.5">
                           <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                           <div className="text-xs space-y-0.5">
                             <span className="text-red-300 font-semibold text-sm block">
@@ -1394,7 +1394,7 @@ export function ReturnManagement() {
                       )}
 
                       {receiptValidationStatus.state === "no_returnable_items" && (
-                        <div className="rounded-xl border border-red-500/40 bg-red-950/60 p-3.5 flex items-start gap-2.5">
+                        <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-3.5 flex items-start gap-2.5">
                           <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                           <div className="text-xs space-y-0.5">
                             <span className="text-red-300 font-semibold text-sm block">
@@ -1408,7 +1408,7 @@ export function ReturnManagement() {
                       )}
 
                       {receiptValidationStatus.state === "not_found" && (
-                        <div className="rounded-xl border border-red-500/40 bg-red-950/60 p-3.5 flex items-start gap-2.5">
+                        <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-3.5 flex items-start gap-2.5">
                           <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
                           <div className="text-xs space-y-0.5">
                             <span className="text-red-300 font-semibold text-sm block">
@@ -1427,26 +1427,26 @@ export function ReturnManagement() {
                           type="button"
                           variant="ghost"
                           onClick={() => setShowManualSaleList(!showManualSaleList)}
-                          className="text-xs text-yellow-300 hover:text-yellow-200 hover:bg-red-800/60 px-2 h-7"
+                          className="text-xs text-yellow-300 hover:text-yellow-200 hover:bg-zinc-800/80 px-2 h-7"
                         >
                           {showManualSaleList ? "▲ Hide Sales List" : "▼ Or Browse All Sales Instead"}
                         </Button>
 
                         {showManualSaleList && (
-                          <div className="mt-2 space-y-2 border-t border-red-800/60 pt-2">
+                          <div className="mt-2 space-y-2 border-t border-zinc-800 pt-2">
                             <div className="relative">
                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                               <Input
                                 value={salePickerSearch}
                                 onChange={(event) => setSalePickerSearch(event.target.value)}
                                 placeholder="Filter sales by ID, customer, status..."
-                                className="h-9 rounded-lg pl-9 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 text-xs focus-visible:ring-yellow-400"
+                                className="h-9 rounded-lg pl-9 bg-[#1D1D25] border-zinc-700 text-white placeholder:text-zinc-500 text-xs focus-visible:ring-[#FFD60A]/40"
                               />
                             </div>
-                            <div className="border border-red-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-40">
+                            <div className="border border-zinc-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-40 bg-zinc-950">
                               <Table className="w-full table-fixed text-xs">
                                 <TableHeader>
-                                  <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                                  <TableRow className="bg-zinc-900 hover:bg-zinc-900 border-zinc-800">
                                     <TableHead className="w-[20%] text-yellow-300 text-center">Sales ID</TableHead>
                                     <TableHead className="w-[28%] text-yellow-300 text-center">Customer</TableHead>
                                     <TableHead className="w-[14%] text-yellow-300 text-center">Items</TableHead>
@@ -1456,10 +1456,10 @@ export function ReturnManagement() {
                                 </TableHeader>
                                 <TableBody>
                                   {filteredSaleOptions.map((sale) => (
-                                    <TableRow key={sale.sales_id} className={`border-red-800 transition-colors hover:bg-red-800/60 ${formData.sales_id === sale.sales_id ? "bg-yellow-400/10" : ""}`}>
-                                      <TableCell className="truncate text-yellow-200 text-center font-medium" title={sale.display_sales_id}>{sale.display_sales_id}</TableCell>
-                                      <TableCell className="truncate text-yellow-200 text-center" title={sale.customerName}>{sale.customerName}</TableCell>
-                                      <TableCell className="text-yellow-200 text-center">{sale.details.length}</TableCell>
+                                    <TableRow key={sale.sales_id} className={`border-zinc-800 transition-colors hover:bg-zinc-900/60 ${formData.sales_id === sale.sales_id ? "bg-yellow-400/10" : ""}`}>
+                                      <TableCell className="truncate text-zinc-200 text-center font-medium" title={sale.display_sales_id}>{sale.display_sales_id}</TableCell>
+                                      <TableCell className="truncate text-zinc-200 text-center" title={sale.customerName}>{sale.customerName}</TableCell>
+                                      <TableCell className="text-zinc-200 text-center">{sale.details.length}</TableCell>
                                       <TableCell className="truncate text-yellow-300 text-center font-semibold">{formatCurrency(sale.total_amount)}</TableCell>
                                       <TableCell className="text-center">
                                         <Button
@@ -1467,7 +1467,7 @@ export function ReturnManagement() {
                                           onClick={() => {
                                             validateReceiptNumber(sale.display_sales_id);
                                           }}
-                                          className="h-7 rounded-full bg-yellow-400 px-3 text-red-900 text-xs hover:bg-yellow-500 font-semibold"
+                                          className="h-7 rounded-full bg-[#FFD60A] px-3 text-[#15151B] text-xs hover:bg-[#ffcf24] font-bold"
                                         >
                                           {formData.sales_id === sale.sales_id ? "Selected" : "Select"}
                                         </Button>
@@ -1483,7 +1483,7 @@ export function ReturnManagement() {
                     </div>
                   </div>
 
-                  <div className="space-y-2 rounded-xl border border-red-800 p-4">
+                  <div className="space-y-2 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                       <div>
                         <Label className="text-yellow-300">Receipt Proof *</Label>
