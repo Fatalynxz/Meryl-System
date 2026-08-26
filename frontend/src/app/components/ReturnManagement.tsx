@@ -2103,10 +2103,10 @@ export function ReturnManagement() {
             <div id="printable-exchange-slip" className="bg-[#fffdf9] text-zinc-900 p-6 rounded-xl border border-zinc-300 shadow-inner font-mono text-xs space-y-3">
               {/* STORE HEADER */}
               <div className="text-center space-y-1 border-b border-dashed border-zinc-400 pb-3">
-                <h2 className="text-base font-black tracking-wider text-black font-sans uppercase">MERYL FOOTWEAR STORE</h2>
+                <h2 className="text-base font-black tracking-wider text-black font-sans uppercase">MERYL SHOES</h2>
                 <p className="text-[10px] text-zinc-600">Official Retailer & Shoe Center</p>
-                <p className="text-[10px] text-zinc-600">Poblacion, Valencia City, Bukidnon 8709</p>
-                <p className="text-[10px] text-zinc-600 font-semibold">TIN: 432-891-002-000-VAT • TEL: (088) 828-4567</p>
+                <p className="text-[10px] text-zinc-600">Araneta Ave, Bacolod, 6100 Negros Occidental</p>
+                <p className="text-[10px] text-zinc-600 font-semibold">TIN: 432-891-002-000-VAT • TEL: (034) 435 0128</p>
                 <div className="mt-2 inline-block bg-black text-white px-3 py-0.5 rounded font-sans font-bold text-[10px] uppercase tracking-wider">
                   ITEM REPLACEMENT / EXCHANGE SLIP
                 </div>
