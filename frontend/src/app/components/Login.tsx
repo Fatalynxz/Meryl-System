@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
 import { ArrowLeft, KeyRound, LogIn, Mail, User, Lock, ShieldCheck, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { getPostLoginPath, useAuth } from '../../lib/auth-context';
+import { supabase } from '../../lib/supabase';
 import { BrandLogo } from './BrandLogo';
 
 
@@ -22,7 +23,6 @@ export function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [externalSubmitting, setExternalSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
 
   useEffect(() => {
     const resetExternalSubmitting = () => {
@@ -45,15 +45,26 @@ export function Login() {
     setNotice('');
 
     try {
-      const user = await login(username, password);
-      if (!user) {
+      // Step 1: Validate credentials WITHOUT triggering auth context redirect
+      const { data, error: rpcError } = await supabase.rpc('login_user', {
+        p_username: username,
+        p_password: password,
+      });
+
+      if (rpcError) throw rpcError;
+      if (!data) {
         setError('Invalid username or password');
         setSubmitting(false);
         return;
       }
-      // Show the success overlay - it uses fixed positioning so it stays
-      // visible even when auth context triggers a route change
+
+      // Step 2: Show success overlay on the login page
       setLoginSuccess(true);
+
+      // Step 3: After 1.5s, actually call login() which sets user state and triggers redirect
+      setTimeout(async () => {
+        await login(username, password);
+      }, 1500);
     } catch {
       setError('Invalid username or password');
       setSubmitting(false);
@@ -395,25 +406,3 @@ export function Login() {
       {/* Login Success Overlay */}
       {loginSuccess && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#16161C] border border-emerald-500/30 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl shadow-emerald-900/20 max-w-sm mx-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
-              <CheckCircle2 className="w-9 h-9 text-emerald-400" />
-            </div>
-            <h3 className="text-white text-xl font-semibold">Login Successful!</h3>
-            <p className="text-white/60 text-sm text-center">Redirecting to your portal...</p>
-            <div className="w-full h-1 rounded-full bg-white/10 overflow-hidden mt-2">
-              <div className="h-full bg-emerald-400 rounded-full" style={{ animation: 'progressBar 1.5s ease-in-out forwards' }} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes progressBar {
-          from { width: 0%; }
-          to { width: 100%; }
-        }
-      `}</style>
-    </div>
-  );
-}
