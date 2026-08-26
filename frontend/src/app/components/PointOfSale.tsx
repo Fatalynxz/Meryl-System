@@ -1119,90 +1119,204 @@ export function PointOfSale() {
               </DialogContent>
             </Dialog>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label className="text-yellow-300">Select Product</Label>
+            {/* PRODUCT, COLOR & SHOPEE-STYLE SIZE SELECTION */}
+            <div className="space-y-4">
+              {/* 1. SELECT PRODUCT DROPDOWN */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
+                  1. Select Shoe Model / Product
+                </Label>
                 <Select
                   value={selectedProductKey}
                   onValueChange={(value) => {
                     setSelectedProductKey(value);
-                    setSelectedColor("");
+                    const colors = Array.from(
+                      new Set(sellableProductInventory.filter((v) => v.product_name === value).map((v) => v.color))
+                    );
+                    setSelectedColor(colors.length === 1 ? colors[0] : "");
                     setSelectedSize("");
                   }}
                 >
-                  <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                    <SelectValue placeholder="Choose product name" />
+                  <SelectTrigger className="h-11 bg-red-600/90 border-red-800 text-yellow-100 rounded-xl font-medium focus:ring-yellow-400">
+                    <SelectValue placeholder="Choose a product model to view variants..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                  <SelectContent className="bg-[#181824] border-[#2e2e3f] text-yellow-100 max-h-72">
                     {productGroups.map((group) => (
-                      <SelectItem key={group.key} value={group.key}>
-                        {group.product_name}
+                      <SelectItem key={group.key} value={group.key} className="py-2.5">
+                        <span className="font-semibold text-white">{group.product_name}</span>
+                        <span className="text-xs text-yellow-200/60 ml-2">
+                          ({group.variants.length} variant{group.variants.length === 1 ? "" : "s"})
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label className="text-yellow-300">Select Color</Label>
-                <Select
-                  value={selectedColor}
-                  onValueChange={(value) => {
-                    setSelectedColor(value);
-                    setSelectedSize("");
-                  }}
-                  disabled={!selectedProductKey}
-                >
-                  <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                    <SelectValue placeholder={selectedProductKey ? "Choose color" : "Select product first"} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-                    {availableColors.map((color) => (
-                      <SelectItem key={color} value={color}>
-                        {color}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              {/* 2. COLOR VARIANT CHIPS (IF PRODUCT SELECTED) */}
+              {selectedProductKey && (
+                <div className="space-y-2 rounded-xl bg-red-800/40 border border-red-800/80 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
+                      2. Available Colorways
+                    </Label>
+                    <span className="text-xs text-yellow-200/60">
+                      {availableColors.length} color option{availableColors.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {availableColors.map((color) => {
+                      const isSelected = selectedColor === color;
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => {
+                            setSelectedColor(color);
+                            setSelectedSize("");
+                          }}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                            isSelected
+                              ? "bg-yellow-400 text-red-950 border-yellow-300 shadow-md ring-2 ring-yellow-400/50 scale-[1.02]"
+                              : "bg-[#1f1f2d] text-yellow-200 border-[#303044] hover:border-yellow-400/50 hover:bg-[#252536]"
+                          }`}
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full border border-black/30" style={{ backgroundColor: color.toLowerCase() }} />
+                          <span>{color}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. SHOPEE-STYLE SIZE CARD BUTTONS */}
+              {selectedProductKey && (selectedColor || availableColors.length === 1) && (
+                <div className="space-y-2 rounded-xl bg-red-800/40 border border-red-800/80 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
+                      3. Available Sizes (Shopee-Style Tiles)
+                    </Label>
+                    <span className="text-xs text-yellow-200/60">
+                      Tap a size tile to select
+                    </span>
+                  </div>
+
+                  {availableSizes.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
+                      {availableSizes.map((variant) => {
+                        const isSelected = selectedSize === variant.size;
+                        const isOutOfStock = variant.stock_quantity <= 0;
+                        const isLowStock = variant.stock_quantity > 0 && variant.stock_quantity <= 3;
+
+                        return (
+                          <button
+                            key={variant.product_id}
+                            type="button"
+                            disabled={isOutOfStock}
+                            onClick={() => {
+                              setSelectedColor(variant.color);
+                              setSelectedSize(variant.size);
+                            }}
+                            className={`p-3 rounded-xl border flex flex-col items-center justify-center transition-all text-center relative overflow-hidden ${
+                              isSelected
+                                ? "bg-yellow-400 text-red-950 border-yellow-300 shadow-lg ring-2 ring-yellow-400/60 scale-[1.03]"
+                                : isOutOfStock
+                                  ? "bg-zinc-900/40 border-zinc-800 text-zinc-600 opacity-40 cursor-not-allowed line-through"
+                                  : "bg-[#181824] border-[#2e2e3f] text-yellow-100 hover:border-yellow-400/60 hover:bg-[#202030]"
+                            }`}
+                          >
+                            <span className={`text-sm font-bold ${isSelected ? "text-red-950" : "text-white"}`}>
+                              Size {variant.size}
+                            </span>
+                            <span className={`text-xs font-semibold mt-0.5 ${isSelected ? "text-red-900" : "text-yellow-300"}`}>
+                              ₱{variant.price.toLocaleString()}
+                            </span>
+                            <span
+                              className={`text-[10px] mt-1 font-bold px-1.5 py-0.2 rounded-full ${
+                                isSelected
+                                  ? "bg-red-950/20 text-red-950"
+                                  : isOutOfStock
+                                    ? "text-red-400"
+                                    : isLowStock
+                                      ? "bg-amber-950/70 text-amber-300 border border-amber-500/30"
+                                      : "bg-emerald-950/70 text-emerald-300 border border-emerald-500/30"
+                              }`}
+                            >
+                              {isOutOfStock ? "Out of Stock" : isLowStock ? `🔥 Only ${variant.stock_quantity} left!` : `${variant.stock_quantity} in stock`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-xs text-yellow-200/60">
+                      No stock available for this colorway.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 4. QUANTITY STEPPER & ADD TO CART BAR */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end pt-1">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
+                    Quantity
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        const current = Math.max(1, Number(quantity) || 1);
+                        if (current > 1) setQuantity(String(current - 1));
+                      }}
+                      disabled={!selectedSize || Number(quantity) <= 1}
+                      className="h-10 w-10 border-red-800 bg-red-600 text-yellow-100 hover:bg-red-500 rounded-xl"
+                    >
+                      -
+                    </Button>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={quantity}
+                      onChange={(e) => {
+                        const cleanValue = e.target.value.replace(/[^\d]/g, "");
+                        setQuantity(cleanValue);
+                      }}
+                      onBlur={() => {
+                        if (!quantity || Number(quantity) <= 0) setQuantity("1");
+                      }}
+                      className="h-10 text-center font-bold text-base bg-red-600 border-red-800 text-yellow-100 rounded-xl"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        const current = Math.max(1, Number(quantity) || 1);
+                        setQuantity(String(current + 1));
+                      }}
+                      disabled={!selectedSize}
+                      className="h-10 w-10 border-red-800 bg-red-600 text-yellow-100 hover:bg-red-500 rounded-xl"
+                    >
+                      +
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    onClick={addToCart}
+                    disabled={!selectedProductKey || !selectedSize}
+                    className="h-10 w-full sm:w-auto bg-yellow-400 text-red-900 hover:bg-yellow-500 font-bold px-6 rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    <span>Add to Cart</span>
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-yellow-300">Select Size</Label>
-                <Select value={selectedSize} onValueChange={setSelectedSize} disabled={!selectedColor}>
-                  <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
-                    <SelectValue placeholder={selectedColor ? "Choose size" : "Select color first"} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-                    {availableSizes.map((variant) => (
-                      <SelectItem key={variant.product_id} value={variant.size}>
-                        Size {variant.size} (Stock: {variant.stock_quantity})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label className="text-yellow-300">Quantity</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => {
-                    const cleanValue = e.target.value.replace(/[^\d]/g, "");
-                    setQuantity(cleanValue);
-                  }}
-                  onBlur={() => {
-                    if (!quantity || Number(quantity) <= 0) setQuantity("1");
-                  }}
-                  className="bg-red-600 border-red-800 text-yellow-200"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end pt-2">
-              <Button onClick={addToCart} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
-                <Plus className="w-4 h-4 mr-2" />
-                Add to Cart
-              </Button>
             </div>
           </CardContent>
         </Card>
