@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Edit, Eye, Info, Package, Plus, Search, Settings, Warehouse } from "lucide-react";
+import { Edit, Eye, Info, Package, Plus, Search, Settings, Warehouse, SlidersHorizontal, ArrowUpDown, CheckCircle2, AlertTriangle, Layers, TrendingUp, Calendar, DollarSign, X, Check, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { useCategories, useInventory, useProducts, useProductsMutations } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
@@ -865,292 +865,568 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
   );
 }
 
-function ProductSettingsPage({ products, stockForm, setStockForm, selectedProduct, onSave }: { products: UiProduct[]; categories: any[]; stockForm: StockFormData; setStockForm: (data: StockFormData) => void; selectedProduct?: UiProduct; onSave: () => void }) {
-  const [settingsProductSearch, setSettingsProductSearch] = useState("");
-  const [expandedGroupKey, setExpandedGroupKey] = useState("");
-  const statusMeta = getProductStatusMeta(selectedProduct);
-  const computedSrp = selectedProduct ? calculateSrpFromMarkup(selectedProduct.unit_price, stockForm.markup_rate) : 0;
-  const markupAmount = selectedProduct ? computedSrp - Number(selectedProduct.unit_price || 0) : 0;
-  const productGroups = useMemo(() => {
-    const groupMap = new Map<string, { key: string; name: string; brand: string; category: string; variants: UiProduct[] }>();
-    for (const product of products) {
-      const key = productGroupKey(product);
-      const existing = groupMap.get(key);
-      if (existing) {
-        existing.variants.push(product);
-      } else {
-        groupMap.set(key, {
-          key,
-          name: product.name,
-          brand: product.brand,
-          category: product.category,
-          variants: [product],
-        });
+function ProductSettingsPage({
+  products,
+  categories,
+  stockForm,
+  setStockForm,
+  selectedProduct,
+  onSave,
+}: {
+  products: UiProduct[];
+  categories: any[];
+  stockForm: StockFormData;
+  setStockForm: (data: StockFormData) => void;
+  selectedProduct?: UiProduct;
+  onSave: () => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedStockFilter, setSelectedStockFilter] = useState<"all" | "in_stock" | "low_stock" | "out_of_stock" | "inactive">("all");
+  const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
+  const [activeProduct, setActiveProduct] = useState<UiProduct | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Inventory summary metrics
+  const totalVariants = products.length;
+  const inStockCount = products.filter((p) => Number(p.available_stock || 0) > 0 && String(p.status).toLowerCase() === "active").length;
+  const lowStockCount = products.filter((p) => {
+    const stock = Number(p.stock || 0);
+    const reorder = Number(p.reorder_level || 10);
+    return stock > 0 && stock <= reorder && String(p.status).toLowerCase() === "active";
+  }).length;
+  const outOfStockCount = products.filter((p) => Number(p.stock || 0) <= 0 || String(p.status).toLowerCase() === "inactive").length;
+
+  // Filtered products list for the table
+  const filteredProducts = useMemo(() => {
+    const term = searchQuery.trim().toLowerCase();
+    return products.filter((p) => {
+      // Search filter
+      const matchesSearch =
+        !term ||
+        p.name.toLowerCase().includes(term) ||
+        p.brand.toLowerCase().includes(term) ||
+        p.sku.toLowerCase().includes(term) ||
+        p.category.toLowerCase().includes(term) ||
+        p.color.toLowerCase().includes(term) ||
+        p.size.toLowerCase().includes(term);
+
+      // Category filter
+      const matchesCategory =
+        selectedCategory === "all" ||
+        p.category_id === selectedCategory ||
+        p.category.toLowerCase() === selectedCategory.toLowerCase();
+
+      // Stock status filter
+      const stock = Number(p.stock || 0);
+      const reorder = Number(p.reorder_level || 10);
+      const isInactive = String(p.status).toLowerCase() === "inactive";
+      let matchesStock = true;
+      if (selectedStockFilter === "in_stock") {
+        matchesStock = Number(p.available_stock || 0) > 0 && !isInactive;
+      } else if (selectedStockFilter === "low_stock") {
+        matchesStock = stock > 0 && stock <= reorder && !isInactive;
+      } else if (selectedStockFilter === "out_of_stock") {
+        matchesStock = stock <= 0 && !isInactive;
+      } else if (selectedStockFilter === "inactive") {
+        matchesStock = isInactive;
       }
-    }
-    return Array.from(groupMap.values()).map((group) => ({
-      ...group,
-      variants: group.variants.sort((a, b) => `${a.color} ${a.size}`.localeCompare(`${b.color} ${b.size}`, undefined, { numeric: true })),
-    }));
-  }, [products]);
 
-  const filteredProductGroups = useMemo(() => {
-    const term = settingsProductSearch.trim().toLowerCase();
-    if (!term) return productGroups;
-    return productGroups.filter((group) => {
-      const searchable = [
-        group.name,
-        group.brand,
-        group.category,
-        ...group.variants.flatMap((product) => [
-          product.sku,
-          product.color,
-          product.gender,
-          product.size,
-          String(product.unit_price),
-        ]),
-      ].join(" ").toLowerCase();
-      return searchable.includes(term);
+      return matchesSearch && matchesCategory && matchesStock;
     });
-  }, [productGroups, settingsProductSearch]);
+  }, [products, searchQuery, selectedCategory, selectedStockFilter]);
 
-  useEffect(() => {
-    if (selectedProduct) setExpandedGroupKey(productGroupKey(selectedProduct));
-  }, [selectedProduct]);
-
-  const selectProductForSettings = (value: string) => {
-    const product = products.find((item) => item.product_id === value);
+  // Open modal for a specific product
+  const handleOpenConfigure = (product: UiProduct) => {
+    setActiveProduct(product);
     setStockForm({
-      ...stockForm,
-      product_id: value,
+      product_id: product.product_id,
       stock_in: 0,
-      reserved_quantity: product?.reserved_stock || 0,
+      reserved_quantity: product.reserved_stock || 0,
       markup_rate: defaultMarkupRateForProduct(product),
-      reorder_level: product?.reorder_level || 10,
-      status: product?.status || 'Active',
-      manufacturer_date: product?.manufacturer_date ? product.manufacturer_date.slice(0, 10) : "",
-      expiration_date: product?.expiration_date ? product.expiration_date.slice(0, 10) : "",
+      reorder_level: product.reorder_level || 10,
+      status: (product.status as InventoryStatus) || "Active",
+      manufacturer_date: product.manufacturer_date ? product.manufacturer_date.slice(0, 10) : "",
+      expiration_date: product.expiration_date ? product.expiration_date.slice(0, 10) : "",
     });
+    setIsConfigDialogOpen(true);
   };
 
-  const formatPriceRange = (variants: UiProduct[]) => {
-    const prices = variants.map((product) => Number(product.unit_price || 0));
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    return min === max ? formatMoney(min) : `${formatMoney(min)} - ${formatMoney(max)}`;
+  // Live calculations for the active product inside modal
+  const activeCost = Number(activeProduct?.unit_price || 0);
+  const computedSrp = activeProduct ? calculateSrpFromMarkup(activeCost, stockForm.markup_rate) : 0;
+  const markupAmount = activeProduct ? computedSrp - activeCost : 0;
+  const currentOnHand = Number(activeProduct?.stock || 0);
+  const stockInToAdd = Number(stockForm.stock_in || 0);
+  const heldQuantity = Number(stockForm.reserved_quantity || 0);
+  const projectedOnHand = currentOnHand + stockInToAdd;
+  const projectedAvailable = Math.max(0, projectedOnHand - heldQuantity);
+
+  const handleSaveModal = async () => {
+    setIsSaving(true);
+    try {
+      await onSave();
+      setIsConfigDialogOpen(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <Card className="border-[#24242f] bg-[#101017]">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-yellow-300 flex items-center gap-2"><Settings className="w-5 h-5" />Product Settings / Item Parameter</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5 p-6 pt-0">
-        <div className="grid gap-6 2xl:gap-8 xl:grid-cols-[minmax(0,1.55fr)_minmax(260px,0.45fr)]">
-          <div className="space-y-4 rounded-2xl border border-[#24242f] bg-[#12121a] p-5">
-            <Label className="text-sm font-semibold text-yellow-200">Select Existing Product</Label>
-            <Select value={stockForm.product_id} onValueChange={selectProductForSettings}>
-              <SelectTrigger className="h-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus:ring-yellow-400/50"><SelectValue placeholder="Choose product from Product List" /></SelectTrigger>
-              <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100 max-h-72">
-                {products.map((product) => <SelectItem key={product.product_id} value={product.product_id}>{product.name} - {product.brand} - Size {product.size}</SelectItem>)}
+    <div className="space-y-6">
+      {/* 1. KEY METRICS STATS BAR */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-[#12121a] border border-[#24242f] rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-yellow-200/60 uppercase font-semibold tracking-wider">Total Variants</p>
+            <p className="text-2xl font-bold text-white mt-1">{totalVariants}</p>
+          </div>
+          <div className="p-3 bg-yellow-400/10 border border-yellow-400/20 rounded-xl text-yellow-400">
+            <Package className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-[#12121a] border border-[#24242f] rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-emerald-400/80 uppercase font-semibold tracking-wider">POS Available</p>
+            <p className="text-2xl font-bold text-emerald-400 mt-1">{inStockCount}</p>
+          </div>
+          <div className="p-3 bg-emerald-400/10 border border-emerald-400/20 rounded-xl text-emerald-400">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-[#12121a] border border-[#24242f] rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-amber-400/80 uppercase font-semibold tracking-wider">Low Stock Warning</p>
+            <p className="text-2xl font-bold text-amber-400 mt-1">{lowStockCount}</p>
+          </div>
+          <div className="p-3 bg-amber-400/10 border border-amber-400/20 rounded-xl text-amber-400">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="bg-[#12121a] border border-[#24242f] rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-red-400/80 uppercase font-semibold tracking-wider">Out of Stock</p>
+            <p className="text-2xl font-bold text-red-400 mt-1">{outOfStockCount}</p>
+          </div>
+          <div className="p-3 bg-red-400/10 border border-red-400/20 rounded-xl text-red-400">
+            <Layers className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* 2. MASTER PARAMETER DATA TABLE CARD */}
+      <Card className="border-[#24242f] bg-[#101017]">
+        <CardHeader className="pb-3 border-b border-[#24242f]">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle className="text-yellow-300 flex items-center gap-2 text-lg">
+                <SlidersHorizontal className="w-5 h-5" />
+                Product Settings & Item Parameters
+              </CardTitle>
+              <p className="text-xs text-yellow-200/60 mt-1">
+                Manage selling price (SRP), markup multiplier, stock-in batches, held reservations, and reorder levels.
+              </p>
+            </div>
+            <Badge className="bg-yellow-400/10 text-yellow-300 border border-yellow-400/30 px-3 py-1 text-xs self-start md:self-auto">
+              {filteredProducts.length} Item{filteredProducts.length === 1 ? "" : "s"} Displayed
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-5 space-y-4">
+          {/* SEARCH & FILTERS CONTROLS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="relative lg:col-span-2">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400/70" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by Product Name, SKU, Brand, Color, Size..."
+                className="h-10 pl-10 bg-[#171722] border-[#2d2d3a] text-yellow-100 placeholder:text-yellow-300/40 focus-visible:ring-yellow-400/50 rounded-xl"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Category Filter */}
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="h-10 bg-[#171722] border-[#2d2d3a] text-yellow-100 rounded-xl">
+                <SelectValue placeholder="Category: All" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100 max-h-64">
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((c: any) => (
+                  <SelectItem key={c.category_id} value={c.category_id}>
+                    {c.category_name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <div className="rounded-2xl border border-[#2d2d3a] bg-[#15151d] p-4 shadow-inner shadow-black/20 space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
-                <Input
-                  value={settingsProductSearch}
-                  onChange={(event) => setSettingsProductSearch(event.target.value)}
-                  placeholder="Search by SKU, product, brand, variant, or unit price"
-                  className="h-11 pl-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400/50"
-                />
-              </div>
-              <div className="rounded-xl border border-[#2d2d3a] bg-[#101018] p-2">
-                <div className="max-h-72 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
-                  {filteredProductGroups.length > 0 ? (
-                    filteredProductGroups.map((group) => {
-                      const isOpen = expandedGroupKey === group.key;
-                      const hasSelectedVariant = group.variants.some((product) => product.product_id === stockForm.product_id);
 
-                      return (
-                        <div key={group.key} className={`rounded-lg border transition ${hasSelectedVariant ? "border-yellow-400/80 bg-yellow-400/10" : "border-[#262633] bg-[#15151d]"}`}>
-                          <button
-                            type="button"
-                            onClick={() => setExpandedGroupKey(isOpen ? "" : group.key)}
-                            className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
-                          >
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-semibold text-white">{group.name}</span>
-                              <span className="block truncate text-xs text-yellow-200/55">{group.brand} - {group.category}</span>
-                            </span>
-                            <span className="hidden rounded-full bg-[#20202a] px-2.5 py-1 text-xs text-yellow-100 sm:inline-flex">
-                              {group.variants.length} variant{group.variants.length === 1 ? "" : "s"}
-                            </span>
-                            <span className="shrink-0 text-right text-xs font-semibold text-yellow-200">{formatPriceRange(group.variants)}</span>
-                          </button>
-
-                          {isOpen && (
-                            <div className="grid gap-2 border-t border-[#2d2d3a] p-2 sm:grid-cols-2 xl:grid-cols-3">
-                              {group.variants.map((product) => {
-                                const isSelected = stockForm.product_id === product.product_id;
-                                return (
-                                  <ProductSizeCard
-                                    key={product.product_id}
-                                    product={product}
-                                    isSelected={isSelected}
-                                    onSelect={() => selectProductForSettings(product.product_id)}
-                                  />
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="rounded-lg border border-[#2d2d3a] px-4 py-8 text-center text-sm text-yellow-200/60">
-                      No master products match your search.
-                    </div>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-yellow-200/60">Open a product group, then select the exact color/size variant to configure stock.</p>
-            </div>
+            {/* Stock Level Filter */}
+            <Select value={selectedStockFilter} onValueChange={(val: any) => setSelectedStockFilter(val)}>
+              <SelectTrigger className="h-10 bg-[#171722] border-[#2d2d3a] text-yellow-100 rounded-xl">
+                <SelectValue placeholder="Stock: All Statuses" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100">
+                <SelectItem value="all">All Stock Statuses</SelectItem>
+                <SelectItem value="in_stock">In-Stock & Sellable</SelectItem>
+                <SelectItem value="low_stock">Low Stock (≤ Reorder)</SelectItem>
+                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                <SelectItem value="inactive">Inactive Items</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-3.5 text-yellow-100 shadow-inner shadow-black/20">
-            <div className="mb-2.5 flex items-center gap-2">
-              <Package className="h-4 w-4 text-yellow-300" />
-              <p className="font-semibold text-yellow-100">Product Details</p>
-            </div>
-            {selectedProduct ? (
-              <div className="space-y-2.5">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-lg font-bold leading-tight text-white">{selectedProduct.name}</p>
-                    <p className="text-xs text-yellow-200/60">{shortId(selectedProduct.sku)} - {selectedProduct.brand}</p>
-                  </div>
-                  <Badge className={`w-fit border px-2.5 py-0.5 text-xs ${statusMeta.className}`}>{statusMeta.label}</Badge>
-                </div>
-                <div className="grid gap-1.5">
-                  <DetailPill label="Category" value={selectedProduct.category} />
-                  <DetailPill label="Variant" value={`${selectedProduct.color} / ${selectedProduct.size}`} />
-                  <DetailPill label="Intended For" value={selectedProduct.gender} />
-                  <DetailPill label="Unit Price" value={formatMoney(selectedProduct.unit_price)} />
-                  <DetailPill label="On-Hand Stock" value={`${selectedProduct.stock} units`} />
-                  <DetailPill label="Held Stock" value={`${selectedProduct.reserved_stock} units`} />
-                  <DetailPill label="POS Available" value={`${selectedProduct.available_stock} units`} />
-                  <DetailPill label="Manufacturer Date" value={selectedProduct.manufacturer_date ? selectedProduct.manufacturer_date.slice(0, 10) : "N/A"} />
-                  <DetailPill label="Expiration Date" value={selectedProduct.expiration_date ? selectedProduct.expiration_date.slice(0, 10) : "N/A"} />
-                  <DetailPill label="Inventory Status" value={selectedProduct.status} />
-                </div>
-                <div className="flex gap-2 rounded-lg border border-yellow-400/20 bg-yellow-400/10 p-2 text-xs text-yellow-100/80">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-yellow-300" />
-                  <span>Configure stock-in quantity, held stock, SRP, reorder level, and inventory status below before saving.</span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex min-h-[120px] flex-col items-center justify-center rounded-xl border border-dashed border-[#343443] bg-[#111118] p-3 text-center">
-                <Package className="mb-2 h-8 w-8 text-yellow-300/70" />
-                <p className="text-sm font-semibold text-white">No product selected yet</p>
-                <p className="mt-1 max-w-xs text-xs text-yellow-200/60">
-                  Choose a product to set SRP, stock-in quantity, and POS availability.
+
+          {/* TABLE CONTAINER */}
+          <div className="rounded-xl border border-[#262633] overflow-hidden bg-[#13131c]">
+            <Table>
+              <TableHeader className="bg-[#171724]">
+                <TableRow className="border-[#262633] hover:bg-transparent">
+                  <TableHead className="text-yellow-300 font-semibold text-xs py-3.5">Product & SKU</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs">Brand & Category</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs">Variant (Color/Size)</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs text-right">Unit Cost</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs text-right">Selling Price (SRP)</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs text-center">Stock Levels</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs text-center">Status</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs text-center w-[140px]">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => {
+                    const statusMeta = getProductStatusMeta(product);
+                    const isLow = Number(product.stock || 0) > 0 && Number(product.stock || 0) <= Number(product.reorder_level || 10);
+                    const isOut = Number(product.stock || 0) <= 0;
+                    const isInactive = String(product.status).toLowerCase() === "inactive";
+
+                    return (
+                      <TableRow key={product.product_id} className="border-[#262633] hover:bg-[#1b1b26] transition-colors">
+                        {/* Product & SKU */}
+                        <TableCell className="py-3">
+                          <p className="font-semibold text-white text-sm">{product.name}</p>
+                          <span className="text-xs text-yellow-200/50 font-mono">{shortId(product.sku)}</span>
+                        </TableCell>
+
+                        {/* Brand & Category */}
+                        <TableCell>
+                          <p className="text-sm text-yellow-100">{product.brand}</p>
+                          <span className="text-xs text-yellow-200/50">{product.category}</span>
+                        </TableCell>
+
+                        {/* Variant */}
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-medium text-white px-2 py-0.5 rounded bg-[#222230] border border-[#303042]">
+                              {product.color}
+                            </span>
+                            <span className="text-xs font-medium text-yellow-200 px-2 py-0.5 rounded bg-[#222230] border border-[#303042]">
+                              Size {product.size}
+                            </span>
+                            <span className="text-[11px] text-yellow-200/40">{product.gender}</span>
+                          </div>
+                        </TableCell>
+
+                        {/* Cost Price */}
+                        <TableCell className="text-right font-medium text-yellow-100/90 text-sm">
+                          {formatMoney(product.unit_price)}
+                        </TableCell>
+
+                        {/* Calculated SRP */}
+                        <TableCell className="text-right">
+                          <p className="font-bold text-yellow-300 text-sm">
+                            {formatMoney(product.srp || product.unit_price * 1.25)}
+                          </p>
+                          <span className="text-[10px] text-emerald-400/80 bg-emerald-950/50 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                            {defaultMarkupRateForProduct(product).toFixed(2)}x markup
+                          </span>
+                        </TableCell>
+
+                        {/* Stock Levels */}
+                        <TableCell className="text-center">
+                          <div className="inline-flex items-center gap-2">
+                            <div className="text-right">
+                              <span className="text-xs text-yellow-200/60 block">On-Hand: {product.stock}</span>
+                              <span className="text-[11px] text-zinc-400 block">Held: {product.reserved_stock || 0}</span>
+                            </div>
+                            <Badge
+                              className={`text-xs px-2 py-0.5 font-bold ${
+                                isInactive
+                                  ? "bg-zinc-800 text-zinc-400 border-zinc-700"
+                                  : isOut
+                                    ? "bg-red-950/80 text-red-300 border-red-800/60"
+                                    : isLow
+                                      ? "bg-amber-950/80 text-amber-300 border-amber-800/60"
+                                      : "bg-emerald-950/80 text-emerald-300 border-emerald-800/60"
+                              }`}
+                            >
+                              {product.available_stock} Avail
+                            </Badge>
+                          </div>
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell className="text-center">
+                          <Badge className={`border px-2 py-0.5 text-xs ${statusMeta.className}`}>
+                            {statusMeta.label}
+                          </Badge>
+                        </TableCell>
+
+                        {/* Action */}
+                        <TableCell className="text-center">
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenConfigure(product)}
+                            className="bg-yellow-400 text-red-900 hover:bg-yellow-500 font-semibold text-xs h-8 px-3 rounded-lg shadow flex items-center gap-1.5 mx-auto transition-transform active:scale-95"
+                          >
+                            <SlidersHorizontal className="w-3.5 h-3.5" />
+                            <span>Configure</span>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-12 text-center text-yellow-200/60">
+                      <Package className="w-8 h-8 mx-auto mb-2 text-yellow-400/40" />
+                      <p className="text-sm font-semibold">No products found matching your search.</p>
+                      <p className="text-xs text-yellow-200/40 mt-1">Try clearing filters or searching for another SKU.</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 3. CONFIGURE ITEM PARAMETERS MODAL / DIALOG */}
+      <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
+        <DialogContent className="bg-[#14141d] border-[#2a2c3a] text-yellow-100 max-w-2xl max-h-[92vh] overflow-hidden p-0 shadow-2xl rounded-2xl">
+          {/* MODAL HEADER */}
+          <DialogHeader className="border-b border-[#252533] bg-[#191924] px-6 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <DialogTitle className="text-white text-xl flex items-center gap-2">
+                  <SlidersHorizontal className="w-5 h-5 text-yellow-400" />
+                  Configure Item Parameters
+                </DialogTitle>
+                <p className="text-xs text-yellow-200/60 mt-0.5">
+                  Set SRP, stock-in batches, hold reservations, and inventory thresholds.
                 </p>
               </div>
+            </div>
+          </DialogHeader>
+
+          {/* MODAL BODY */}
+          <div className="max-h-[calc(92vh-10rem)] overflow-y-auto px-6 py-5 space-y-5 [scrollbar-width:thin] [scrollbar-color:#facc15_#20212a]">
+            {activeProduct && (
+              <>
+                {/* Product Summary Banner */}
+                <div className="rounded-xl border border-[#2d2d3d] bg-[#1b1b26] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+                  <div>
+                    <span className="text-xs font-mono text-yellow-400/70">{shortId(activeProduct.sku)}</span>
+                    <h3 className="text-base font-bold text-white">{activeProduct.name}</h3>
+                    <p className="text-xs text-yellow-200/60 mt-0.5">
+                      {activeProduct.brand} • {activeProduct.category} • {activeProduct.color} • Size {activeProduct.size} ({activeProduct.gender})
+                    </p>
+                  </div>
+                  <div className="text-left sm:text-right border-t sm:border-t-0 border-[#2a2a38] pt-2 sm:pt-0">
+                    <span className="text-xs text-yellow-200/60 block">Unit Cost Price</span>
+                    <span className="text-lg font-bold text-yellow-300">{formatMoney(activeProduct.unit_price)}</span>
+                  </div>
+                </div>
+
+                {/* SECTION 1: STOCK MANAGEMENT & LIVE INVENTORY FORMULA */}
+                <div className="space-y-3 rounded-xl border border-[#272736] bg-[#161622] p-4">
+                  <div className="flex items-center gap-2 text-sm font-bold text-yellow-300">
+                    <Package className="w-4 h-4" />
+                    <span>Stock-In & Inventory Flow</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-yellow-200/80 font-medium">Stock-In Quantity to Add</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={stockForm.stock_in || ""}
+                        onChange={(e) => setStockForm({ ...stockForm, stock_in: Number(e.target.value) || 0 })}
+                        placeholder="+0"
+                        className="h-10 bg-[#1f1f2d] border-[#2e2e3f] text-yellow-100 font-semibold focus-visible:ring-yellow-400/50 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-yellow-200/80 font-medium">Held / Reserved Stock</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={stockForm.reserved_quantity}
+                        onChange={(e) => setStockForm({ ...stockForm, reserved_quantity: Number(e.target.value) || 0 })}
+                        placeholder="0"
+                        className="h-10 bg-[#1f1f2d] border-[#2e2e3f] text-yellow-100 font-semibold focus-visible:ring-yellow-400/50 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-yellow-200/80 font-medium">Reorder Alert Level</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={stockForm.reorder_level}
+                        onChange={(e) => setStockForm({ ...stockForm, reorder_level: Number(e.target.value) || 0 })}
+                        placeholder="10"
+                        className="h-10 bg-[#1f1f2d] border-[#2e2e3f] text-yellow-100 font-semibold focus-visible:ring-yellow-400/50 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Real-time Calculation Breakdown Card */}
+                  <div className="rounded-lg bg-[#111118] border border-[#2b2b3a] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div className="space-y-1">
+                      <span className="text-zinc-400 block">Inventory Formula:</span>
+                      <div className="flex items-center gap-1 font-mono text-yellow-100 flex-wrap">
+                        <span>Current ({currentOnHand})</span>
+                        <span className="text-emerald-400">+ Stock In ({stockInToAdd})</span>
+                        <span className="text-amber-400">- Held ({heldQuantity})</span>
+                      </div>
+                    </div>
+                    <div className="text-left sm:text-right">
+                      <span className="text-zinc-400 block">POS Sellable Stock:</span>
+                      <span className="text-base font-bold text-emerald-400 font-mono">
+                        {projectedAvailable} Units Available
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SECTION 2: PRICING & MARKUP STRATEGY */}
+                <div className="space-y-3 rounded-xl border border-[#272736] bg-[#161622] p-4">
+                  <div className="flex items-center gap-2 text-sm font-bold text-yellow-300">
+                    <TrendingUp className="w-4 h-4" />
+                    <span>Pricing & Markup Calculation</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-yellow-200/80 font-medium">Markup Multiplier</Label>
+                      <Select
+                        value={String(stockForm.markup_rate)}
+                        onValueChange={(value) => setStockForm({ ...stockForm, markup_rate: Number(value) })}
+                      >
+                        <SelectTrigger className="h-10 bg-[#1f1f2d] border-[#2e2e3f] text-yellow-100 focus:ring-yellow-400/50 rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#191924] border-[#2e2e3f] text-yellow-100">
+                          {MARKUP_RATE_OPTIONS.map((rate) => (
+                            <SelectItem key={rate} value={String(rate)}>
+                              {rate.toFixed(2)}x (+{Math.round((rate - 1) * 100)}% margin)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-yellow-200/80 font-medium">Calculated Selling Price (SRP)</Label>
+                      <div className="h-10 rounded-lg bg-[#1f1f2d] border border-yellow-500/40 px-3 flex items-center justify-between text-yellow-300 font-bold text-base">
+                        <span>{formatMoney(computedSrp)}</span>
+                        <span className="text-xs text-emerald-400 font-semibold font-sans">
+                          +₱{markupAmount.toLocaleString()} profit
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-yellow-200/50">
+                    Formula: Unit Cost ({formatMoney(activeCost)}) × Markup ({stockForm.markup_rate.toFixed(2)}x) = Computed SRP {formatMoney(computedSrp)}.
+                  </p>
+                </div>
+
+                {/* SECTION 3: DATES & INVENTORY STATUS */}
+                <div className="space-y-3 rounded-xl border border-[#272736] bg-[#161622] p-4">
+                  <div className="flex items-center gap-2 text-sm font-bold text-yellow-300">
+                    <Calendar className="w-4 h-4" />
+                    <span>Dates & Inventory Status</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-yellow-200/80 font-medium">Manufacturer Date</Label>
+                      <Input
+                        type="date"
+                        value={stockForm.manufacturer_date}
+                        onChange={(e) => setStockForm({ ...stockForm, manufacturer_date: e.target.value })}
+                        className="h-10 bg-[#1f1f2d] border-[#2e2e3f] text-yellow-100 focus-visible:ring-yellow-400/50 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-yellow-200/80 font-medium">Expiration Date</Label>
+                      <Input
+                        type="date"
+                        value={stockForm.expiration_date}
+                        onChange={(e) => setStockForm({ ...stockForm, expiration_date: e.target.value })}
+                        className="h-10 bg-[#1f1f2d] border-[#2e2e3f] text-yellow-100 focus-visible:ring-yellow-400/50 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-yellow-200/80 font-medium">Inventory Status</Label>
+                      <Select
+                        value={stockForm.status}
+                        onValueChange={(value) => setStockForm({ ...stockForm, status: value as InventoryStatus })}
+                      >
+                        <SelectTrigger className="h-10 bg-[#1f1f2d] border-[#2e2e3f] text-yellow-100 focus:ring-yellow-400/50 rounded-lg">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#191924] border-[#2e2e3f] text-yellow-100">
+                          <SelectItem value="Active">Active (Sellable in POS)</SelectItem>
+                          <SelectItem value="Inactive">Inactive (Disabled from POS)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
           </div>
-        </div>
 
-        <div className="rounded-2xl border border-[#24242f] bg-[#12121a] p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold text-yellow-100">Inventory Configuration</p>
-              <p className="text-xs text-yellow-200/50">Review the current saved setup, then update stock, pricing, dates, and status.</p>
-            </div>
-          </div>
-
-          {selectedProduct ? (
-            <div className="mb-4 rounded-xl border border-[#2d2d3a] bg-[#15151d] p-3">
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-yellow-100">Current Saved Configuration</p>
-                  <p className="text-xs text-yellow-200/50">Loaded from INVENTORY for the selected product.</p>
-                </div>
-                <Badge className={`w-fit border px-2.5 py-0.5 text-xs ${statusMeta.className}`}>{statusMeta.label}</Badge>
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <ConfigSnapshotPill label="On-Hand Stock" value={`${selectedProduct.stock} units`} />
-                <ConfigSnapshotPill label="Held Stock" value={`${selectedProduct.reserved_stock} units`} />
-                <ConfigSnapshotPill label="POS Available" value={`${selectedProduct.available_stock} units`} tone="good" />
-                <ConfigSnapshotPill label="Current SRP" value={formatMoney(selectedProduct.srp)} />
-                <ConfigSnapshotPill label="Reorder Level" value={`${selectedProduct.reorder_level} units`} />
-                <ConfigSnapshotPill label="Manufacturer Date" value={formatDateValue(selectedProduct.manufacturer_date)} />
-                <ConfigSnapshotPill label="Expiration Date" value={formatDateValue(selectedProduct.expiration_date)} tone={isExpiredProduct(selectedProduct) ? "danger" : "default"} />
-                <ConfigSnapshotPill label="Inventory Status" value={selectedProduct.status} />
-              </div>
-            </div>
-          ) : (
-            <div className="mb-4 rounded-xl border border-dashed border-[#343443] bg-[#15151d] px-3 py-4 text-center text-sm text-yellow-100/60">
-              Select a product above to load its current inventory configuration.
-            </div>
-          )}
-
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <NumberField label="Stock-in Quantity to Add" value={stockForm.stock_in} onChange={(value) => setStockForm({ ...stockForm, stock_in: value })} />
-            <NumberField label="Held / Reserved Stock" value={stockForm.reserved_quantity} onChange={(value) => setStockForm({ ...stockForm, reserved_quantity: value })} />
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-yellow-300">Markup Rate</Label>
-              <Select value={String(stockForm.markup_rate)} onValueChange={(value) => setStockForm({ ...stockForm, markup_rate: Number(value) })}>
-                <SelectTrigger className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus:ring-yellow-400/50"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100">
-                  {MARKUP_RATE_OPTIONS.map((rate) => (
-                    <SelectItem key={rate} value={String(rate)}>{rate.toFixed(2)}x</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-yellow-300">Calculated SRP</Label>
-              <div className="flex h-9 items-center rounded-md border border-[#2d2d3a] bg-[#1d1d27] px-3 text-sm font-semibold text-yellow-100">
-                {formatMoney(computedSrp)}
-              </div>
-            </div>
-            <NumberField label="Reorder Level" value={stockForm.reorder_level} onChange={(value) => setStockForm({ ...stockForm, reorder_level: value })} />
-          </div>
-
-          <div className="mt-2 text-xs text-yellow-200/55">
-            SRP is computed as {formatMoney(selectedProduct?.unit_price || 0)} unit price + {formatMoney(markupAmount)} markup.
-          </div>
-
-          <div className="mt-3 grid gap-3 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-yellow-300">Manufacturer Date</Label>
-              <Input type="date" value={stockForm.manufacturer_date} onChange={(event) => setStockForm({ ...stockForm, manufacturer_date: event.target.value })} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus-visible:ring-yellow-400/50" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-yellow-300">Expiration Date</Label>
-              <Input type="date" value={stockForm.expiration_date} onChange={(event) => setStockForm({ ...stockForm, expiration_date: event.target.value })} className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus-visible:ring-yellow-400/50" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-yellow-300">Inventory Status</Label>
-              <Select value={stockForm.status} onValueChange={(value) => setStockForm({ ...stockForm, status: value as InventoryStatus })}>
-                <SelectTrigger className="h-9 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 focus:ring-yellow-400/50"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-[#15151d] border-[#2d2d3a] text-yellow-100"><SelectItem value="Active">Active</SelectItem><SelectItem value="Inactive">Inactive</SelectItem></SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-100/80 lg:flex-row lg:items-center lg:justify-between">
-            <p>
-              Saves SRP, on-hand stock, held stock, reorder level, and status to INVENTORY. Held stock is excluded from POS availability.
-            </p>
-            <div className="flex shrink-0 gap-2">
-              <Button variant="outline" onClick={() => setStockForm(defaultStockForm)} className="h-9 border-[#3a3a46] bg-transparent px-4 text-yellow-100 hover:bg-[#1d1d27] hover:text-yellow-300">Clear</Button>
-              <Button onClick={onSave} className="h-9 bg-yellow-400 px-5 text-red-900 hover:bg-yellow-500">Save Settings</Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+          {/* MODAL FOOTER */}
+          <DialogFooter className="border-t border-[#252533] bg-[#191924] px-6 py-4 flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsConfigDialogOpen(false)}
+              className="h-10 border-[#38384a] bg-transparent text-yellow-200 hover:bg-[#252533] rounded-lg px-4"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveModal}
+              disabled={isSaving}
+              className="h-10 bg-yellow-400 text-red-900 hover:bg-yellow-500 font-bold px-6 rounded-lg shadow-lg disabled:opacity-60 flex items-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>{isSaving ? "Saving..." : "Save Parameters"}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
