@@ -84,6 +84,7 @@ as $$
 declare
   v_actor_role text;
   v_target_id uuid;
+  v_clean_status text;
 begin
   select lower(r.role_name)
   into v_actor_role
@@ -96,6 +97,11 @@ begin
   if v_actor_role is distinct from 'admin' then
     raise exception 'Only admin can upsert users';
   end if;
+
+  v_clean_status := case 
+    when lower(trim(coalesce(p_status, 'active'))) = 'inactive' then 'inactive'
+    else 'active'
+  end;
 
   if p_user_id is null then
     insert into public."user" (
@@ -111,12 +117,12 @@ begin
     )
     values (
       gen_random_uuid(),
-      p_name,
-      p_username,
-      crypt(coalesce(p_password, ''), gen_salt('bf')),
+      trim(p_name),
+      trim(p_username),
+      crypt(coalesce(trim(p_password), ''), gen_salt('bf')),
       p_role_id,
-      coalesce(p_status, 'Active'),
-      p_email,
+      v_clean_status,
+      nullif(trim(p_email), ''),
       now(),
       now()
     )
@@ -124,15 +130,15 @@ begin
   else
     update public."user" u
     set
-      name = coalesce(p_name, u.name),
-      username = coalesce(p_username, u.username),
+      name = coalesce(nullif(trim(p_name), ''), u.name),
+      username = coalesce(nullif(trim(p_username), ''), u.username),
       password = case
         when p_password is null or btrim(p_password) = '' then u.password
-        else crypt(p_password, gen_salt('bf'))
+        else crypt(btrim(p_password), gen_salt('bf'))
       end,
       role_id = coalesce(p_role_id, u.role_id),
-      status = coalesce(p_status, u.status),
-      email = coalesce(p_email, u.email),
+      status = v_clean_status,
+      email = nullif(trim(p_email), ''),
       updated_at = now()
     where u.user_id = p_user_id
     returning u.user_id into v_target_id;
@@ -144,7 +150,7 @@ begin
       'name', u.name,
       'username', u.username,
       'role_id', u.role_id,
-      'status', u.status,
+      'status', case when lower(u.status) = 'inactive' then 'Inactive' else 'Active' end,
       'email', u.email
     )
     from public."user" u

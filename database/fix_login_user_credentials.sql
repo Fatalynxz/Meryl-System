@@ -1,17 +1,12 @@
 -- ==============================================================================
--- FIX LOGIN USER FUNCTION & CREDENTIALS
+-- FIX LOGIN USER & USER MANAGEMENT (UPSERT_USER) FUNCTIONS
 -- Run this script in the Supabase SQL Editor (https://supabase.com/dashboard)
 -- ==============================================================================
 
 -- 1. Ensure pgcrypto extension is installed for bcrypt hashing
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 2. Update login_user function to support:
---    - Case-insensitive username match: lower(trim(username))
---    - Case-insensitive status check: lower(u.status) = 'active'
---    - Bcrypt hashed passwords (crypt(p_password, u.password))
---    - Plaintext passwords (e.g. if manually updated in Table Editor or without salt)
---    - Automatic password migration: automatically upgrades plaintext password to bcrypt upon successful login
+-- 2. Update login_user function
 CREATE OR REPLACE FUNCTION public.login_user(
   p_username text,
   p_password text
@@ -51,7 +46,7 @@ BEGIN
     )
   LIMIT 1;
 
-  -- If user logged in using plaintext, automatically upgrade their password to bcrypt
+  -- Automatically upgrade plaintext password to bcrypt hash upon login
   IF v_is_plaintext AND v_user_id IS NOT NULL THEN
     UPDATE public."user"
     SET password = crypt(trim(p_password), gen_salt('bf')),
@@ -66,7 +61,112 @@ $$;
 REVOKE ALL ON FUNCTION public.login_user(text, text) FROM public;
 GRANT EXECUTE ON FUNCTION public.login_user(text, text) TO anon, authenticated;
 
--- 3. Set cashier2 password to 'sales123' and ensure status is lowercase 'active'
+-- 3. Update upsert_user function (Used by User Management Edit/Add modal)
+-- - Hashes passwords with bcrypt if provided
+-- - Keeps existing password if blank/empty
+-- - Enforces lowercase 'active' / 'inactive' to respect check constraint
+-- - Allows admin users to create & edit accounts seamlessly
+CREATE OR REPLACE FUNCTION public.upsert_user(
+  p_actor_user_id uuid,
+  p_user_id uuid default null,
+  p_name text default null,
+  p_username text default null,
+  p_password text default null,
+  p_role_id uuid default null,
+  p_status text default null,
+  p_email text default null
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_actor_role text;
+  v_target_id uuid;
+  v_clean_status text;
+BEGIN
+  -- Validate actor is admin
+  SELECT lower(r.role_name)
+  INTO v_actor_role
+  FROM public."user" u
+  JOIN public.role r
+    ON r.role_id = u.role_id
+  WHERE u.user_id = p_actor_user_id
+  LIMIT 1;
+
+  IF v_actor_role IS DISTINCT FROM 'admin' THEN
+    RAISE EXCEPTION 'Only admin can manage users';
+  END IF;
+
+  -- Clean status for check constraint ('active' or 'inactive')
+  v_clean_status := CASE 
+    WHEN lower(trim(coalesce(p_status, 'active'))) = 'inactive' THEN 'inactive'
+    ELSE 'active'
+  END;
+
+  IF p_user_id IS NULL THEN
+    -- INSERT NEW USER
+    INSERT INTO public."user" (
+      user_id,
+      name,
+      username,
+      password,
+      role_id,
+      status,
+      email,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      gen_random_uuid(),
+      trim(p_name),
+      trim(p_username),
+      crypt(coalesce(trim(p_password), ''), gen_salt('bf')),
+      p_role_id,
+      v_clean_status,
+      nullif(trim(p_email), ''),
+      now(),
+      now()
+    )
+    RETURNING user_id INTO v_target_id;
+  ELSE
+    -- UPDATE EXISTING USER
+    UPDATE public."user" u
+    SET
+      name = coalesce(nullif(trim(p_name), ''), u.name),
+      username = coalesce(nullif(trim(p_username), ''), u.username),
+      password = CASE
+        WHEN p_password IS NULL OR btrim(p_password) = '' THEN u.password
+        ELSE crypt(btrim(p_password), gen_salt('bf'))
+      END,
+      role_id = coalesce(p_role_id, u.role_id),
+      status = v_clean_status,
+      email = nullif(trim(p_email), ''),
+      updated_at = now()
+    WHERE u.user_id = p_user_id
+    RETURNING u.user_id INTO v_target_id;
+  END IF;
+
+  RETURN (
+    SELECT json_build_object(
+      'user_id', u.user_id,
+      'name', u.name,
+      'username', u.username,
+      'role_id', u.role_id,
+      'status', CASE WHEN lower(u.status) = 'inactive' THEN 'Inactive' ELSE 'Active' END,
+      'email', u.email
+    )
+    FROM public."user" u
+    WHERE u.user_id = v_target_id
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.upsert_user(uuid, uuid, text, text, text, uuid, text, text) FROM public;
+GRANT EXECUTE ON FUNCTION public.upsert_user(uuid, uuid, text, text, text, uuid, text, text) TO anon, authenticated;
+
+-- 4. Ensure cashier2 is set up with 'sales123'
 DO $$
 DECLARE
   v_sales_role_id uuid;
@@ -88,26 +188,8 @@ BEGIN
         updated_at = now()
     WHERE lower(trim(username)) = 'cashier2';
   ELSE
-    INSERT INTO public."user" (
-      user_id,
-      name,
-      username,
-      password,
-      role_id,
-      status,
-      created_at,
-      updated_at
-    )
-    VALUES (
-      gen_random_uuid(),
-      'Mongmong barcos',
-      'cashier2',
-      crypt('sales123', gen_salt('bf')),
-      v_sales_role_id,
-      'active',
-      now(),
-      now()
-    );
+    INSERT INTO public."user" (user_id, name, username, password, role_id, status)
+    VALUES (gen_random_uuid(), 'Mongmong barcos', 'cashier2', crypt('sales123', gen_salt('bf')), v_sales_role_id, 'active');
   END IF;
 END;
 $$;
