@@ -9,7 +9,7 @@ import { BrandLogo } from './BrandLogo';
 
 export function Login() {
   const navigate = useNavigate();
-  const { login, signInWithGoogle, requestPasswordReset, verifyPasswordResetOtpAndUpdate } = useAuth();
+  const { validateCredentials, setCurrentUser, signInWithGoogle, requestPasswordReset, verifyPasswordResetOtpAndUpdate } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [resetEmail, setResetEmail] = useState('');
@@ -49,14 +49,10 @@ export function Login() {
       const cleanUsername = username.trim();
       const cleanPassword = password.trim();
 
-      // Step 1: Validate credentials WITHOUT triggering auth context redirect
-      const { data, error: rpcError } = await supabase.rpc('login_user', {
-        p_username: cleanUsername,
-        p_password: cleanPassword,
-      });
+      // Step 1: Validate credentials (tries RPC first, then fallback direct table lookup)
+      const authUser = await validateCredentials(cleanUsername, cleanPassword);
 
-      if (rpcError) throw rpcError;
-      if (!data) {
+      if (!authUser) {
         setError('Invalid username or password');
         setSubmitting(false);
         return;
@@ -65,9 +61,10 @@ export function Login() {
       // Step 2: Show success overlay on the login page
       setLoginSuccess(true);
 
-      // Step 3: After 1.5s, actually call login() which sets user state and triggers redirect
-      setTimeout(async () => {
-        await login(cleanUsername, cleanPassword);
+      // Step 3: After 3 seconds, set user state and redirect
+      setTimeout(() => {
+        setCurrentUser(authUser);
+        navigate(getPostLoginPath(authUser));
       }, 3000);
     } catch {
       setError('Invalid username or password');
