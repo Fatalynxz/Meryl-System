@@ -427,12 +427,10 @@ export function PointOfSale() {
     return rows
       .map((row) => {
         const status = String(row.status ?? "").toLowerCase();
+        if (status === "inactive" || status === "deactivated") return null;
         const startDate = String(row.start_date ?? "").slice(0, 10);
         const endDate = String(row.end_date ?? "").slice(0, 10);
         const withinWindow = (!startDate || startDate <= today) && (!endDate || endDate >= today);
-        // Match Promotions page behavior: a promo is effectively active when:
-        // 1) status is explicitly active, or
-        // 2) current date is inside start/end window.
         const isEffectivelyActive = status.includes("active") || withinWindow;
         const isExpired = status.includes("expired") || (Boolean(endDate) && endDate < today);
         if (!isEffectivelyActive || isExpired) return null;

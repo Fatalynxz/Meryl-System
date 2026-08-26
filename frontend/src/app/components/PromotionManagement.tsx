@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X, Check } from 'lucide-react';
+import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X, Check, ToggleLeft, ToggleRight, Power } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCustomers, useProducts, usePromotions, usePromotionsMutations, useSales } from '../../lib/hooks';
 import { useAuth } from '../../lib/auth-context';
@@ -23,7 +23,7 @@ type Promotion = {
   targetProducts: string;
   start_date: string;
   end_date: string;
-  status: 'Active' | 'Upcoming' | 'Ended';
+  status: 'Active' | 'Upcoming' | 'Ended' | 'Inactive';
   salesGenerated: number;
   unitsAffected: number;
   effectiveness: number;
@@ -630,18 +630,20 @@ export function PromotionManagement() {
     return rows.map((row) => {
       const rawType = String(row.discount_type ?? 'Percentage').toLowerCase();
       const discount_type: Promotion['discount_type'] = decodeDisplayType(rawType, row.promo_name);
-      const rawStatus = String(row.status ?? 'inactive').toLowerCase();
+      const rawStatus = String(row.status ?? 'active').toLowerCase();
       const nowMs = Date.now();
       const start = normalizePromotionDateTime(String(row.start_date ?? ''), 'start');
       const end = normalizePromotionDateTime(String(row.end_date ?? ''), 'end');
       const startMs = promotionTimeMs(start, 'start');
       const endMs = promotionTimeMs(end, 'end');
       const status: Promotion['status'] =
-        rawStatus.includes('expired') || endMs < nowMs
-          ? 'Ended'
-          : startMs <= nowMs && nowMs <= endMs
-            ? 'Active'
-            : 'Upcoming';
+        rawStatus === 'inactive' || rawStatus === 'deactivated'
+          ? 'Inactive'
+          : rawStatus.includes('expired') || endMs < nowMs
+            ? 'Ended'
+            : startMs <= nowMs && nowMs <= endMs
+              ? 'Active'
+              : 'Upcoming';
       const targetSalesGoal = Number(row.target_sales_goal ?? row.targetSalesGoal ?? 10000) || 10000;
       const targetProductIds = (Array.isArray(row.promo_product) ? row.promo_product : [])
         .map((link: any) => {
@@ -1162,35 +1164,34 @@ export function PromotionManagement() {
     }
   };
 
-  const handleDeletePromotion = async (promo_id: string) => {
+  const handleTogglePromotionStatus = async (promotion: Promotion) => {
     try {
-      const response = await fetch(`/api/promotions/${encodeURIComponent(promo_id)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || result?.ok === false) {
-        // Fallback for local/dev setups or missing Flask session:
-        // remove links first, then remove promotion row.
-        const linkDelete = await supabase.from("promo_product").delete().eq("promo_id", promo_id);
-        if (linkDelete.error) {
-          throw new Error(linkDelete.error.message || "Unable to delete promo-product links");
-        }
-        const promoDelete = await supabase.from("promotion").delete().eq("promo_id", promo_id);
-        if (promoDelete.error) {
-          throw new Error(promoDelete.error.message || String(result?.error || "Unable to delete promotion"));
-        }
-      }
+      const isCurrentlyActive = promotion.status === 'Active';
+      const nextDbStatus = isCurrentlyActive ? 'inactive' : 'active';
+      const { error } = await supabase
+        .from('promotion')
+        .update({ status: nextDbStatus, updated_at: new Date().toISOString() })
+        .eq('promo_id', promotion.promo_id);
+
+      if (error) throw error;
+
       await promotionsQuery.refetch();
       await writeAuditLog({
         actorUserId: user?.user_id,
-        actionType: "delete_promotion",
-        entityType: "promotion",
-        entityId: promo_id,
+        actionType: isCurrentlyActive ? 'deactivate_promotion' : 'activate_promotion',
+        entityType: 'promotion',
+        entityId: promotion.promo_id,
+        oldData: { status: promotion.status },
+        newData: { status: nextDbStatus },
       });
-      toast.success('Promotion deleted successfully!');
+
+      toast.success(
+        isCurrentlyActive
+          ? `Promotion "${promotion.promo_name}" deactivated successfully!`
+          : `Promotion "${promotion.promo_name}" activated successfully!`
+      );
     } catch (error: any) {
-      toast.error(error?.message ?? 'Unable to delete promotion');
+      toast.error(error?.message ?? 'Unable to update promotion status');
     }
   };
 
@@ -1404,9 +1405,10 @@ export function PromotionManagement() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-center align-middle">
                       <Badge className={
-                        promotion.status === 'Active' ? 'bg-green-600 text-white' :
-                        promotion.status === 'Upcoming' ? 'bg-yellow-600 text-red-900' :
-                        'bg-gray-600 text-white'
+                        promotion.status === 'Active' ? 'bg-green-600 text-white font-medium' :
+                        promotion.status === 'Upcoming' ? 'bg-yellow-600 text-red-900 font-medium' :
+                        promotion.status === 'Inactive' ? 'bg-zinc-700 text-zinc-300 font-medium' :
+                        'bg-gray-600 text-white font-medium'
                       }>
                         {promotion.status}
                       </Badge>
@@ -1423,16 +1425,18 @@ export function PromotionManagement() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center align-middle">
-                      <div className="flex gap-2 justify-center">
+                      <div className="flex gap-1.5 justify-center items-center">
                         <Dialog open={editingPromotion?.promo_id === promotion.promo_id} onOpenChange={(open) => !open && setEditingPromotion(null)}>
                           <DialogTrigger asChild>
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600"
+                              className="text-yellow-400 hover:text-yellow-300 hover:bg-zinc-800 h-8 px-2.5 flex items-center gap-1"
                               onClick={() => openEditDialog(promotion)}
+                              title="Edit Promotion"
                             >
                               <Edit className="w-4 h-4" />
+                              <span className="text-xs">Edit</span>
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="bg-[#15161d] border-[#2a2c36] text-yellow-100 max-w-2xl max-h-[88vh] overflow-hidden p-0 shadow-2xl">
@@ -1458,14 +1462,31 @@ export function PromotionManagement() {
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600"
-                          onClick={() => handleDeletePromotion(promotion.promo_id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+
+                        {/* Activate / Deactivate Toggle Button */}
+                        {promotion.status === 'Active' ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-emerald-400 hover:text-red-400 hover:bg-red-950/50 h-8 px-2.5 flex items-center gap-1.5 border border-emerald-500/30 hover:border-red-500/40 rounded-lg transition-colors"
+                            onClick={() => handleTogglePromotionStatus(promotion)}
+                            title="Click to Deactivate Promotion"
+                          >
+                            <ToggleRight className="w-4 h-4 text-emerald-400" />
+                            <span className="text-xs font-semibold">Active</span>
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-zinc-400 hover:text-emerald-300 hover:bg-emerald-950/50 h-8 px-2.5 flex items-center gap-1.5 border border-zinc-700 hover:border-emerald-500/40 rounded-lg transition-colors"
+                            onClick={() => handleTogglePromotionStatus(promotion)}
+                            title="Click to Activate Promotion"
+                          >
+                            <ToggleLeft className="w-4 h-4 text-zinc-400" />
+                            <span className="text-xs font-semibold">Deactivated</span>
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
