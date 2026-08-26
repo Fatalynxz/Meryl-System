@@ -1064,17 +1064,17 @@ export function PointOfSale() {
                   <div className="p-5">
                     <div className="overflow-hidden rounded-xl border border-[#282838] bg-[#12121a]">
                       <div className="max-h-[58vh] overflow-y-auto overflow-x-hidden">
-                        <Table className="w-full text-sm">
+                        <Table className="w-full text-sm table-fixed">
                           <TableHeader className="sticky top-0 z-10 bg-[#1a1a28]">
                             <TableRow className="border-b border-[#282838] hover:bg-transparent">
-                              <TableHead className="w-16 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
-                              <TableHead className="py-3 text-left pl-4 text-xs font-semibold uppercase tracking-wide text-yellow-300">Product</TableHead>
-                              <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
-                              <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Category</TableHead>
-                              <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Variant</TableHead>
-                              <TableHead className="py-3 text-right pr-4 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price</TableHead>
-                              <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Stock</TableHead>
-                              <TableHead className="w-24 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Action</TableHead>
+                              <TableHead className="w-20 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
+                              <TableHead className="w-[23%] py-3.5 text-left pl-8 text-xs font-semibold uppercase tracking-wide text-yellow-300">Product</TableHead>
+                              <TableHead className="w-[12%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
+                              <TableHead className="w-[14%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Category</TableHead>
+                              <TableHead className="w-[18%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Variant</TableHead>
+                              <TableHead className="w-[12%] py-3.5 text-right pr-6 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price</TableHead>
+                              <TableHead className="w-[11%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Stock</TableHead>
+                              <TableHead className="w-[10%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1086,32 +1086,32 @@ export function PointOfSale() {
                                     key={product.product_id}
                                     className="border-t border-[#232333] hover:bg-[#1c1c2b] transition-colors"
                                   >
-                                    <TableCell className="py-3 text-center">
+                                    <TableCell className="py-3.5 text-center">
                                       <div className="flex justify-center">
                                         <ProductPhotoPlaceholder productName={product.product_name} />
                                       </div>
                                     </TableCell>
-                                    <TableCell className="py-3 text-left pl-4 font-semibold text-white" title={product.product_name}>
+                                    <TableCell className="py-3.5 text-left pl-8 font-semibold text-white truncate" title={product.product_name}>
                                       {product.product_name}
                                     </TableCell>
-                                    <TableCell className="py-3 text-center text-yellow-100/90" title={product.brand}>
+                                    <TableCell className="py-3.5 text-center text-yellow-100/90 truncate" title={product.brand}>
                                       {product.brand}
                                     </TableCell>
-                                    <TableCell className="py-3 text-center text-yellow-200/60 text-xs" title={product.category}>
+                                    <TableCell className="py-3.5 text-center text-yellow-200/60 text-xs truncate" title={product.category}>
                                       {product.category}
                                     </TableCell>
-                                    <TableCell className="py-3 text-center text-yellow-100 font-medium" title={productVariantLabel(product)}>
+                                    <TableCell className="py-3.5 text-center text-yellow-100 font-medium truncate" title={productVariantLabel(product)}>
                                       {productVariantLabel(product)}
                                     </TableCell>
-                                    <TableCell className="py-3 text-right pr-4 font-bold text-yellow-300" title={`PHP ${product.price}`}>
+                                    <TableCell className="py-3.5 text-right pr-6 font-bold text-yellow-300 truncate" title={`PHP ${product.price}`}>
                                       PHP {product.price.toLocaleString()}
                                     </TableCell>
-                                    <TableCell className="py-3 text-center">
+                                    <TableCell className="py-3.5 text-center">
                                       <Badge className="rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">
                                         {product.stock_quantity} available
                                       </Badge>
                                     </TableCell>
-                                    <TableCell className="py-3 text-center">
+                                    <TableCell className="py-3.5 text-center">
                                       <Button
                                         size="sm"
                                         disabled={!sellable}
