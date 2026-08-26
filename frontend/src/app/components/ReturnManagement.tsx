@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { FileImage, Minus, Plus, Search, Eye, RotateCcw, AlertTriangle, ArrowRightLeft, Upload, X } from "lucide-react";
+import { FileImage, Minus, Plus, Search, Eye, RotateCcw, AlertTriangle, ArrowRightLeft, Upload, X, Receipt, CheckCircle2, XCircle, AlertCircle, Clock, ShieldCheck, FileCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../lib/auth-context";
 import { useInventory, useProducts, useReturns, useSales } from "../../lib/hooks";
@@ -256,6 +256,18 @@ export function ReturnManagement() {
   const [customReason, setCustomReason] = useState("");
   const [receiptProofFile, setReceiptProofFile] = useState<File | null>(null);
   const [receiptProofPreview, setReceiptProofPreview] = useState("");
+  const [receiptNumberInput, setReceiptNumberInput] = useState("");
+  const [receiptValidationStatus, setReceiptValidationStatus] = useState<{
+    state: "idle" | "valid" | "expired_warning" | "already_replaced" | "not_found" | "no_returnable_items";
+    message?: string;
+    daysAgo?: number;
+    purchaseDate?: string;
+    customerName?: string;
+    totalAmount?: number;
+    displayId?: string;
+    returnableCount?: number;
+  }>({ state: "idle" });
+  const [showManualSaleList, setShowManualSaleList] = useState(false);
 
   const sales = (salesQuery.data as any[]) ?? [];
   const productRows = (productsQuery.data as any[]) ?? [];
@@ -477,6 +489,106 @@ export function ReturnManagement() {
       replacement_product_id: "",
       quantity: 1,
     }));
+    const disp = salesDisplayMap.get(saleId);
+    if (disp) {
+      setReceiptNumberInput(disp);
+    }
+  };
+
+  const validateReceiptNumber = (queryToValidate?: string) => {
+    const rawQuery = (queryToValidate ?? receiptNumberInput).trim();
+    if (!rawQuery) {
+      toast.error("Please enter a receipt number to validate.");
+      return;
+    }
+
+    const q = rawQuery.toLowerCase();
+
+    // 1. Search in all sales
+    const matchedSale = sales.find((s: any) => {
+      const displayId = (salesDisplayMap.get(String(s.sales_id ?? "")) ?? "").toLowerCase();
+      const saleId = String(s.sales_id ?? "").toLowerCase();
+      return displayId === q || saleId === q || displayId.includes(q) || saleId.includes(q);
+    });
+
+    if (!matchedSale) {
+      setReceiptValidationStatus({
+        state: "not_found",
+        message: `No transaction found matching receipt "${rawQuery}". Please verify the printed receipt.`,
+      });
+      toast.error(`Receipt "${rawQuery}" not found.`);
+      return;
+    }
+
+    const saleId = String(matchedSale.sales_id ?? "");
+    const displayId = salesDisplayMap.get(saleId) ?? "SALES-000";
+    const customer = Array.isArray(matchedSale.customer) ? matchedSale.customer[0] : matchedSale.customer;
+    const customerName = customer?.name ?? "Walk-in Customer";
+    const totalAmount = Number(matchedSale.total_amount ?? 0);
+    const purchaseDate = matchedSale.transaction_date ? formatDate(matchedSale.transaction_date) : "N/A";
+    const txnTime = new Date(matchedSale.transaction_date ?? "").getTime();
+    const daysAgo = Number.isNaN(txnTime) ? 0 : Math.max(0, Math.floor((Date.now() - txnTime) / (1000 * 60 * 60 * 24)));
+
+    // 2. Check if already replaced
+    if (replacedSalesIds.has(saleId)) {
+      setReceiptValidationStatus({
+        state: "already_replaced",
+        displayId,
+        customerName,
+        totalAmount,
+        purchaseDate,
+        daysAgo,
+        message: `Receipt ${displayId} was already processed for replacement.`,
+      });
+      toast.error(`Receipt ${displayId} has already been replaced.`);
+      return;
+    }
+
+    // 3. Check remaining returnable items
+    const rawDetails = Array.isArray(matchedSale.sales_details) ? matchedSale.sales_details : [];
+    const returnableCount = rawDetails.reduce((acc: number, d: any) => {
+      const qty = Number(d.quantity ?? 0);
+      const ret = Number(d.returned_quantity ?? 0);
+      return acc + Math.max(0, qty - ret);
+    }, 0);
+
+    if (returnableCount <= 0) {
+      setReceiptValidationStatus({
+        state: "no_returnable_items",
+        displayId,
+        customerName,
+        totalAmount,
+        purchaseDate,
+        daysAgo,
+        returnableCount: 0,
+        message: `All items on Receipt ${displayId} have already been fully returned or replaced.`,
+      });
+      toast.error(`No returnable items remaining on Receipt ${displayId}.`);
+      return;
+    }
+
+    // 4. Check return policy window (standard 7 days)
+    const isExpired = daysAgo > 7;
+    setReceiptValidationStatus({
+      state: isExpired ? "expired_warning" : "valid",
+      displayId,
+      customerName,
+      totalAmount,
+      purchaseDate,
+      daysAgo,
+      returnableCount,
+      message: isExpired
+        ? `Receipt found, but purchase was ${daysAgo} days ago (exceeds standard 7-day policy).`
+        : `Receipt verified! Purchased ${daysAgo === 0 ? "today" : `${daysAgo} day${daysAgo > 1 ? "s" : ""} ago`} • Within 7-day return policy.`,
+    });
+
+    // Auto-select this sale for Step 2
+    selectSaleForReturn(saleId);
+    if (isExpired) {
+      toast.warning(`Receipt ${displayId} exceeds 7-day policy (${daysAgo} days ago).`);
+    } else {
+      toast.success(`Receipt ${displayId} verified successfully!`);
+    }
   };
 
   const toggleReturnedProduct = (salesDetailId: string, productId: string) => {
@@ -1052,6 +1164,9 @@ export function ReturnManagement() {
     setReasonOption("");
     setCustomReason("");
     clearReceiptProof();
+    setReceiptNumberInput("");
+    setReceiptValidationStatus({ state: "idle" });
+    setShowManualSaleList(false);
   };
 
   return (
@@ -1146,53 +1261,224 @@ export function ReturnManagement() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-yellow-300">Step 1: Original Sale *</Label>
-                    <div className="space-y-3 rounded-xl border border-red-800 p-4">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
-                        <Input
-                          value={salePickerSearch}
-                          onChange={(event) => setSalePickerSearch(event.target.value)}
-                          placeholder="Search sale by sales ID, customer, or status..."
-                          className="h-11 rounded-xl pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
-                        />
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-yellow-300 flex items-center gap-2 text-base font-semibold">
+                        <Receipt className="w-5 h-5 text-yellow-400" />
+                        Step 1: Validate Receipt / Original Sale *
+                      </Label>
+                      <Badge className="bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 text-xs">
+                        7-Day Policy Check
+                      </Badge>
+                    </div>
+
+                    <div className="space-y-3 rounded-xl border border-red-800 p-4 bg-red-950/40">
+                      {/* Receipt Number Validation Bar */}
+                      <div className="space-y-1.5">
+                        <p className="text-xs text-yellow-200/80">
+                          Enter or scan the Receipt # (e.g. <span className="font-semibold text-yellow-300">SALES-001</span> or <span className="font-semibold text-yellow-300">RCP-...</span>) to verify purchase validity:
+                        </p>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Receipt className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                            <Input
+                              value={receiptNumberInput}
+                              onChange={(event) => setReceiptNumberInput(event.target.value)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  validateReceiptNumber();
+                                }
+                              }}
+                              placeholder="Enter Receipt Number (e.g. SALES-001)..."
+                              className="h-11 rounded-xl pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400 font-medium"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={() => validateReceiptNumber()}
+                            className="h-11 rounded-xl bg-yellow-400 px-5 text-red-950 font-semibold hover:bg-yellow-500 shadow-md flex items-center gap-2"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                            Verify Receipt
+                          </Button>
+                        </div>
                       </div>
-                      <div className="border border-red-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-48">
-                        <Table className="w-full table-fixed text-sm">
-                          <TableHeader>
-                            <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                              <TableHead className="w-[18%] text-yellow-300 text-center">Sales ID</TableHead>
-                              <TableHead className="w-[24%] text-yellow-300 text-center">Customer</TableHead>
-                              <TableHead className="w-[12%] text-yellow-300 text-center">Items</TableHead>
-                              <TableHead className="w-[18%] text-yellow-300 text-center">Amount</TableHead>
-                              <TableHead className="w-[16%] text-yellow-300 text-center">Status</TableHead>
-                              <TableHead className="w-[12%] text-yellow-300 text-center">Action</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredSaleOptions.map((sale) => (
-                              <TableRow key={sale.sales_id} className={`border-red-800 transition-colors hover:bg-red-800/60 ${formData.sales_id === sale.sales_id ? "bg-yellow-400/10" : ""}`}>
-                                <TableCell className="truncate text-yellow-200 text-center" title={sale.display_sales_id}>{sale.display_sales_id}</TableCell>
-                                <TableCell className="truncate text-yellow-200 text-center" title={sale.customerName}>{sale.customerName}</TableCell>
-                                <TableCell className="text-yellow-200 text-center">{sale.details.length}</TableCell>
-                                <TableCell className="truncate text-yellow-300 text-center">{formatCurrency(sale.total_amount)}</TableCell>
-                                <TableCell className="text-center">
-                                  <Badge className="bg-green-600 text-white">{sale.sales_status}</Badge>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => selectSaleForReturn(sale.sales_id)}
-                                    className="h-8 rounded-full bg-yellow-400 px-4 text-red-900 hover:bg-yellow-500"
-                                  >
-                                    {formData.sales_id === sale.sales_id ? "Selected" : "Select"}
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+
+                      {/* Receipt Validation Result Feedback Box */}
+                      {receiptValidationStatus.state === "valid" && (
+                        <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/60 p-3.5 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                              <span className="text-emerald-300 font-semibold text-sm">
+                                Valid Receipt Verified — {receiptValidationStatus.displayId}
+                              </span>
+                            </div>
+                            <Badge className="bg-emerald-500/30 text-emerald-200 border-emerald-400 text-[11px]">
+                              Within 7-Day Window
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1 border-t border-emerald-500/20">
+                            <div>
+                              <span className="text-emerald-400/70 block">Purchase Date:</span>
+                              <span className="text-emerald-100 font-medium">{receiptValidationStatus.purchaseDate}</span>
+                            </div>
+                            <div>
+                              <span className="text-emerald-400/70 block">Age:</span>
+                              <span className="text-emerald-100 font-medium">
+                                {receiptValidationStatus.daysAgo === 0 ? "Today" : `${receiptValidationStatus.daysAgo} day(s) ago`}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-emerald-400/70 block">Customer:</span>
+                              <span className="text-emerald-100 font-medium truncate block">{receiptValidationStatus.customerName}</span>
+                            </div>
+                            <div>
+                              <span className="text-emerald-400/70 block">Total Amount:</span>
+                              <span className="text-emerald-300 font-semibold">{formatCurrency(receiptValidationStatus.totalAmount ?? 0)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {receiptValidationStatus.state === "expired_warning" && (
+                        <div className="rounded-xl border border-amber-500/40 bg-amber-950/60 p-3.5 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                              <span className="text-amber-300 font-semibold text-sm">
+                                Policy Notice — {receiptValidationStatus.displayId}
+                              </span>
+                            </div>
+                            <Badge className="bg-amber-500/30 text-amber-200 border-amber-400 text-[11px]">
+                              {receiptValidationStatus.daysAgo} Days Ago (&gt;7 Days)
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-amber-200/90">
+                            {receiptValidationStatus.message} Transaction loaded; replacement permitted with manager/admin discretion.
+                          </p>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-1 border-t border-amber-500/20">
+                            <div>
+                              <span className="text-amber-400/70 block">Purchase Date:</span>
+                              <span className="text-amber-100 font-medium">{receiptValidationStatus.purchaseDate}</span>
+                            </div>
+                            <div>
+                              <span className="text-amber-400/70 block">Customer:</span>
+                              <span className="text-amber-100 font-medium truncate block">{receiptValidationStatus.customerName}</span>
+                            </div>
+                            <div>
+                              <span className="text-amber-400/70 block">Total Amount:</span>
+                              <span className="text-amber-300 font-semibold">{formatCurrency(receiptValidationStatus.totalAmount ?? 0)}</span>
+                            </div>
+                            <div>
+                              <span className="text-amber-400/70 block">Eligible Items:</span>
+                              <span className="text-amber-100 font-medium">{receiptValidationStatus.returnableCount} unit(s)</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {receiptValidationStatus.state === "already_replaced" && (
+                        <div className="rounded-xl border border-red-500/40 bg-red-950/60 p-3.5 flex items-start gap-2.5">
+                          <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                          <div className="text-xs space-y-0.5">
+                            <span className="text-red-300 font-semibold text-sm block">
+                              Receipt Already Replaced ({receiptValidationStatus.displayId})
+                            </span>
+                            <p className="text-red-200/80">
+                              {receiptValidationStatus.message} Meryl policy allows 1 replacement per sales transaction.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {receiptValidationStatus.state === "no_returnable_items" && (
+                        <div className="rounded-xl border border-red-500/40 bg-red-950/60 p-3.5 flex items-start gap-2.5">
+                          <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                          <div className="text-xs space-y-0.5">
+                            <span className="text-red-300 font-semibold text-sm block">
+                              No Returnable Items Remaining ({receiptValidationStatus.displayId})
+                            </span>
+                            <p className="text-red-200/80">
+                              {receiptValidationStatus.message}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {receiptValidationStatus.state === "not_found" && (
+                        <div className="rounded-xl border border-red-500/40 bg-red-950/60 p-3.5 flex items-start gap-2.5">
+                          <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                          <div className="text-xs space-y-0.5">
+                            <span className="text-red-300 font-semibold text-sm block">
+                              Invalid Receipt Number
+                            </span>
+                            <p className="text-red-200/80">
+                              {receiptValidationStatus.message} Check the receipt for the SALES-xxx code or search the sales list below.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Optional Manual Search Fallback Table */}
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setShowManualSaleList(!showManualSaleList)}
+                          className="text-xs text-yellow-300 hover:text-yellow-200 hover:bg-red-800/60 px-2 h-7"
+                        >
+                          {showManualSaleList ? "▲ Hide Sales List" : "▼ Or Browse All Sales Instead"}
+                        </Button>
+
+                        {showManualSaleList && (
+                          <div className="mt-2 space-y-2 border-t border-red-800/60 pt-2">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                              <Input
+                                value={salePickerSearch}
+                                onChange={(event) => setSalePickerSearch(event.target.value)}
+                                placeholder="Filter sales by ID, customer, status..."
+                                className="h-9 rounded-lg pl-9 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50 text-xs focus-visible:ring-yellow-400"
+                              />
+                            </div>
+                            <div className="border border-red-800 rounded-xl overflow-y-auto overflow-x-hidden max-h-40">
+                              <Table className="w-full table-fixed text-xs">
+                                <TableHeader>
+                                  <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                                    <TableHead className="w-[20%] text-yellow-300 text-center">Sales ID</TableHead>
+                                    <TableHead className="w-[28%] text-yellow-300 text-center">Customer</TableHead>
+                                    <TableHead className="w-[14%] text-yellow-300 text-center">Items</TableHead>
+                                    <TableHead className="w-[20%] text-yellow-300 text-center">Amount</TableHead>
+                                    <TableHead className="w-[18%] text-yellow-300 text-center">Action</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {filteredSaleOptions.map((sale) => (
+                                    <TableRow key={sale.sales_id} className={`border-red-800 transition-colors hover:bg-red-800/60 ${formData.sales_id === sale.sales_id ? "bg-yellow-400/10" : ""}`}>
+                                      <TableCell className="truncate text-yellow-200 text-center font-medium" title={sale.display_sales_id}>{sale.display_sales_id}</TableCell>
+                                      <TableCell className="truncate text-yellow-200 text-center" title={sale.customerName}>{sale.customerName}</TableCell>
+                                      <TableCell className="text-yellow-200 text-center">{sale.details.length}</TableCell>
+                                      <TableCell className="truncate text-yellow-300 text-center font-semibold">{formatCurrency(sale.total_amount)}</TableCell>
+                                      <TableCell className="text-center">
+                                        <Button
+                                          size="sm"
+                                          onClick={() => {
+                                            validateReceiptNumber(sale.display_sales_id);
+                                          }}
+                                          className="h-7 rounded-full bg-yellow-400 px-3 text-red-900 text-xs hover:bg-yellow-500 font-semibold"
+                                        >
+                                          {formData.sales_id === sale.sales_id ? "Selected" : "Select"}
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
