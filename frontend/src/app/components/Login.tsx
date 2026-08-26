@@ -65,7 +65,7 @@ export function Login() {
       // Step 3: After 1.5s, actually call login() which sets user state and triggers redirect
       setTimeout(async () => {
         await login(username, password);
-      }, 1500);
+      }, 3000);
     } catch {
       setError('Invalid username or password');
       setSubmitting(false);
@@ -414,7 +414,7 @@ export function Login() {
             <h3 className="text-white text-xl font-semibold">Login Successful!</h3>
             <p className="text-white/60 text-sm text-center">Redirecting to your portal...</p>
             <div className="w-full h-1 rounded-full bg-white/10 overflow-hidden mt-2">
-              <div className="h-full bg-emerald-400 rounded-full" style={{ animation: 'progressBar 1.5s ease-in-out forwards' }} />
+              <div className="h-full bg-emerald-400 rounded-full" style={{ animation: 'progressBar 3s ease-in-out forwards' }} />
             </div>
           </div>
         </div>
