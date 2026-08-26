@@ -268,6 +268,7 @@ export function ReturnManagement() {
     returnableCount?: number;
   }>({ state: "idle" });
   const [showManualSaleList, setShowManualSaleList] = useState(false);
+  const [printExchangeSlip, setPrintExchangeSlip] = useState<ReturnRow | null>(null);
 
   const sales = (salesQuery.data as any[]) ?? [];
   const productRows = (productsQuery.data as any[]) ?? [];
@@ -301,7 +302,7 @@ export function ReturnManagement() {
         const bTime = new Date(b.transaction_date ?? "").getTime();
         return (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
       })
-      .forEach((sale, index) => map.set(String(sale.sales_id ?? ""), formatSequence("SALES", index + 1)));
+      .forEach((sale, index) => map.set(String(sale.sales_id ?? ""), formatSequence("RCP", index + 1)));
     return map;
   }, [sales]);
 
@@ -702,7 +703,7 @@ export function ReturnManagement() {
     });
     const returnDisplayMap = new Map<string, string>();
     sortedAsc.forEach((row, index) => {
-      returnDisplayMap.set(String(row.return_id ?? ""), formatSequence("REP", index + 1));
+      returnDisplayMap.set(String(row.return_id ?? ""), formatSequence("EXC", index + 1));
     });
 
     return returnRows.map((row: any) => {
@@ -735,9 +736,9 @@ export function ReturnManagement() {
       const rowAdditionalPayment = Number(row.additional_payment ?? row.total_replacement_payments ?? 0);
       return {
         return_id: String(row.return_id ?? ""),
-        display_return_id: returnDisplayMap.get(String(row.return_id ?? "")) ?? "REP-000",
+        display_return_id: returnDisplayMap.get(String(row.return_id ?? "")) ?? "EXC-000",
         sales_id: String(row.sales_id ?? ""),
-        display_sales_id: salesDisplayMap.get(String(row.sales_id ?? "")) ?? "SALES-000",
+        display_sales_id: salesDisplayMap.get(String(row.sales_id ?? "")) ?? "RCP-000",
         user_id: String(row.user_id ?? sale?.user_id ?? ""),
         customerName: customer?.name ?? "Walk-in Customer",
         return_date: formatDate(row.return_date ?? row.created_at),
@@ -2066,6 +2067,15 @@ export function ReturnManagement() {
                                 ))}
                               </div>
                             </div>
+                            <DialogFooter className="pt-3 border-t border-zinc-800 flex justify-end gap-2">
+                               <Button
+                                 onClick={() => setPrintExchangeSlip(returnItem)}
+                                 className="bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold text-xs flex items-center gap-2 rounded-xl shadow"
+                               >
+                                 <Receipt className="w-4 h-4" />
+                                 <span>Print Exchange Slip ({returnItem.display_return_id})</span>
+                               </Button>
+                             </DialogFooter>
                           </div>
                         </DialogContent>
                       </Dialog>
@@ -2078,8 +2088,144 @@ export function ReturnManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* FORMAL RETAIL REPLACEMENT / EXCHANGE SLIP MODAL */}
+      <Dialog open={Boolean(printExchangeSlip)} onOpenChange={(open) => !open && setPrintExchangeSlip(null)}>
+        <DialogContent className="bg-[#12121a] border-[#2d2d3d] text-zinc-900 max-w-md rounded-2xl shadow-2xl p-4 sm:p-6 max-h-[92vh] overflow-y-auto">
+          <DialogHeader className="border-b border-[#252536] pb-2">
+            <DialogTitle className="text-yellow-300 text-center text-sm font-semibold flex items-center justify-center gap-2">
+              <Receipt className="w-4 h-4 text-yellow-400" />
+              Official Replacement / Exchange Slip
+            </DialogTitle>
+          </DialogHeader>
+
+          {printExchangeSlip && (
+            <div id="printable-exchange-slip" className="bg-[#fffdf9] text-zinc-900 p-6 rounded-xl border border-zinc-300 shadow-inner font-mono text-xs space-y-3">
+              {/* STORE HEADER */}
+              <div className="text-center space-y-1 border-b border-dashed border-zinc-400 pb-3">
+                <h2 className="text-base font-black tracking-wider text-black font-sans uppercase">MERYL FOOTWEAR STORE</h2>
+                <p className="text-[10px] text-zinc-600">Official Retailer & Shoe Center</p>
+                <p className="text-[10px] text-zinc-600">Poblacion, Valencia City, Bukidnon 8709</p>
+                <p className="text-[10px] text-zinc-600 font-semibold">TIN: 432-891-002-000-VAT • TEL: (088) 828-4567</p>
+                <div className="mt-2 inline-block bg-black text-white px-3 py-0.5 rounded font-sans font-bold text-[10px] uppercase tracking-wider">
+                  ITEM REPLACEMENT / EXCHANGE SLIP
+                </div>
+              </div>
+
+              {/* SLIP METADATA */}
+              <div className="space-y-1 text-[11px] border-b border-dashed border-zinc-400 pb-3">
+                <div className="flex justify-between font-bold text-zinc-900">
+                  <span>EXCHANGE SLIP NO:</span>
+                  <span className="text-black font-black">{printExchangeSlip.display_return_id}</span>
+                </div>
+                <div className="flex justify-between font-bold text-amber-900 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                  <span>ORIGINAL PURCHASE RECEIPT:</span>
+                  <span className="font-black">{printExchangeSlip.display_sales_id}</span>
+                </div>
+                <div className="flex justify-between text-zinc-700">
+                  <span>REPLACEMENT DATE:</span>
+                  <span>{printExchangeSlip.return_date}</span>
+                </div>
+                <div className="flex justify-between text-zinc-700">
+                  <span>PROCESSED BY:</span>
+                  <span>{printExchangeSlip.processedBy} ({printExchangeSlip.staffCode})</span>
+                </div>
+                <div className="flex justify-between text-zinc-700">
+                  <span>CUSTOMER:</span>
+                  <span>{printExchangeSlip.customerName}</span>
+                </div>
+              </div>
+
+              {/* ITEM EXCHANGE BREAKDOWN */}
+              <div className="space-y-2 border-b border-dashed border-zinc-400 pb-3">
+                <div className="text-[10px] font-bold uppercase text-zinc-700 tracking-wider">
+                  Exchange Items Breakdown
+                </div>
+                {printExchangeSlip.returnDetails.map((detail, idx) => (
+                  <div key={idx} className="space-y-1 bg-zinc-50 p-2.5 rounded border border-zinc-200 text-[11px]">
+                    <div className="flex justify-between font-bold text-red-700">
+                      <span>[RETURNED] {detail.productName}</span>
+                      <span className="tabular-nums">-₱{(detail.productPrice * detail.quantity_returned).toFixed(2)}</span>
+                    </div>
+                    <div className="text-[10px] text-zinc-600 pl-2">
+                      Color: {detail.productColor} • Size: {detail.productSize} • {detail.quantity_returned}x @ ₱{detail.productPrice.toFixed(2)}
+                    </div>
+                    <div className="flex justify-between font-bold text-emerald-700 pt-1 border-t border-zinc-200">
+                      <span>[REPLACEMENT] {detail.replacementProductName}</span>
+                      <span className="tabular-nums">+₱{(detail.replacementProductPrice * detail.replacementQuantity).toFixed(2)}</span>
+                    </div>
+                    <div className="text-[10px] text-zinc-600 pl-2">
+                      Color: {detail.replacementProductColor} • Size: {detail.replacementProductSize} • {detail.replacementQuantity}x @ ₱{detail.replacementProductPrice.toFixed(2)}
+                    </div>
+                    {detail.reason && (
+                      <div className="text-[9px] text-zinc-500 italic pl-2 pt-0.5">
+                        Reason: {detail.reason} • Action: {detail.inventory_action}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* FINANCIAL SUMMARY */}
+              <div className="space-y-1.5 text-[11px] border-b border-dashed border-zinc-400 pb-3">
+                <div className="flex justify-between text-zinc-700">
+                  <span>Additional Payment Due:</span>
+                  <span className="tabular-nums font-bold">₱{printExchangeSlip.additional_payment.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-zinc-700">
+                  <span>Refund / Cash Return:</span>
+                  <span>₱0.00 (Exchange Policy Only)</span>
+                </div>
+                <div className="flex justify-between text-sm font-black text-black border-t border-zinc-400 pt-1">
+                  <span>NET AMOUNT COLLECTED:</span>
+                  <span className="text-base tabular-nums">₱{printExchangeSlip.additional_payment.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* SIGNATURES */}
+              <div className="pt-2 grid grid-cols-2 gap-4 text-center text-[9px] text-zinc-600">
+                <div>
+                  <div className="border-b border-zinc-400 h-8 mb-1"></div>
+                  <p>Customer Signature</p>
+                </div>
+                <div>
+                  <div className="border-b border-zinc-400 h-8 mb-1"></div>
+                  <p>Authorized Cashier</p>
+                </div>
+              </div>
+
+              {/* FOOTER */}
+              <div className="text-center pt-2">
+                <div className="inline-block tracking-widest text-[14px] font-mono text-zinc-800 scale-y-125">
+                  ||| | |||| ||| ||||| || |||| ||| |||
+                </div>
+                <p className="text-[9px] text-zinc-500 font-mono mt-1">*{printExchangeSlip.display_return_id}*</p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="border-t border-[#252536] pt-3 flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPrintExchangeSlip(null)}
+              className="w-1/3 border-[#343444] text-yellow-200 bg-transparent hover:bg-[#202030] rounded-xl text-xs"
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                window.print();
+                toast.success("Exchange slip sent to printer");
+              }}
+              className="w-2/3 bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold rounded-xl shadow text-xs flex items-center justify-center gap-2"
+            >
+              <Receipt className="w-4 h-4" />
+              <span>Print Official Slip</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-
