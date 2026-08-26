@@ -46,10 +46,13 @@ export function Login() {
     setNotice('');
 
     try {
+      const cleanUsername = username.trim();
+      const cleanPassword = password.trim();
+
       // Step 1: Validate credentials WITHOUT triggering auth context redirect
       const { data, error: rpcError } = await supabase.rpc('login_user', {
-        p_username: username,
-        p_password: password,
+        p_username: cleanUsername,
+        p_password: cleanPassword,
       });
 
       if (rpcError) throw rpcError;
@@ -64,7 +67,7 @@ export function Login() {
 
       // Step 3: After 1.5s, actually call login() which sets user state and triggers redirect
       setTimeout(async () => {
-        await login(username, password);
+        await login(cleanUsername, cleanPassword);
       }, 3000);
     } catch {
       setError('Invalid username or password');

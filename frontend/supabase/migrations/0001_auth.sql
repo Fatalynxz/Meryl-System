@@ -18,23 +18,41 @@ set search_path = public
 as $$
 declare
   v_user json;
+  v_user_id uuid;
+  v_is_plaintext boolean := false;
 begin
-  select json_build_object(
-    'user_id', u.user_id,
-    'name', u.name,
-    'username', u.username,
-    'role_id', u.role_id,
-    'role_name', r.role_name,
-    'status', coalesce(u.status, 'Active')
-  )
-  into v_user
+  select 
+    u.user_id,
+    json_build_object(
+      'user_id', u.user_id,
+      'name', u.name,
+      'username', u.username,
+      'role_id', u.role_id,
+      'role_name', r.role_name,
+      'status', coalesce(u.status, 'Active')
+    ),
+    (u.password = p_password or u.password = trim(p_password))
+  into v_user_id, v_user, v_is_plaintext
   from public."user" u
   join public.role r
     on r.role_id = u.role_id
-  where u.username = p_username
+  where lower(trim(u.username)) = lower(trim(p_username))
     and coalesce(u.status, 'Active') = 'Active'
-    and u.password = crypt(p_password, u.password)
+    and (
+      u.password = crypt(p_password, u.password)
+      or u.password = crypt(trim(p_password), u.password)
+      or u.password = p_password
+      or u.password = trim(p_password)
+    )
   limit 1;
+
+  -- If user logged in using plaintext, automatically upgrade their password to bcrypt
+  if v_is_plaintext and v_user_id is not null then
+    update public."user"
+    set password = crypt(trim(p_password), gen_salt('bf')),
+        updated_at = now()
+    where user_id = v_user_id;
+  end if;
 
   return v_user;
 end;
