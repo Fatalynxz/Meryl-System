@@ -8,6 +8,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- 2. Update login_user function to support:
 --    - Case-insensitive username match: lower(trim(username))
+--    - Case-insensitive status check: lower(u.status) = 'active'
 --    - Bcrypt hashed passwords (crypt(p_password, u.password))
 --    - Plaintext passwords (e.g. if manually updated in Table Editor or without salt)
 --    - Automatic password migration: automatically upgrades plaintext password to bcrypt upon successful login
@@ -33,7 +34,7 @@ BEGIN
       'username', u.username,
       'role_id', u.role_id,
       'role_name', r.role_name,
-      'status', coalesce(u.status, 'Active')
+      'status', 'Active'
     ),
     (u.password = p_password OR u.password = trim(p_password))
   INTO v_user_id, v_user, v_is_plaintext
@@ -41,7 +42,7 @@ BEGIN
   JOIN public.role r
     ON r.role_id = u.role_id
   WHERE lower(trim(u.username)) = lower(trim(p_username))
-    AND coalesce(u.status, 'Active') = 'Active'
+    AND lower(coalesce(u.status, 'active')) = 'active'
     AND (
       u.password = crypt(p_password, u.password)
       OR u.password = crypt(trim(p_password), u.password)
@@ -65,28 +66,24 @@ $$;
 REVOKE ALL ON FUNCTION public.login_user(text, text) FROM public;
 GRANT EXECUTE ON FUNCTION public.login_user(text, text) TO anon, authenticated;
 
--- 3. Ensure 'cashier2' account exists, is Active, and has the password properly hashed
--- (Replace 'sales123' if you use a different password)
+-- 3. Set cashier2 password to 'sales123' and ensure status is lowercase 'active'
 DO $$
 DECLARE
   v_sales_role_id uuid;
 BEGIN
-  -- Get the role_id for Sales Staff / Cashier
   SELECT role_id INTO v_sales_role_id 
   FROM public.role 
   WHERE lower(role_name) IN ('sales', 'sales staff', 'cashier') 
   LIMIT 1;
 
-  -- If role doesn't exist, pick any non-admin role or first role
   IF v_sales_role_id IS NULL THEN
     SELECT role_id INTO v_sales_role_id FROM public.role LIMIT 1;
   END IF;
 
-  -- Update or insert cashier2
   IF EXISTS (SELECT 1 FROM public."user" WHERE lower(trim(username)) = 'cashier2') THEN
     UPDATE public."user"
     SET password = crypt('sales123', gen_salt('bf')),
-        status = 'Active',
+        status = 'active',
         role_id = coalesce(role_id, v_sales_role_id),
         updated_at = now()
     WHERE lower(trim(username)) = 'cashier2';
@@ -103,11 +100,11 @@ BEGIN
     )
     VALUES (
       gen_random_uuid(),
-      'Cashier Two',
+      'Mongmong barcos',
       'cashier2',
       crypt('sales123', gen_salt('bf')),
       v_sales_role_id,
-      'Active',
+      'active',
       now(),
       now()
     );
