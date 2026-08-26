@@ -1015,24 +1015,26 @@ export function PointOfSale() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
-        <Card className="bg-red-700 border-red-800">
-          <CardHeader>
+        {/* PRODUCT SELECTION CARD */}
+        <Card className="bg-[#101017] border-[#24242f] shadow-xl">
+          <CardHeader className="border-b border-[#24242f] pb-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle className="text-yellow-300 flex items-center gap-2">
-                <Package className="w-5 h-5" />
+              <CardTitle className="text-yellow-300 flex items-center gap-2 text-lg">
+                <Package className="w-5 h-5 text-yellow-400" />
                 Product Selection
               </CardTitle>
               <Button
                 type="button"
                 onClick={() => setIsProductGridOpen(true)}
-                className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                className="bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold text-xs h-9 px-4 rounded-xl shadow"
               >
                 <Search className="w-4 h-4 mr-2" />
-                Browse Products
+                Browse Catalog & Barcodes
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-5">
+            {/* BROWSE PRODUCTS MODAL */}
             <Dialog
               open={isProductGridOpen}
               onOpenChange={(open) => {
@@ -1040,28 +1042,28 @@ export function PointOfSale() {
                 setProductSearch("");
               }}
             >
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[96vw] !max-w-[1240px] max-h-[88vh] overflow-hidden p-0 shadow-2xl">
-                <div className="border-b border-red-800 p-5">
+              <DialogContent className="bg-[#14141e] border-[#2d2d3d] text-yellow-100 !w-[96vw] !max-w-[1240px] max-h-[88vh] overflow-hidden p-0 shadow-2xl rounded-2xl">
+                <div className="border-b border-[#262636] p-5 bg-[#171724]">
                   <DialogHeader>
-                    <DialogTitle className="text-yellow-300 flex items-center gap-2">
+                    <DialogTitle className="text-yellow-300 flex items-center gap-2 text-lg">
                       <Package className="w-5 h-5" />
-                      Select Product
+                      Browse Product Catalog
                     </DialogTitle>
                   </DialogHeader>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                  <div className="relative mt-3">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                     <Input
                       value={productSearch}
                       onChange={(event) => setProductSearch(event.target.value)}
-                      placeholder="Search by SKU, product, brand, category, variant, size, or price..."
-                      className="mt-4 h-11 rounded-xl bg-red-600 border-red-800 pl-10 text-yellow-200 placeholder:text-yellow-300/50 focus-visible:ring-yellow-400"
+                      placeholder="Search by SKU, product name, brand, category, color, size, or price..."
+                      className="h-11 rounded-xl bg-[#1d1d2b] border-[#303042] pl-10 text-yellow-100 placeholder:text-yellow-300/40 focus-visible:ring-yellow-400/50"
                     />
                   </div>
                 </div>
                 {hasProductSearch && (
                   <div className="p-5">
-                    <div className="overflow-hidden rounded-xl border border-red-800">
-                      <div className="grid grid-cols-[0.55fr_1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] bg-red-800 px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">
+                    <div className="overflow-hidden rounded-xl border border-[#282838] bg-[#12121a]">
+                      <div className="grid grid-cols-[0.55fr_1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] bg-[#1a1a28] px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300 border-b border-[#282838]">
                         <div>Photo</div>
                         <div>Product</div>
                         <div>Brand</div>
@@ -1077,27 +1079,27 @@ export function PointOfSale() {
                           return (
                             <div
                               key={product.product_id}
-                              className="grid grid-cols-[0.55fr_1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] items-center border-t border-red-800 px-4 py-4 text-center text-sm transition-colors hover:bg-red-800/60"
+                              className="grid grid-cols-[0.55fr_1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] items-center border-t border-[#232333] px-4 py-3.5 text-center text-sm transition-colors hover:bg-[#1c1c2b]"
                             >
                               <div className="flex justify-center">
                                 <ProductPhotoPlaceholder productName={product.product_name} />
                               </div>
-                              <div className="truncate font-medium text-yellow-100" title={product.product_name}>{product.product_name}</div>
-                              <div className="truncate text-yellow-200" title={product.brand}>{product.brand}</div>
-                              <div className="truncate text-yellow-200" title={product.category}>{product.category}</div>
-                              <div className="truncate text-yellow-200" title={productVariantLabel(product)}>
+                              <div className="truncate font-semibold text-white text-left pl-2" title={product.product_name}>{product.product_name}</div>
+                              <div className="truncate text-yellow-100/90" title={product.brand}>{product.brand}</div>
+                              <div className="truncate text-yellow-200/60 text-xs" title={product.category}>{product.category}</div>
+                              <div className="truncate text-yellow-100 font-medium" title={productVariantLabel(product)}>
                                 {productVariantLabel(product)}
                               </div>
-                              <div className="truncate font-medium text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price}</div>
+                              <div className="truncate font-bold text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price.toLocaleString()}</div>
                               <div className="min-w-0">
-                                <Badge className="max-w-full truncate rounded-full bg-yellow-400 px-3 py-1 text-red-900">{product.stock_quantity} units</Badge>
+                                <Badge className="max-w-full truncate rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">{product.stock_quantity} available</Badge>
                               </div>
                               <div className="flex justify-center">
                                 <Button
                                   size="sm"
                                   disabled={!sellable}
                                   onClick={() => selectProductVariant(product)}
-                                  className="h-8 rounded-full bg-yellow-400 px-4 font-semibold text-red-900 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-300"
+                                  className="h-8 rounded-lg bg-yellow-400 px-3.5 font-bold text-xs text-red-950 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 shadow"
                                 >
                                   {sellable ? "Add" : "Locked"}
                                 </Button>
@@ -1105,13 +1107,13 @@ export function PointOfSale() {
                             </div>
                           );
                         }) : (
-                          <div className="border-t border-red-800 px-4 py-10 text-center text-sm text-yellow-200/70">
+                          <div className="border-t border-[#232333] px-4 py-10 text-center text-sm text-yellow-200/60">
                             No active products with available stock match your search.
                           </div>
                         )}
                       </div>
                     </div>
-                    <p className="mt-3 text-center text-xs text-yellow-200/70">
+                    <p className="mt-3 text-center text-xs text-yellow-200/50">
                       Only active, non-expired products with POS-available stock are shown. Held stock is excluded from cashier availability.
                     </p>
                   </div>
@@ -1137,12 +1139,12 @@ export function PointOfSale() {
                     setSelectedSize("");
                   }}
                 >
-                  <SelectTrigger className="h-11 bg-red-600/90 border-red-800 text-yellow-100 rounded-xl font-medium focus:ring-yellow-400">
+                  <SelectTrigger className="h-11 bg-[#171724] border-[#2e2e3f] text-yellow-100 rounded-xl font-medium focus:ring-yellow-400/50">
                     <SelectValue placeholder="Choose a product model to view variants..." />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#181824] border-[#2e2e3f] text-yellow-100 max-h-72">
+                  <SelectContent className="bg-[#15151f] border-[#2e2e3f] text-yellow-100 max-h-72">
                     {productGroups.map((group) => (
-                      <SelectItem key={group.key} value={group.key} className="py-2.5">
+                      <SelectItem key={group.key} value={group.key} className="py-2.5 hover:bg-[#202030]">
                         <span className="font-semibold text-white">{group.product_name}</span>
                         <span className="text-xs text-yellow-200/60 ml-2">
                           ({group.variants.length} variant{group.variants.length === 1 ? "" : "s"})
@@ -1155,7 +1157,7 @@ export function PointOfSale() {
 
               {/* 2. COLOR VARIANT CHIPS (IF PRODUCT SELECTED) */}
               {selectedProductKey && (
-                <div className="space-y-2 rounded-xl bg-red-800/40 border border-red-800/80 p-3.5">
+                <div className="space-y-2 rounded-xl bg-[#14141e] border border-[#262636] p-3.5 shadow-inner">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
                       2. Available Colorways
@@ -1178,7 +1180,7 @@ export function PointOfSale() {
                           className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
                             isSelected
                               ? "bg-yellow-400 text-red-950 border-yellow-300 shadow-md ring-2 ring-yellow-400/50 scale-[1.02]"
-                              : "bg-[#1f1f2d] text-yellow-200 border-[#303044] hover:border-yellow-400/50 hover:bg-[#252536]"
+                              : "bg-[#1c1c28] text-yellow-200 border-[#303044] hover:border-yellow-400/50 hover:bg-[#252536]"
                           }`}
                         >
                           <span className="w-2.5 h-2.5 rounded-full border border-black/30" style={{ backgroundColor: color.toLowerCase() }} />
@@ -1192,7 +1194,7 @@ export function PointOfSale() {
 
               {/* 3. SHOPEE-STYLE SIZE CARD BUTTONS */}
               {selectedProductKey && (selectedColor || availableColors.length === 1) && (
-                <div className="space-y-2 rounded-xl bg-red-800/40 border border-red-800/80 p-3.5">
+                <div className="space-y-2 rounded-xl bg-[#14141e] border border-[#262636] p-3.5 shadow-inner">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
                       3. Available Sizes (Shopee-Style Tiles)
@@ -1273,7 +1275,7 @@ export function PointOfSale() {
                         if (current > 1) setQuantity(String(current - 1));
                       }}
                       disabled={!selectedSize || Number(quantity) <= 1}
-                      className="h-10 w-10 border-red-800 bg-red-600 text-yellow-100 hover:bg-red-500 rounded-xl"
+                      className="h-10 w-10 border-[#2e2e3f] bg-[#171724] text-yellow-100 hover:bg-[#222232] rounded-xl"
                     >
                       -
                     </Button>
@@ -1288,7 +1290,7 @@ export function PointOfSale() {
                       onBlur={() => {
                         if (!quantity || Number(quantity) <= 0) setQuantity("1");
                       }}
-                      className="h-10 text-center font-bold text-base bg-red-600 border-red-800 text-yellow-100 rounded-xl"
+                      className="h-10 text-center font-bold text-base bg-[#171724] border-[#2e2e3f] text-yellow-100 rounded-xl"
                     />
                     <Button
                       type="button"
@@ -1299,7 +1301,7 @@ export function PointOfSale() {
                         setQuantity(String(current + 1));
                       }}
                       disabled={!selectedSize}
-                      className="h-10 w-10 border-red-800 bg-red-600 text-yellow-100 hover:bg-red-500 rounded-xl"
+                      className="h-10 w-10 border-[#2e2e3f] bg-[#171724] text-yellow-100 hover:bg-[#222232] rounded-xl"
                     >
                       +
                     </Button>
@@ -1310,9 +1312,9 @@ export function PointOfSale() {
                   <Button
                     onClick={addToCart}
                     disabled={!selectedProductKey || !selectedSize}
-                    className="h-10 w-full sm:w-auto bg-yellow-400 text-red-900 hover:bg-yellow-500 font-bold px-6 rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="h-10 w-full sm:w-auto bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold px-6 rounded-xl shadow-lg disabled:opacity-40 flex items-center justify-center gap-2"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="w-4 h-4" />
                     <span>Add to Cart</span>
                   </Button>
                 </div>
@@ -1321,31 +1323,32 @@ export function PointOfSale() {
           </CardContent>
         </Card>
 
-        <Card className="bg-red-700 border-red-800">
-          <CardHeader>
-            <CardTitle className="text-yellow-300 flex items-center gap-2">
+        {/* SHOPPING CART CARD */}
+        <Card className="bg-[#101017] border-[#24242f] shadow-xl">
+          <CardHeader className="border-b border-[#24242f] pb-3">
+            <CardTitle className="text-yellow-300 flex items-center gap-2 text-lg">
               <CreditCard className="w-5 h-5" />
               Shopping Cart
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-5">
             {cart.length === 0 ? (
-              <div className="text-center py-8 text-yellow-200">Cart is empty. Add products to begin transaction.</div>
+              <div className="text-center py-8 text-yellow-200/50 text-sm">Cart is empty. Add products to begin transaction.</div>
             ) : (
-              <div className="border border-red-800 rounded-lg overflow-x-hidden">
+              <div className="border border-[#262636] rounded-xl overflow-hidden bg-[#14141e]">
                 <Table className="w-full">
                   <TableHeader>
-                  <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-left px-3">Product</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-left px-3">Brand</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Color</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Size</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-3">Price</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Qty</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Discount</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Promo</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-3">Subtotal</TableHead>
-                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2">Action</TableHead>
+                    <TableRow className="bg-[#1a1a28] hover:bg-[#1a1a28] border-b border-[#262636]">
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-left px-3 text-xs font-semibold">Product</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-left px-3 text-xs font-semibold">Brand</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2 text-xs font-semibold">Color</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2 text-xs font-semibold">Size</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-3 text-xs font-semibold">Price</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2 text-xs font-semibold">Qty</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2 text-xs font-semibold">Discount</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2 text-xs font-semibold">Promo</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-3 text-xs font-semibold">Subtotal</TableHead>
+                      <TableHead className="text-yellow-300 whitespace-nowrap text-center px-2 text-xs font-semibold">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1353,27 +1356,27 @@ export function PointOfSale() {
                       const itemTotal = getLineTotal(item);
                       const itemIsBogo = isBogoCartItem(item);
                       return (
-                        <TableRow key={item.id} className="border-red-800">
-                          <TableCell className="text-yellow-200 whitespace-nowrap align-middle px-3 py-2 truncate">
+                        <TableRow key={item.id} className="border-t border-[#232333] hover:bg-[#1c1c2b] transition-colors">
+                          <TableCell className="text-white font-semibold whitespace-nowrap align-middle px-3 py-3 truncate">
                             {item.productName}
                           </TableCell>
-                          <TableCell className="text-yellow-200 whitespace-nowrap align-middle px-3 py-2 truncate">{item.brand}</TableCell>
-                          <TableCell className="text-yellow-200 whitespace-nowrap text-center align-middle px-2 py-2">{item.color}</TableCell>
-                          <TableCell className="text-yellow-200 whitespace-nowrap text-center align-middle px-2 py-2">{item.size}</TableCell>
-                          <TableCell className="text-yellow-300 whitespace-nowrap text-center align-middle px-3 py-2">
+                          <TableCell className="text-yellow-100 whitespace-nowrap align-middle px-3 py-3 truncate">{item.brand}</TableCell>
+                          <TableCell className="text-yellow-100 whitespace-nowrap text-center align-middle px-2 py-3">{item.color}</TableCell>
+                          <TableCell className="text-yellow-100 whitespace-nowrap text-center align-middle px-2 py-3">{item.size}</TableCell>
+                          <TableCell className="text-yellow-300 whitespace-nowrap text-center align-middle px-3 py-3 font-medium">
                             <span className="inline-block tabular-nums">
                               {formatCurrency(item.price)}
                             </span>
                           </TableCell>
-                          <TableCell className="text-center align-middle px-2 py-2">
-                            <div className="mx-auto flex w-[104px] items-center justify-center rounded-xl border border-yellow-400/25 bg-[#1D1D25] p-1">
+                          <TableCell className="text-center align-middle px-2 py-3">
+                            <div className="mx-auto flex w-[104px] items-center justify-center rounded-xl border border-[#2e2e3f] bg-[#1d1d2b] p-1">
                               <Button
                                 type="button"
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
                                 disabled={itemIsBogo || item.quantity <= 1}
-                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
+                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-red-950 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 <Minus className="h-3.5 w-3.5" />
                               </Button>
@@ -1383,7 +1386,7 @@ export function PointOfSale() {
                                 value={item.quantityInput ?? String(item.quantity)}
                                 onChange={(e) => updateQuantityInput(item.id, e.target.value)}
                                 onBlur={() => commitQuantityInput(item.id)}
-                                className="h-7 w-10 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="h-7 w-10 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-bold"
                                 disabled={itemIsBogo}
                               />
                               <Button
@@ -1392,21 +1395,21 @@ export function PointOfSale() {
                                 variant="ghost"
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                 disabled={itemIsBogo}
-                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219]"
+                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-red-950"
                               >
                                 <Plus className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </TableCell>
-                          <TableCell className="text-center align-middle px-2 py-2">
-                            <div className="mx-auto flex w-[122px] items-center justify-center rounded-xl border border-yellow-400/25 bg-[#1D1D25] p-1">
+                          <TableCell className="text-center align-middle px-2 py-3">
+                            <div className="mx-auto flex w-[122px] items-center justify-center rounded-xl border border-[#2e2e3f] bg-[#1d1d2b] p-1">
                               <Button
                                 type="button"
                                 size="icon"
                                 variant="ghost"
                                 onClick={() => updateDiscount(item.id, item.discount - 1)}
                                 disabled={itemIsBogo || item.discount <= 0}
-                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
+                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-red-950 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 <Minus className="h-3.5 w-3.5" />
                               </Button>
@@ -1416,7 +1419,7 @@ export function PointOfSale() {
                                 value={item.discountInput ?? String(item.discount)}
                                 onChange={(e) => updateDiscountInput(item.id, e.target.value)}
                                 onBlur={() => commitDiscountInput(item.id)}
-                                className="h-7 w-14 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0"
+                                className="h-7 w-14 border-0 bg-transparent p-0 text-center text-yellow-100 shadow-none focus-visible:ring-0 font-bold"
                                 disabled={itemIsBogo}
                               />
                               <Button
@@ -1425,16 +1428,16 @@ export function PointOfSale() {
                                 variant="ghost"
                                 onClick={() => updateDiscount(item.id, item.discount + 1)}
                                 disabled={itemIsBogo || item.discount >= 100}
-                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-[#171219] disabled:cursor-not-allowed disabled:opacity-40"
+                                className="h-7 w-7 rounded-lg text-yellow-300 hover:bg-yellow-400 hover:text-red-950 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 <Plus className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           </TableCell>
-                          <TableCell className="text-center align-middle px-2 py-2">
+                          <TableCell className="text-center align-middle px-2 py-3">
                             {item.promotionType ? (
                               <div className="flex flex-col items-center gap-1">
-                                <Badge className="bg-yellow-400 text-red-900">
+                                <Badge className="bg-yellow-400 text-red-950 font-bold">
                                   {getPromoBadgeLabel(item.promotionType)}
                                 </Badge>
                                 {isBogoCartItem(item) && (
@@ -1444,20 +1447,20 @@ export function PointOfSale() {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-yellow-200/60 text-xs">None</span>
+                              <span className="text-yellow-200/50 text-xs">None</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-yellow-300 text-center align-middle px-3 py-2">
+                          <TableCell className="text-yellow-300 text-center align-middle px-3 py-3 font-bold">
                             <span className="inline-block tabular-nums">
                               {formatCurrency(itemTotal)}
                             </span>
                           </TableCell>
-                          <TableCell className="text-center align-middle px-2 py-2">
+                          <TableCell className="text-center align-middle px-2 py-3">
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => removeFromCart(item.id)}
-                              className="text-yellow-400 hover:text-yellow-300 hover:bg-red-600"
+                              className="text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg h-8 w-8 p-0"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -1473,66 +1476,67 @@ export function PointOfSale() {
         </Card>
       </div>
 
+      {/* TRANSACTION SUMMARY & PAYMENT CARD */}
       <div className="space-y-4">
-        <Card className="bg-red-700 border-red-800">
-          <CardHeader>
-            <CardTitle className="text-yellow-300 flex items-center gap-2">
-              <Coins className="w-5 h-5" />
+        <Card className="bg-[#101017] border-[#24242f] shadow-xl">
+          <CardHeader className="border-b border-[#24242f] pb-3">
+            <CardTitle className="text-yellow-300 flex items-center gap-2 text-lg">
+              <Coins className="w-5 h-5 text-yellow-400" />
               Transaction Summary
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex justify-between text-yellow-200"><span>Subtotal:</span><span className="text-yellow-300">₱{calculateSubtotal().toFixed(2)}</span></div>
-              <div className="flex justify-between text-yellow-200"><span>Total Discount:</span><span className="text-yellow-300">-₱{calculateTotalDiscount().toFixed(2)}</span></div>
-              <div className="border-t border-red-600 pt-3">
-                <div className="flex justify-between"><span className="text-yellow-300 text-lg">Total:</span><span className="text-yellow-300 text-2xl">₱{calculateTotal().toFixed(2)}</span></div>
+          <CardContent className="space-y-4 p-5">
+            <div className="space-y-3 rounded-xl bg-[#14141e] border border-[#262636] p-4">
+              <div className="flex justify-between text-yellow-200/70 text-sm"><span>Subtotal:</span><span className="text-yellow-100 font-semibold">₱{calculateSubtotal().toFixed(2)}</span></div>
+              <div className="flex justify-between text-emerald-400 text-sm"><span>Total Discount:</span><span className="font-semibold">-₱{calculateTotalDiscount().toFixed(2)}</span></div>
+              <div className="border-t border-[#28283a] pt-3">
+                <div className="flex justify-between items-baseline"><span className="text-white font-bold text-base">Total Due:</span><span className="text-yellow-300 text-2xl font-black">₱{calculateTotal().toFixed(2)}</span></div>
               </div>
             </div>
 
-            <div className="space-y-4 pt-4 border-t border-red-600">
+            <div className="space-y-4 pt-2">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <Label className="text-yellow-300">Select Existing Customer</Label>
+                  <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">Customer Selection</Label>
                   <Button
                     type="button"
                     size="sm"
                     onClick={() => setIsCustomerGridOpen(true)}
-                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                    className="bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold text-xs h-7 px-2.5 rounded-lg shadow"
                   >
-                    <Users className="w-4 h-4 mr-2" />
+                    <Users className="w-3.5 h-3.5 mr-1" />
                     Browse
                   </Button>
                 </div>
                 <Dialog open={isCustomerGridOpen} onOpenChange={setIsCustomerGridOpen}>
-                  <DialogContent className="bg-red-700 border-red-800 text-yellow-200 !w-[92vw] !max-w-[820px] max-h-[82vh] overflow-hidden p-0">
-                    <div className="border-b border-red-800 p-5">
+                  <DialogContent className="bg-[#14141e] border-[#2d2d3d] text-yellow-100 !w-[92vw] !max-w-[820px] max-h-[82vh] overflow-hidden p-0 rounded-2xl shadow-2xl">
+                    <div className="border-b border-[#262636] p-5 bg-[#171724]">
                       <DialogHeader>
-                        <DialogTitle className="text-yellow-300 flex items-center gap-2">
+                        <DialogTitle className="text-yellow-300 flex items-center gap-2 text-lg">
                           <Users className="w-5 h-5" />
                           Select Customer
                         </DialogTitle>
                       </DialogHeader>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
+                      <div className="relative mt-3">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                         <Input
                           value={customerSearch}
                           onChange={(event) => setCustomerSearch(event.target.value)}
                           placeholder="Search by name, email, or contact number..."
-                          className="mt-4 pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                          className="h-11 pl-10 bg-[#1d1d2b] border-[#303042] text-yellow-100 placeholder:text-yellow-300/40 rounded-xl"
                         />
                       </div>
                     </div>
                     <div className="p-5 pt-4">
-                      <div className="border border-red-800 rounded-xl overflow-hidden">
+                      <div className="border border-[#282838] rounded-xl overflow-hidden bg-[#12121a]">
                         <div className="max-h-[52vh] overflow-y-auto overflow-x-hidden">
                         <Table className="w-full table-fixed text-sm">
-                          <TableHeader className="sticky top-0 z-10">
-                            <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-                              <TableHead className="w-[24%] px-3 text-center text-yellow-300">Name</TableHead>
-                              <TableHead className="w-[36%] px-3 text-center text-yellow-300">Email</TableHead>
-                              <TableHead className="w-[24%] px-3 text-center text-yellow-300">Contact</TableHead>
-                              <TableHead className="w-[16%] px-3 text-center text-yellow-300">Action</TableHead>
+                          <TableHeader className="sticky top-0 z-10 bg-[#1a1a28]">
+                            <TableRow className="border-b border-[#282838]">
+                              <TableHead className="w-[24%] px-3 text-center text-yellow-300 font-semibold text-xs">Name</TableHead>
+                              <TableHead className="w-[36%] px-3 text-center text-yellow-300 font-semibold text-xs">Email</TableHead>
+                              <TableHead className="w-[24%] px-3 text-center text-yellow-300 font-semibold text-xs">Contact</TableHead>
+                              <TableHead className="w-[16%] px-3 text-center text-yellow-300 font-semibold text-xs">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1540,25 +1544,25 @@ export function PointOfSale() {
                               <TableRow
                                 key={customer.value}
                                 onClick={() => selectCustomer(customer)}
-                                className="cursor-pointer border-red-800 transition-colors hover:bg-red-800/60"
+                                className="cursor-pointer border-t border-[#232333] transition-colors hover:bg-[#1c1c2b]"
                               >
-                                <TableCell className="truncate px-3 text-center text-yellow-200" title={customer.label}>
+                                <TableCell className="truncate px-3 text-center text-yellow-100 font-medium" title={customer.label}>
                                   {customer.label}
                                 </TableCell>
-                                <TableCell className="truncate px-3 text-center text-yellow-200" title={customer.email || "N/A"}>
+                                <TableCell className="truncate px-3 text-center text-yellow-200/60" title={customer.email || "N/A"}>
                                   {customer.email || "N/A"}
                                 </TableCell>
-                                <TableCell className="truncate px-3 text-center text-yellow-200" title={customer.contact_number || "N/A"}>
+                                <TableCell className="truncate px-3 text-center text-yellow-200/60" title={customer.contact_number || "N/A"}>
                                   {customer.contact_number || "N/A"}
                                 </TableCell>
                                 <TableCell className="px-3 text-center">
                                   <Button
                                     size="sm"
                                     onClick={(event) => {
-                                      event.stopPropagation();
+                                       event.stopPropagation();
                                       selectCustomer(customer);
                                     }}
-                                    className="h-8 bg-yellow-400 px-3 text-red-900 hover:bg-yellow-500"
+                                    className="h-7 bg-yellow-400 px-3 text-red-950 font-bold text-xs hover:bg-yellow-500 rounded-lg shadow"
                                   >
                                     Select
                                   </Button>
@@ -1569,7 +1573,7 @@ export function PointOfSale() {
                         </Table>
                         </div>
                       </div>
-                      <p className="mt-3 text-xs text-yellow-200/70">
+                      <p className="mt-3 text-xs text-yellow-200/50 text-center">
                         Click a row or the Select button to use an existing customer. Use Walk-in Customer for quick sales.
                       </p>
                     </div>
@@ -1584,57 +1588,58 @@ export function PointOfSale() {
                     }
                   }}
                 >
-                  <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                  <SelectTrigger className="h-10 bg-[#171724] border-[#2e2e3f] text-yellow-100 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                  <SelectContent className="bg-[#15151f] border-[#2e2e3f] text-yellow-100 max-h-64">
                     {customerOptions.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      <SelectItem key={c.value} value={c.value} className="hover:bg-[#202030]">{c.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               {customerName === "walk-in" && (
-                <div className="space-y-3 rounded-md border border-red-800 p-3">
+                <div className="space-y-3 rounded-xl border border-[#282838] bg-[#14141e] p-3.5">
                   <div className="flex items-center space-x-2">
                     <Checkbox
                       id="save-walkin-details"
                       checked={saveWalkInDetails}
                       onCheckedChange={(checked) => setSaveWalkInDetails(Boolean(checked))}
+                      className="border-yellow-400 data-[state=checked]:bg-yellow-400 data-[state=checked]:text-red-950"
                     />
-                    <Label htmlFor="save-walkin-details" className="text-yellow-300 cursor-pointer">
+                    <Label htmlFor="save-walkin-details" className="text-xs font-semibold text-yellow-300 cursor-pointer">
                       Save walk-in customer details
                     </Label>
                   </div>
                   {saveWalkInDetails && (
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="space-y-2">
-                        <Label className="text-yellow-300">Customer Name</Label>
+                    <div className="grid grid-cols-1 gap-2.5 pt-1">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-yellow-200/70">Customer Name</Label>
                         <Input
                           value={walkInCustomerName}
                           onChange={(e) => setWalkInCustomerName(e.target.value)}
                           placeholder="e.g. Juan Dela Cruz"
-                          className="bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                          className="h-9 bg-[#1d1d2b] border-[#303042] text-yellow-100 placeholder:text-yellow-300/40 rounded-lg text-xs"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-yellow-300">Mobile Number</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-yellow-200/70">Mobile Number</Label>
                         <Input
                           value={walkInCustomerPhone}
                           onChange={(e) => setWalkInCustomerPhone(normalizePhone(e.target.value))}
                           placeholder="e.g. 09171234567"
                           inputMode="numeric"
                           maxLength={11}
-                          className="bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                          className="h-9 bg-[#1d1d2b] border-[#303042] text-yellow-100 placeholder:text-yellow-300/40 rounded-lg text-xs"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-yellow-300">Gender</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-yellow-200/70">Gender</Label>
                         <Select value={walkInGender} onValueChange={setWalkInGender}>
-                          <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                          <SelectTrigger className="h-9 bg-[#1d1d2b] border-[#303042] text-yellow-100 rounded-lg text-xs">
                             <SelectValue placeholder="Select gender" />
                           </SelectTrigger>
-                          <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                          <SelectContent className="bg-[#15151f] border-[#2e2e3f] text-yellow-100 text-xs">
                             <SelectItem value="Male">Male</SelectItem>
                             <SelectItem value="Female">Female</SelectItem>
                             <SelectItem value="Kids (Boy)">Kids (Boy)</SelectItem>
@@ -1642,15 +1647,15 @@ export function PointOfSale() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-yellow-300">Age</Label>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-yellow-200/70">Age</Label>
                         <Input
                           type="number"
                           min={0}
                           max={120}
                           value={walkInAge}
                           onChange={(e) => setWalkInAge(e.target.value)}
-                          className="bg-red-600 border-red-800 text-yellow-200"
+                          className="h-9 bg-[#1d1d2b] border-[#303042] text-yellow-100 rounded-lg text-xs"
                         />
                       </div>
                     </div>
@@ -1658,13 +1663,13 @@ export function PointOfSale() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label className="text-yellow-300">Payment Method</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">Payment Method</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                  <SelectTrigger className="h-10 bg-[#171724] border-[#2e2e3f] text-yellow-100 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                  <SelectContent className="bg-[#15151f] border-[#2e2e3f] text-yellow-100">
                     <SelectItem value="Cash">Cash</SelectItem>
                     <SelectItem value="GCash">GCash</SelectItem>
                   </SelectContent>
@@ -1673,99 +1678,86 @@ export function PointOfSale() {
 
               {paymentMethod === "Cash" && (
                 <>
-                  <div className="space-y-2">
-                    <Label className="text-yellow-300">Cash Received</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">Cash Received</Label>
                     <Input
                       type="number"
                       value={cashReceived}
                       onChange={(e) => setCashReceived(e.target.value)}
                       placeholder="0.00"
-                      className="bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                      className="h-10 bg-[#171724] border-[#2e2e3f] text-yellow-100 placeholder:text-yellow-300/40 rounded-xl font-bold"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-yellow-300">Change Amount</Label>
-                    <div className="bg-red-600 border border-red-800 rounded-md px-3 py-2 text-yellow-300">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">Change Amount</Label>
+                    <div className="h-10 bg-[#14141e] border border-[#282838] rounded-xl px-3 flex items-center text-emerald-400 font-bold text-base">
                       ₱{Math.max(0, (parseFloat(cashReceived) || 0) - calculateTotal()).toFixed(2)}
                     </div>
                   </div>
                 </>
               )}
 
-              <Button onClick={processPayment} disabled={cart.length === 0} className="w-full bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-50">
-                <Receipt className="w-4 h-4 mr-2" />
-                Complete Payment
+              <Button onClick={processPayment} disabled={cart.length === 0} className="w-full h-11 bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold text-sm rounded-xl shadow-lg disabled:opacity-40 flex items-center justify-center gap-2">
+                <Receipt className="w-4 h-4" />
+                Complete Payment & Checkout
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-red-700 border-red-800">
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <div className="flex justify-between text-yellow-200 text-sm">
-                <span>Items in Cart:</span>
-                <Badge className="bg-yellow-400 text-red-900">{cart.length}</Badge>
-              </div>
-              <div className="flex justify-between text-yellow-200 text-sm">
-                <span>Total Units:</span>
-                <Badge className="bg-yellow-400 text-red-900">{cart.reduce((sum, item) => sum + item.quantity, 0)}</Badge>
-              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
+      {/* RECEIPT MODAL */}
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
-        <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-yellow-300 text-center">Transaction Receipt</DialogTitle>
+        <DialogContent className="bg-[#14141e] border-[#2d2d3d] text-yellow-100 max-w-md rounded-2xl shadow-2xl p-6">
+          <DialogHeader className="border-b border-[#252536] pb-3">
+            <DialogTitle className="text-yellow-300 text-center text-lg flex items-center justify-center gap-2">
+              <Receipt className="w-5 h-5 text-yellow-400" />
+              Transaction Receipt
+            </DialogTitle>
           </DialogHeader>
           {receiptData && (
-            <div className="space-y-4 py-4">
-              <div className="text-center border-b border-red-600 pb-4">
-                <h3 className="text-yellow-300 text-xl">Meryl Shoes</h3>
-                <p className="text-yellow-200 text-sm">{receiptData.date}</p>
-                <p className="text-yellow-200 text-sm">Receipt: {receiptData.receiptNumber}</p>
+            <div className="space-y-4 py-2 text-sm">
+              <div className="text-center border-b border-[#252536] pb-3">
+                <h3 className="text-yellow-300 text-xl font-bold">Meryl Shoes</h3>
+                <p className="text-yellow-200/60 text-xs mt-0.5">{receiptData.date}</p>
+                <p className="text-yellow-200/60 text-xs font-mono">Receipt: {receiptData.receiptNumber}</p>
               </div>
-              <div className="space-y-2">
-                <div className="text-yellow-200 text-sm"><span>Customer: {receiptData.customerName}</span></div>
-                <div className="text-yellow-200 text-sm"><span>Cashier: {receiptData.cashier}</span></div>
+              <div className="space-y-1 text-xs">
+                <div className="text-yellow-100 flex justify-between"><span className="text-yellow-200/60">Customer:</span><span className="font-semibold">{receiptData.customerName}</span></div>
+                <div className="text-yellow-100 flex justify-between"><span className="text-yellow-200/60">Cashier:</span><span className="font-semibold">{receiptData.cashier}</span></div>
               </div>
-              <div className="border-y border-red-600 py-3">
+              <div className="border-y border-[#252536] py-3 max-h-48 overflow-y-auto space-y-2">
                 {receiptData.items.map((item: CartItem, index: number) => (
-                  <div key={index} className="text-yellow-200 text-sm mb-2">
-                    <div className="flex justify-between">
+                  <div key={index} className="text-xs">
+                    <div className="flex justify-between font-semibold text-white">
                       <span>{item.productName} ({item.color} - Size {item.size})</span>
-                      <span>{formatCurrency(getLineTotal(item))}</span>
+                      <span className="text-yellow-300 font-mono">{formatCurrency(getLineTotal(item))}</span>
                     </div>
-                    <div className="text-xs text-yellow-300/70 ml-2">
-                      Brand: {item.brand} | {item.quantity} x {formatCurrency(item.price)}{" "}
-                      {isBogoCartItem(item)
-                        ? `(BOGO: ${getBogoFreeUnits(item.quantity)} free)`
-                        : item.discount > 0
-                          ? `(${formatPercentValue(item.discount)}% off)`
-                          : ""}
+                    <div className="text-[11px] text-yellow-200/50 flex justify-between">
+                      <span>{item.brand} | {item.quantity} x {formatCurrency(item.price)}</span>
+                      {isBogoCartItem(item) ? (
+                        <span className="text-emerald-400 font-bold">BOGO Free ({getBogoFreeUnits(item.quantity)})</span>
+                      ) : item.discount > 0 ? (
+                        <span className="text-emerald-400">({formatPercentValue(item.discount)}% off)</span>
+                      ) : null}
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-yellow-200"><span>Subtotal:</span><span>₱{receiptData.subtotal.toFixed(2)}</span></div>
-                <div className="flex justify-between text-yellow-200"><span>Discount:</span><span>-₱{receiptData.discount.toFixed(2)}</span></div>
-                <div className="flex justify-between text-yellow-200 text-sm"><span>VATable Sales:</span><span>{formatCurrency(receiptData.vatableSales)}</span></div>
-                <div className="flex justify-between text-yellow-200 text-sm"><span>VAT Amount (12%):</span><span>{formatCurrency(receiptData.vatAmount)}</span></div>
-                <div className="flex justify-between text-yellow-200 text-sm"><span>VAT-Exempt Sales:</span><span>{formatCurrency(receiptData.vatExemptSales)}</span></div>
-                <div className="flex justify-between text-yellow-200 text-sm"><span>Zero-Rated Sales:</span><span>{formatCurrency(receiptData.zeroRatedSales)}</span></div>
-                <div className="flex justify-between text-yellow-300 text-lg border-t border-red-600 pt-2"><span>Total:</span><span>₱{receiptData.total.toFixed(2)}</span></div>
-                <div className="flex justify-between text-yellow-200 text-sm"><span>Change:</span><span>₱{receiptData.change_amount.toFixed(2)}</span></div>
-                <div className="flex justify-between text-yellow-200 text-sm"><span>Payment Method:</span><span>{receiptData.paymentMethod}</span></div>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between text-yellow-200/70"><span>Subtotal:</span><span className="font-mono">₱{receiptData.subtotal.toFixed(2)}</span></div>
+                <div className="flex justify-between text-emerald-400"><span>Discount:</span><span className="font-mono">-₱{receiptData.discount.toFixed(2)}</span></div>
+                <div className="flex justify-between text-yellow-200/60"><span>VATable Sales:</span><span className="font-mono">{formatCurrency(receiptData.vatableSales)}</span></div>
+                <div className="flex justify-between text-yellow-200/60"><span>VAT (12%):</span><span className="font-mono">{formatCurrency(receiptData.vatAmount)}</span></div>
+                <div className="flex justify-between text-white text-base font-bold border-t border-[#252536] pt-2"><span>Total:</span><span className="text-yellow-300 font-mono text-lg">₱{receiptData.total.toFixed(2)}</span></div>
+                <div className="flex justify-between text-emerald-400"><span>Change:</span><span className="font-mono">₱{receiptData.change_amount.toFixed(2)}</span></div>
+                <div className="flex justify-between text-yellow-200/60"><span>Payment Method:</span><span className="font-semibold text-white">{receiptData.paymentMethod}</span></div>
               </div>
-              <div className="text-center text-yellow-200 text-sm pt-4"><p>Thank you for your purchase!</p></div>
+              <div className="text-center text-yellow-200/50 text-xs pt-2"><p>Thank you for your purchase!</p></div>
             </div>
           )}
-          <DialogFooter>
-            <Button onClick={printReceipt} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+          <DialogFooter className="border-t border-[#252536] pt-3">
+            <Button onClick={printReceipt} className="w-full bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold rounded-xl shadow">
               <Receipt className="w-4 h-4 mr-2" />
               Print Receipt
             </Button>
