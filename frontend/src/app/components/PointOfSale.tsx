@@ -1063,54 +1063,76 @@ export function PointOfSale() {
                 {hasProductSearch && (
                   <div className="p-5">
                     <div className="overflow-hidden rounded-xl border border-[#282838] bg-[#12121a]">
-                      <div className="grid grid-cols-[0.55fr_1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] bg-[#1a1a28] px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300 border-b border-[#282838]">
-                        <div>Photo</div>
-                        <div>Product</div>
-                        <div>Brand</div>
-                        <div>Category</div>
-                        <div>Variant</div>
-                        <div>Price</div>
-                        <div>Stock</div>
-                        <div>Action</div>
-                      </div>
                       <div className="max-h-[58vh] overflow-y-auto overflow-x-hidden">
-                        {filteredProductInventory.length > 0 ? filteredProductInventory.map((product) => {
-                          const sellable = isSellableProduct(product);
-                          return (
-                            <div
-                              key={product.product_id}
-                              className="grid grid-cols-[0.55fr_1.25fr_0.8fr_1.05fr_1.05fr_0.75fr_0.8fr_0.75fr] items-center border-t border-[#232333] px-4 py-3.5 text-center text-sm transition-colors hover:bg-[#1c1c2b]"
-                            >
-                              <div className="flex justify-center">
-                                <ProductPhotoPlaceholder productName={product.product_name} />
-                              </div>
-                              <div className="truncate font-semibold text-white text-left pl-2" title={product.product_name}>{product.product_name}</div>
-                              <div className="truncate text-yellow-100/90" title={product.brand}>{product.brand}</div>
-                              <div className="truncate text-yellow-200/60 text-xs" title={product.category}>{product.category}</div>
-                              <div className="truncate text-yellow-100 font-medium" title={productVariantLabel(product)}>
-                                {productVariantLabel(product)}
-                              </div>
-                              <div className="truncate font-bold text-yellow-300" title={`PHP ${product.price}`}>PHP {product.price.toLocaleString()}</div>
-                              <div className="min-w-0">
-                                <Badge className="max-w-full truncate rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">{product.stock_quantity} available</Badge>
-                              </div>
-                              <div className="flex justify-center">
-                                <Button
-                                  size="sm"
-                                  disabled={!sellable}
-                                  onClick={() => selectProductVariant(product)}
-                                  className="h-8 rounded-lg bg-yellow-400 px-3.5 font-bold text-xs text-red-950 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 shadow"
-                                >
-                                  {sellable ? "Add" : "Locked"}
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        }) : (
-                          <div className="border-t border-[#232333] px-4 py-10 text-center text-sm text-yellow-200/60">
-                            No active products with available stock match your search.
-                          </div>
-                        )}
+                        <Table className="w-full text-sm">
+                          <TableHeader className="sticky top-0 z-10 bg-[#1a1a28]">
+                            <TableRow className="border-b border-[#282838] hover:bg-transparent">
+                              <TableHead className="w-16 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
+                              <TableHead className="py-3 text-left pl-4 text-xs font-semibold uppercase tracking-wide text-yellow-300">Product</TableHead>
+                              <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
+                              <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Category</TableHead>
+                              <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Variant</TableHead>
+                              <TableHead className="py-3 text-right pr-4 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price</TableHead>
+                              <TableHead className="py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Stock</TableHead>
+                              <TableHead className="w-24 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredProductInventory.length > 0 ? (
+                              filteredProductInventory.map((product) => {
+                                const sellable = isSellableProduct(product);
+                                return (
+                                  <TableRow
+                                    key={product.product_id}
+                                    className="border-t border-[#232333] hover:bg-[#1c1c2b] transition-colors"
+                                  >
+                                    <TableCell className="py-3 text-center">
+                                      <div className="flex justify-center">
+                                        <ProductPhotoPlaceholder productName={product.product_name} />
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="py-3 text-left pl-4 font-semibold text-white" title={product.product_name}>
+                                      {product.product_name}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center text-yellow-100/90" title={product.brand}>
+                                      {product.brand}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center text-yellow-200/60 text-xs" title={product.category}>
+                                      {product.category}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center text-yellow-100 font-medium" title={productVariantLabel(product)}>
+                                      {productVariantLabel(product)}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-right pr-4 font-bold text-yellow-300" title={`PHP ${product.price}`}>
+                                      PHP {product.price.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center">
+                                      <Badge className="rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">
+                                        {product.stock_quantity} available
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center">
+                                      <Button
+                                        size="sm"
+                                        disabled={!sellable}
+                                        onClick={() => selectProductVariant(product)}
+                                        className="h-8 rounded-lg bg-yellow-400 px-3.5 font-bold text-xs text-red-950 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 shadow"
+                                      >
+                                        {sellable ? "Add" : "Locked"}
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={8} className="py-10 text-center text-sm text-yellow-200/60">
+                                  No active products with available stock match your search.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
                       </div>
                     </div>
                     <p className="mt-3 text-center text-xs text-yellow-200/50">
