@@ -289,6 +289,7 @@ export function PointOfSale() {
   const [isProductGridOpen, setIsProductGridOpen] = useState(false);
   const [isCustomerGridOpen, setIsCustomerGridOpen] = useState(false);
   const [productSearch, setProductSearch] = useState("");
+  const [modalCategoryFilter, setModalCategoryFilter] = useState("All");
   const [customerSearch, setCustomerSearch] = useState("");
 
   const customers = (customersQuery.data as any[]) ?? [];
@@ -299,43 +300,37 @@ export function PointOfSale() {
         label: c.name,
         value: c.name,
         customer_id: c.customer_id,
-        email: c.email,
-        contact_number: c.contact_number,
-        date_registered: c.date_registered,
-        gender: c.gender ?? null,
-        age: c.age ?? null,
-        birth_date: c.birth_date ?? null,
+        email: c.email ?? "",
+        contact_number: c.contact_number ?? "",
+        date_registered: c.date_registered ?? "",
       })),
     ],
     [customers],
   );
 
-  const productInventory = useMemo<ProductVariant[]>(() => {
+  const productInventory = useMemo(() => {
     const rows = (productsQuery.data as any[]) ?? [];
     const inventoryRows = (inventoryQuery.data as any[]) ?? [];
-    const inventoryByProductId: Record<string, any> = {};
+    const inventoryByProductId = new Map<string, any>();
     for (const inv of inventoryRows) {
-      const key = String(inv.product_id ?? "");
-      if (!key) continue;
-      inventoryByProductId[key] = inv;
+      inventoryByProductId.set(String(inv.product_id ?? ""), inv);
     }
     const variants: ProductVariant[] = [];
     for (const row of rows) {
-      const inventory = inventoryByProductId[String(row.product_id)] ?? null;
-      if (!inventory) continue;
-      const onHandStock = Number(inventory?.stock_quantity ?? 0);
-      const reservedQuantity = Math.min(
-        Math.max(Number(inventory?.reserved_quantity ?? 0), 0),
-        Math.max(onHandStock, 0),
-      );
-      const availableStock = Math.max(onHandStock - reservedQuantity, 0);
-      const status = String(inventory?.inventory_status ?? row.status ?? "inactive").trim().toLowerCase();
-      const expirationDate = String(inventory?.expiration_date ?? "");
-      const expired = isExpiredInventoryDate(expirationDate);
+      const inventory = Array.isArray(row.inventory)
+        ? row.inventory[0]
+        : row.inventory ?? inventoryByProductId.get(String(row.product_id ?? ""));
+      const availableStock = Number(inventory?.stock_quantity ?? 0);
+      const onHandStock = Number(inventory?.on_hand_stock ?? inventory?.stock_quantity ?? 0);
+      const reservedQuantity = Number(inventory?.held_stock ?? inventory?.reserved_quantity ?? 0);
+      const expirationDate = inventory?.expiration_date ? String(inventory.expiration_date).slice(0, 10) : null;
+      const status = String(row.status ?? "active").toLowerCase();
+      const expired = Boolean(expirationDate && new Date(expirationDate).getTime() < Date.now());
+
       variants.push({
         product_id: row.product_id,
-        product_name: row.product_name,
-        brand: row.brand ?? "Meryl",
+        product_name: row.product_name ?? "Unnamed Product",
+        brand: row.brand ?? "N/A",
         category: row.category?.[0]?.category_name ?? row.category?.category_name ?? "N/A",
         color: row.color ?? "N/A",
         gender: row.gender ?? "N/A",
@@ -344,7 +339,7 @@ export function PointOfSale() {
         stock_quantity: availableStock,
         on_hand_stock: onHandStock,
         reserved_quantity: reservedQuantity,
-        expiration_date: expirationDate,
+        expiration_date: expirationDate ?? "",
         status: expired ? "Expired" : status === "active" || status === "available" ? "Active" : "Inactive",
       });
     }
@@ -356,10 +351,21 @@ export function PointOfSale() {
     [productInventory],
   );
 
+  const distinctCategories = useMemo(() => {
+    const set = new Set<string>();
+    sellableProductInventory.forEach((p) => {
+      if (p.category && p.category !== "N/A") set.add(p.category);
+    });
+    return ["All", ...Array.from(set)];
+  }, [sellableProductInventory]);
+
   const filteredProductInventory = useMemo(() => {
     const term = productSearch.trim().toLowerCase();
-    const sourceProducts = sellableProductInventory;
-    if (!term) return [];
+    let sourceProducts = sellableProductInventory;
+    if (modalCategoryFilter !== "All") {
+      sourceProducts = sourceProducts.filter((p) => String(p.category || "").toLowerCase() === modalCategoryFilter.toLowerCase());
+    }
+    if (!term) return sourceProducts;
     return sourceProducts.filter((product) =>
       [
         product.product_id,
@@ -380,8 +386,7 @@ export function PointOfSale() {
         .toLowerCase()
         .includes(term),
     );
-  }, [sellableProductInventory, productSearch]);
-  const hasProductSearch = productSearch.trim().length > 0;
+  }, [sellableProductInventory, productSearch, modalCategoryFilter]);
 
   const filteredCustomerOptions = useMemo(() => {
     const term = customerSearch.trim().toLowerCase();
@@ -730,7 +735,17 @@ export function PointOfSale() {
     setQuantity("1");
   };
 
-  const selectProductVariant = (variant: ProductVariant) => {
+  const fillProductSelection = (variant: ProductVariant) => {
+    setSelectedProductKey(variant.product_name);
+    setSelectedColor(variant.color);
+    setSelectedSize(variant.size);
+    setQuantity("1");
+    setIsProductGridOpen(false);
+    setProductSearch("");
+    toast.success(`Loaded "${variant.product_name}" (${variant.color} - Size ${variant.size}) into selection`);
+  };
+
+  const quickAddToCart = (variant: ProductVariant) => {
     const added = addVariantToCart(variant, 1);
     if (!added) return;
     setIsProductGridOpen(false);
@@ -1052,117 +1067,186 @@ function formatReceiptNumber(salesId?: string) {
             </div>
           </CardHeader>
           <CardContent className="space-y-4 p-5 pt-4">
-            {/* BROWSE PRODUCTS MODAL */}
+            {/* BROWSE PRODUCTS MODAL - EXPANSIVE & TOP-POSITIONED */}
             <Dialog
               open={isProductGridOpen}
               onOpenChange={(open) => {
                 setIsProductGridOpen(open);
                 setProductSearch("");
+                setModalCategoryFilter("All");
               }}
             >
-              <DialogContent className="bg-[#14141e] border-[#2d2d3d] text-yellow-100 !w-[96vw] !max-w-[1240px] max-h-[88vh] overflow-hidden p-0 shadow-2xl rounded-2xl">
+              <DialogContent className="bg-[#14141e] border-[#2d2d3d] text-yellow-100 !w-[96vw] !max-w-[1360px] max-h-[92vh] overflow-hidden p-0 shadow-2xl rounded-2xl top-[46%]">
                 <div className="border-b border-[#262636] p-5 bg-[#171724]">
-                  <DialogHeader>
-                    <DialogTitle className="text-yellow-300 flex items-center gap-2 text-lg">
-                      <Package className="w-5 h-5" />
-                      Browse Product Catalog
-                    </DialogTitle>
-                  </DialogHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <DialogHeader>
+                      <DialogTitle className="text-yellow-300 flex items-center gap-2 text-lg font-bold">
+                        <Package className="w-5 h-5 text-yellow-400" />
+                        Quick Product Finder & Barcode Catalog
+                      </DialogTitle>
+                    </DialogHeader>
+                    <Badge className="bg-yellow-400/20 text-yellow-300 border-yellow-400/30 text-xs w-fit">
+                      {filteredProductInventory.length} Available In-Stock Variant{filteredProductInventory.length === 1 ? "" : "s"}
+                    </Badge>
+                  </div>
+
                   <div className="relative mt-3">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                     <Input
                       value={productSearch}
                       onChange={(event) => setProductSearch(event.target.value)}
-                      placeholder="Search by SKU, product name, brand, category, color, size, or price..."
-                      className="h-11 rounded-xl bg-[#1d1d2b] border-[#303042] pl-10 text-yellow-100 placeholder:text-yellow-300/40 focus-visible:ring-yellow-400/50"
+                      placeholder="Search by SKU, shoe model, brand, colorway, size, or price..."
+                      className="h-11 rounded-xl bg-[#1d1d2b] border-[#303042] pl-10 pr-16 text-yellow-100 placeholder:text-yellow-300/40 focus-visible:ring-yellow-400/50 text-sm font-medium"
+                      autoFocus
                     />
+                    {productSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setProductSearch("")}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-yellow-300/80 hover:text-yellow-300 text-xs font-bold px-2 py-1 rounded-md bg-zinc-800"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {/* CATEGORY FILTER PILLS */}
+                  <div className="flex flex-wrap gap-1.5 mt-3 pt-2.5 border-t border-[#252535]">
+                    {distinctCategories.map((cat) => {
+                      const isActive = modalCategoryFilter.toLowerCase() === cat.toLowerCase();
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setModalCategoryFilter(cat)}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                            isActive
+                              ? "bg-yellow-400 text-red-950 font-bold shadow"
+                              : "bg-[#1d1d2b] text-yellow-200/70 hover:bg-[#252538] hover:text-white"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                {hasProductSearch && (
-                  <div className="p-5">
-                    <div className="overflow-hidden rounded-xl border border-[#282838] bg-[#12121a]">
-                      <div className="max-h-[58vh] overflow-y-auto overflow-x-hidden">
-                        <Table className="w-full text-sm table-fixed">
-                          <TableHeader className="sticky top-0 z-10 bg-[#1a1a28]">
-                            <TableRow className="border-b border-[#282838] hover:bg-transparent">
-                              <TableHead className="w-20 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
-                              <TableHead className="w-[23%] py-3.5 text-left pl-8 text-xs font-semibold uppercase tracking-wide text-yellow-300">Product</TableHead>
-                              <TableHead className="w-[12%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
-                              <TableHead className="w-[14%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Category</TableHead>
-                              <TableHead className="w-[18%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Variant</TableHead>
-                              <TableHead className="w-[12%] py-3.5 text-right pr-6 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price</TableHead>
-                              <TableHead className="w-[11%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Stock</TableHead>
-                              <TableHead className="w-[10%] py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Action</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredProductInventory.length > 0 ? (
-                              filteredProductInventory.map((product) => {
-                                const sellable = isSellableProduct(product);
-                                return (
-                                  <TableRow
-                                    key={product.product_id}
-                                    className="border-t border-[#232333] hover:bg-[#1c1c2b] transition-colors"
-                                  >
-                                    <TableCell className="py-3.5 text-center">
-                                      <div className="flex justify-center">
-                                        <ProductPhotoPlaceholder productName={product.product_name} />
-                                      </div>
-                                    </TableCell>
-                                    <TableCell className="py-3.5 text-left pl-8 font-semibold text-white truncate" title={product.product_name}>
-                                      {product.product_name}
-                                    </TableCell>
-                                    <TableCell className="py-3.5 text-center text-yellow-100/90 truncate" title={product.brand}>
-                                      {product.brand}
-                                    </TableCell>
-                                    <TableCell className="py-3.5 text-center text-yellow-200/60 text-xs truncate" title={product.category}>
-                                      {product.category}
-                                    </TableCell>
-                                    <TableCell className="py-3.5 text-center text-yellow-100 font-medium truncate" title={productVariantLabel(product)}>
-                                      {productVariantLabel(product)}
-                                    </TableCell>
-                                    <TableCell className="py-3.5 text-right pr-6 font-bold text-yellow-300 truncate" title={`PHP ${product.price}`}>
-                                      PHP {product.price.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="py-3.5 text-center">
-                                      <Badge className="rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">
-                                        {product.stock_quantity} available
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="py-3.5 text-center">
+
+                <div className="p-5">
+                  <div className="overflow-hidden rounded-xl border border-[#282838] bg-[#12121a]">
+                    <div className="max-h-[58vh] overflow-y-auto overflow-x-hidden">
+                      <Table className="w-full text-sm table-fixed">
+                        <TableHeader className="sticky top-0 z-10 bg-[#1a1a28]">
+                          <TableRow className="border-b border-[#282838] hover:bg-transparent">
+                            <TableHead className="w-20 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
+                            <TableHead className="w-[23%] py-3 text-left pl-8 text-xs font-semibold uppercase tracking-wide text-yellow-300">Product Model</TableHead>
+                            <TableHead className="w-[12%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
+                            <TableHead className="w-[14%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Category</TableHead>
+                            <TableHead className="w-[18%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Colorway / Size</TableHead>
+                            <TableHead className="w-[12%] py-3 text-right pr-6 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price</TableHead>
+                            <TableHead className="w-[11%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Stock</TableHead>
+                            <TableHead className="w-[12%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredProductInventory.length > 0 ? (
+                            filteredProductInventory.map((product) => {
+                              const sellable = isSellableProduct(product);
+                              return (
+                                <TableRow
+                                  key={product.product_id}
+                                  onClick={() => {
+                                    if (sellable) fillProductSelection(product);
+                                  }}
+                                  className="border-t border-[#232333] hover:bg-[#1f1f30] cursor-pointer transition-colors group"
+                                >
+                                  <TableCell className="py-3 text-center">
+                                    <div className="flex justify-center">
+                                      <ProductPhotoPlaceholder productName={product.product_name} />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-3 text-left pl-8 font-semibold text-white truncate group-hover:text-yellow-300" title={product.product_name}>
+                                    {product.product_name}
+                                  </TableCell>
+                                  <TableCell className="py-3 text-center text-yellow-100/90 truncate" title={product.brand}>
+                                    {product.brand}
+                                  </TableCell>
+                                  <TableCell className="py-3 text-center text-yellow-200/60 text-xs truncate" title={product.category}>
+                                    {product.category}
+                                  </TableCell>
+                                  <TableCell className="py-3 text-center text-yellow-100 font-medium truncate" title={productVariantLabel(product)}>
+                                    {productVariantLabel(product)}
+                                  </TableCell>
+                                  <TableCell className="py-3 text-right pr-6 font-bold text-yellow-300 truncate" title={`PHP ${product.price}`}>
+                                    PHP {product.price.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell className="py-3 text-center">
+                                    <Badge className="rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">
+                                      {product.stock_quantity} available
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center justify-center gap-1.5">
                                       <Button
                                         size="sm"
                                         disabled={!sellable}
-                                        onClick={() => selectProductVariant(product)}
-                                        className="h-8 rounded-lg bg-yellow-400 px-3.5 font-bold text-xs text-red-950 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 shadow"
+                                        onClick={() => fillProductSelection(product)}
+                                        className="h-8 rounded-lg bg-yellow-400 px-3 font-bold text-xs text-red-950 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 shadow"
+                                        title="Load into Product Selection to pick size and quantity"
                                       >
-                                        {sellable ? "Add" : "Locked"}
+                                        Select
                                       </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={8} className="py-10 text-center text-sm text-yellow-200/60">
-                                  No active products with available stock match your search.
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!sellable}
+                                        onClick={() => quickAddToCart(product)}
+                                        className="h-8 rounded-lg border-[#3e3e52] bg-[#1a1a28] px-2.5 font-semibold text-xs text-yellow-300 hover:bg-yellow-400 hover:text-red-950 shadow"
+                                        title="Direct 1-tap add to shopping cart"
+                                      >
+                                        + Add
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={8} className="py-10 text-center text-sm text-yellow-200/60">
+                                No active products with available stock match your search or filter.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
                     </div>
-                    <p className="mt-3 text-center text-xs text-yellow-200/50">
-                      Only active, non-expired products with POS-available stock are shown. Held stock is excluded from cashier availability.
-                    </p>
                   </div>
-                )}
+                  <p className="mt-3 text-center text-xs text-yellow-200/50">
+                    💡 Tip: Click any row or &quot;Select&quot; to automatically fill the Product Selection panel on the main POS screen. Click &quot;+ Add&quot; for direct 1-tap cart checkout.
+                  </p>
+                </div>
               </DialogContent>
             </Dialog>
 
             {/* PRODUCT, COLOR & SHOPEE-STYLE SIZE SELECTION */}
             <div className="space-y-4">
+              {/* QUICK SEARCH BAR TRIGGER */}
+              <div
+                onClick={() => setIsProductGridOpen(true)}
+                className="rounded-xl border border-[#2e2e42] bg-[#14141e] hover:bg-[#1a1a28] hover:border-yellow-400/50 p-3 flex items-center justify-between gap-3 cursor-pointer transition-all shadow-inner group"
+              >
+                <div className="flex items-center gap-2.5 text-xs text-yellow-200/80">
+                  <div className="w-7 h-7 rounded-lg bg-yellow-400/10 flex items-center justify-center border border-yellow-400/20 group-hover:bg-yellow-400 group-hover:text-red-950 transition-colors">
+                    <Search className="w-3.5 h-3.5 text-yellow-400 group-hover:text-red-950" />
+                  </div>
+                  <span className="font-medium group-hover:text-white">Quick Search & Catalog Finder (All {sellableProductInventory.length} In-Stock Items)...</span>
+                </div>
+                <Badge className="bg-yellow-400 text-red-950 font-bold text-[11px] px-2.5 py-0.5 shadow">
+                  Browse Catalog ⚡
+                </Badge>
+              </div>
+
               {/* 1. SELECT PRODUCT DROPDOWN */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
