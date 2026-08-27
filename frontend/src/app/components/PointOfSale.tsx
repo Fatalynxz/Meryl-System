@@ -1065,12 +1065,12 @@ function formatReceiptNumber(salesId?: string) {
                 className="bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold text-xs h-9 px-4 rounded-xl shadow"
               >
                 <Search className="w-4 h-4 mr-2" />
-                Browse Catalog & Barcodes
+                Search Products
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4 p-5 pt-4">
-            {/* BROWSE PRODUCTS MODAL - EXPANSIVE & TOP-POSITIONED */}
+            {/* SEARCH PRODUCTS MODAL - EXPANSIVE & TOP-POSITIONED */}
             <Dialog
               open={isProductGridOpen}
               onOpenChange={(open) => {
@@ -1081,24 +1081,19 @@ function formatReceiptNumber(salesId?: string) {
             >
               <DialogContent className="bg-[#14141e] border-[#2d2d3d] text-yellow-100 !w-[96vw] !max-w-[1360px] max-h-[92vh] overflow-hidden p-0 shadow-2xl rounded-2xl top-[46%]">
                 <div className="border-b border-[#262636] p-5 bg-[#171724]">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <DialogHeader>
-                      <DialogTitle className="text-yellow-300 flex items-center gap-2 text-lg font-bold">
-                        <Package className="w-5 h-5 text-yellow-400" />
-                        Quick Product Finder & Barcode Catalog
-                      </DialogTitle>
-                    </DialogHeader>
-                    <Badge className="bg-yellow-400/20 text-yellow-300 border-yellow-400/30 text-xs w-fit">
-                      {filteredProductInventory.length} Available In-Stock Variant{filteredProductInventory.length === 1 ? "" : "s"}
-                    </Badge>
-                  </div>
+                  <DialogHeader>
+                    <DialogTitle className="text-yellow-300 flex items-center gap-2 text-lg font-bold">
+                      <Package className="w-5 h-5 text-yellow-400" />
+                      Search Products
+                    </DialogTitle>
+                  </DialogHeader>
 
                   <div className="relative mt-3">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-yellow-400" />
                     <Input
                       value={productSearch}
                       onChange={(event) => setProductSearch(event.target.value)}
-                      placeholder="Search by SKU, shoe model, brand, colorway, size, or price..."
+                      placeholder="Search by shoe model, brand, colorway, size, or price..."
                       className="h-11 rounded-xl bg-[#1d1d2b] border-[#303042] pl-10 pr-16 text-yellow-100 placeholder:text-yellow-300/40 focus-visible:ring-yellow-400/50 text-sm font-medium"
                       autoFocus
                     />
@@ -1246,10 +1241,10 @@ function formatReceiptNumber(salesId?: string) {
                   <div className="w-7 h-7 rounded-lg bg-yellow-400/10 flex items-center justify-center border border-yellow-400/20 group-hover:bg-yellow-400 group-hover:text-red-950 transition-colors">
                     <Search className="w-3.5 h-3.5 text-yellow-400 group-hover:text-red-950" />
                   </div>
-                  <span className="font-medium group-hover:text-white">Quick Search & Catalog Finder (All {sellableProductInventory.length} In-Stock Items)...</span>
+                  <span className="font-medium group-hover:text-white">Quick Search Products by Shoe Model, Brand, Colorway, Size...</span>
                 </div>
                 <Badge className="bg-yellow-400 text-red-950 font-bold text-[11px] px-2.5 py-0.5 shadow">
-                  Browse Catalog ⚡
+                  Search Products 🔍
                 </Badge>
               </div>
 
