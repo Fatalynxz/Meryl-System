@@ -252,7 +252,6 @@ export function AdminLayout() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 sm:p-8 bg-[#0E0E12]">
-          <Suspense fallback={<div className="text-sm text-white/60">Loading module...</div>}>
             {renderContent()}
           </Suspense>
         </main>

@@ -1034,8 +1034,8 @@ function formatReceiptNumber(salesId?: string) {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
         {/* PRODUCT SELECTION CARD */}
-        <Card className="bg-[#101017] border-[#24242f] shadow-xl">
-          <CardHeader className="border-b border-[#24242f] pb-3">
+        <Card className="bg-[#101017] border-[#24242f] shadow-xl gap-0">
+          <CardHeader className="border-b border-[#24242f] px-5 py-3.5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-yellow-300 flex items-center gap-2 text-lg">
                 <Package className="w-5 h-5 text-yellow-400" />
@@ -1051,7 +1051,7 @@ function formatReceiptNumber(salesId?: string) {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4 p-5">
+          <CardContent className="space-y-4 p-5 pt-4">
             {/* BROWSE PRODUCTS MODAL */}
             <Dialog
               open={isProductGridOpen}
@@ -1364,14 +1364,14 @@ function formatReceiptNumber(salesId?: string) {
         </Card>
 
         {/* SHOPPING CART CARD */}
-        <Card className="bg-[#101017] border-[#24242f] shadow-xl">
-          <CardHeader className="border-b border-[#24242f] pb-3">
+        <Card className="bg-[#101017] border-[#24242f] shadow-xl gap-0">
+          <CardHeader className="border-b border-[#24242f] px-5 py-3.5">
             <CardTitle className="text-yellow-300 flex items-center gap-2 text-lg">
               <CreditCard className="w-5 h-5" />
               Shopping Cart
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-5">
+          <CardContent className="p-5 pt-4">
             {cart.length === 0 ? (
               <div className="text-center py-8 text-yellow-200/50 text-sm">Cart is empty. Add products to begin transaction.</div>
             ) : (
@@ -1519,14 +1519,14 @@ function formatReceiptNumber(salesId?: string) {
       {/* TRANSACTION SUMMARY & PAYMENT CARD */}
       {/* RIGHT COLUMN - TRANSACTION SUMMARY */}
       <div className="space-y-4 lg:sticky lg:top-0 self-start">
-        <Card className="bg-[#101017] border-[#24242f] shadow-xl">
-          <CardHeader className="border-b border-[#24242f] pb-3">
+        <Card className="bg-[#101017] border-[#24242f] shadow-xl gap-0">
+          <CardHeader className="border-b border-[#24242f] px-5 py-3.5">
             <CardTitle className="text-yellow-300 flex items-center gap-2 text-lg">
               <Coins className="w-5 h-5 text-yellow-400" />
               Transaction Summary
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 p-5">
+          <CardContent className="space-y-4 p-5 pt-4">
             <div className="space-y-3 rounded-xl bg-[#14141e] border border-[#262636] p-4">
               <div className="flex justify-between text-yellow-200/70 text-sm"><span>Subtotal:</span><span className="text-yellow-100 font-semibold">₱{calculateSubtotal().toFixed(2)}</span></div>
               <div className="flex justify-between text-emerald-400 text-sm"><span>Total Discount:</span><span className="font-semibold">-₱{calculateTotalDiscount().toFixed(2)}</span></div>
