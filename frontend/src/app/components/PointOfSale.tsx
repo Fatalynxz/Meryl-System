@@ -361,11 +361,6 @@ export function PointOfSale() {
 
   const isSearchActive = productSearch.trim().length > 0 || modalCategoryFilter !== "All";
 
-  const popularShoeSearches = useMemo(() => {
-    const names = Array.from(new Set(sellableProductInventory.map((p) => p.product_name)));
-    return names.slice(0, 6);
-  }, [sellableProductInventory]);
-
   const filteredProductInventory = useMemo(() => {
     const term = productSearch.trim().toLowerCase();
     let sourceProducts = sellableProductInventory;
@@ -1140,141 +1135,103 @@ function formatReceiptNumber(salesId?: string) {
                   </div>
                 </div>
 
-                <div className="p-6">
-                  {!isSearchActive ? (
-                    <div className="py-14 px-4 text-center max-w-lg mx-auto space-y-6">
-                      <div className="w-16 h-16 rounded-3xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center mx-auto text-yellow-400 shadow-lg">
-                        <Search className="w-8 h-8" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <h3 className="text-white text-base font-bold">Search Shoes & Product Variants</h3>
-                        <p className="text-xs text-yellow-200/60 leading-relaxed">
-                          Type any product name, brand, colorway, size, or barcode in the search bar above to view live inventory.
-                        </p>
-                      </div>
-
-                      {/* POPULAR SEARCHES / QUICK CHIPS */}
-                      <div className="space-y-2.5 pt-2">
-                        <div className="text-[11px] font-semibold uppercase tracking-wider text-yellow-300 flex items-center justify-center gap-1.5">
-                          <span>🔥 Popular Searches:</span>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-center gap-2">
-                          {popularShoeSearches.map((name) => (
-                            <button
-                              key={name}
-                              type="button"
-                              onClick={() => setProductSearch(name)}
-                              className="px-3.5 py-1.5 rounded-full bg-[#1c1c2b] border border-[#2e2e42] hover:border-yellow-400 hover:bg-[#252538] text-yellow-100 text-xs font-semibold transition-all shadow-sm flex items-center gap-1.5"
-                            >
-                              <span>👟</span>
-                              <span>{name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="text-[11px] text-yellow-200/40 border-t border-[#252535] pt-4">
-                        💡 Tip: Barcode scanners will automatically enter the barcode here and display exact matching inventory.
+                {isSearchActive && (
+                  <div className="p-5">
+                    <div className="overflow-hidden rounded-xl border border-[#282838] bg-[#12121a]">
+                      <div className="max-h-[58vh] overflow-y-auto overflow-x-hidden">
+                        <Table className="w-full text-sm table-fixed">
+                          <TableHeader className="sticky top-0 z-10 bg-[#1a1a28]">
+                            <TableRow className="border-b border-[#282838] hover:bg-transparent">
+                              <TableHead className="w-20 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
+                              <TableHead className="w-[23%] py-3 text-left pl-8 text-xs font-semibold uppercase tracking-wide text-yellow-300">Product Model</TableHead>
+                              <TableHead className="w-[12%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
+                              <TableHead className="w-[14%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Category</TableHead>
+                              <TableHead className="w-[18%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Colorway / Size</TableHead>
+                              <TableHead className="w-[12%] py-3 text-right pr-6 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price</TableHead>
+                              <TableHead className="w-[11%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Stock</TableHead>
+                              <TableHead className="w-[12%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredProductInventory.length > 0 ? (
+                              filteredProductInventory.map((product) => {
+                                const sellable = isSellableProduct(product);
+                                return (
+                                  <TableRow
+                                    key={product.product_id}
+                                    onClick={() => {
+                                      if (sellable) fillProductSelection(product);
+                                    }}
+                                    className="border-t border-[#232333] hover:bg-[#1f1f30] cursor-pointer transition-colors group"
+                                  >
+                                    <TableCell className="py-3 text-center">
+                                      <div className="flex justify-center">
+                                        <ProductPhotoPlaceholder productName={product.product_name} />
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="py-3 text-left pl-8 font-semibold text-white truncate group-hover:text-yellow-300" title={product.product_name}>
+                                      {product.product_name}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center text-yellow-100/90 truncate" title={product.brand}>
+                                      {product.brand}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center text-yellow-200/60 text-xs truncate" title={product.category}>
+                                      {product.category}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center text-yellow-100 font-medium truncate" title={productVariantLabel(product)}>
+                                      {productVariantLabel(product)}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-right pr-6 font-bold text-yellow-300 truncate" title={`PHP ${product.price}`}>
+                                      PHP {product.price.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center">
+                                      <Badge className="rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">
+                                        {product.stock_quantity} available
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <Button
+                                          size="sm"
+                                          disabled={!sellable}
+                                          onClick={() => fillProductSelection(product)}
+                                          className="h-8 rounded-lg bg-yellow-400 px-3 font-bold text-xs text-red-950 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 shadow"
+                                          title="Load into Product Selection to pick size and quantity"
+                                        >
+                                          Select
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={!sellable}
+                                          onClick={() => quickAddToCart(product)}
+                                          className="h-8 rounded-lg border-[#3e3e52] bg-[#1a1a28] px-2.5 font-semibold text-xs text-yellow-300 hover:bg-yellow-400 hover:text-red-950 shadow"
+                                          title="Direct 1-tap add to shopping cart"
+                                        >
+                                          + Add
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={8} className="py-12 text-center text-sm text-yellow-200/60 space-y-2">
+                                  <div className="text-zinc-400 font-semibold text-base">No products found matching &ldquo;{productSearch}&rdquo;</div>
+                                  <div className="text-xs text-yellow-200/40">Check your spelling or try searching by brand (Nike, Adidas, Rocco) or shoe model name.</div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      <div className="overflow-hidden rounded-xl border border-[#282838] bg-[#12121a]">
-                        <div className="max-h-[58vh] overflow-y-auto overflow-x-hidden">
-                          <Table className="w-full text-sm table-fixed">
-                            <TableHeader className="sticky top-0 z-10 bg-[#1a1a28]">
-                              <TableRow className="border-b border-[#282838] hover:bg-transparent">
-                                <TableHead className="w-20 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
-                                <TableHead className="w-[23%] py-3 text-left pl-8 text-xs font-semibold uppercase tracking-wide text-yellow-300">Product Model</TableHead>
-                                <TableHead className="w-[12%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
-                                <TableHead className="w-[14%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Category</TableHead>
-                                <TableHead className="w-[18%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Colorway / Size</TableHead>
-                                <TableHead className="w-[12%] py-3 text-right pr-6 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price</TableHead>
-                                <TableHead className="w-[11%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Stock</TableHead>
-                                <TableHead className="w-[12%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Action</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {filteredProductInventory.length > 0 ? (
-                                filteredProductInventory.map((product) => {
-                                  const sellable = isSellableProduct(product);
-                                  return (
-                                    <TableRow
-                                      key={product.product_id}
-                                      onClick={() => {
-                                        if (sellable) fillProductSelection(product);
-                                      }}
-                                      className="border-t border-[#232333] hover:bg-[#1f1f30] cursor-pointer transition-colors group"
-                                    >
-                                      <TableCell className="py-3 text-center">
-                                        <div className="flex justify-center">
-                                          <ProductPhotoPlaceholder productName={product.product_name} />
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="py-3 text-left pl-8 font-semibold text-white truncate group-hover:text-yellow-300" title={product.product_name}>
-                                        {product.product_name}
-                                      </TableCell>
-                                      <TableCell className="py-3 text-center text-yellow-100/90 truncate" title={product.brand}>
-                                        {product.brand}
-                                      </TableCell>
-                                      <TableCell className="py-3 text-center text-yellow-200/60 text-xs truncate" title={product.category}>
-                                        {product.category}
-                                      </TableCell>
-                                      <TableCell className="py-3 text-center text-yellow-100 font-medium truncate" title={productVariantLabel(product)}>
-                                        {productVariantLabel(product)}
-                                      </TableCell>
-                                      <TableCell className="py-3 text-right pr-6 font-bold text-yellow-300 truncate" title={`PHP ${product.price}`}>
-                                        PHP {product.price.toLocaleString()}
-                                      </TableCell>
-                                      <TableCell className="py-3 text-center">
-                                        <Badge className="rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">
-                                          {product.stock_quantity} available
-                                        </Badge>
-                                      </TableCell>
-                                      <TableCell className="py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                        <div className="flex items-center justify-center gap-1.5">
-                                          <Button
-                                            size="sm"
-                                            disabled={!sellable}
-                                            onClick={() => fillProductSelection(product)}
-                                            className="h-8 rounded-lg bg-yellow-400 px-3 font-bold text-xs text-red-950 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 shadow"
-                                            title="Load into Product Selection to pick size and quantity"
-                                          >
-                                            Select
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={!sellable}
-                                            onClick={() => quickAddToCart(product)}
-                                            className="h-8 rounded-lg border-[#3e3e52] bg-[#1a1a28] px-2.5 font-semibold text-xs text-yellow-300 hover:bg-yellow-400 hover:text-red-950 shadow"
-                                            title="Direct 1-tap add to shopping cart"
-                                          >
-                                            + Add
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })
-                              ) : (
-                                <TableRow>
-                                  <TableCell colSpan={8} className="py-12 text-center text-sm text-yellow-200/60 space-y-2">
-                                    <div className="text-zinc-400 font-semibold text-base">No products found matching &ldquo;{productSearch}&rdquo;</div>
-                                    <div className="text-xs text-yellow-200/40">Check your spelling or try searching by brand (Nike, Adidas, Rocco) or shoe model name.</div>
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </div>
-                      <p className="mt-3 text-center text-xs text-yellow-200/50">
-                        💡 Tip: Click any row or &quot;Select&quot; to automatically fill the Product Selection panel on the main POS screen. Click &quot;+ Add&quot; for direct 1-tap cart checkout.
-                      </p>
-                    </>
-                  )}
-                </div>
+                    <p className="mt-3 text-center text-xs text-yellow-200/50">
+                      💡 Tip: Click any row or &quot;Select&quot; to automatically fill the Product Selection panel on the main POS screen. Click &quot;+ Add&quot; for direct 1-tap cart checkout.
+                    </p>
+                  </div>
+                )}
               </DialogContent>
             </Dialog>
 
