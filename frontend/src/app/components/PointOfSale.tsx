@@ -284,6 +284,7 @@ export function PointOfSale() {
   const [walkInAge, setWalkInAge] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
   const [cashReceived, setCashReceived] = useState<string>("");
+  const [gcashRefNumber, setGcashRefNumber] = useState<string>("");
   const [receiptData, setReceiptData] = useState<any>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [isProductGridOpen, setIsProductGridOpen] = useState(false);
@@ -923,6 +924,16 @@ export function PointOfSale() {
     const paid = paymentMethod === "Cash" ? Number(cashReceived || 0) : total;
     if (paid < total) return toast.error("Insufficient payment amount");
 
+    if (paymentMethod === "GCash") {
+      const cleanRef = gcashRefNumber.trim();
+      if (!cleanRef) {
+        return toast.error("Please enter the GCash Reference Number");
+      }
+      if (cleanRef.length < 6) {
+        return toast.error("GCash Reference Number must be at least 6 digits");
+      }
+    }
+
     // Map UI payment method to database value
     const dbPaymentMethod = paymentMethod === "Cash" ? "cash" : "gcash";
 
@@ -1020,9 +1031,10 @@ function formatReceiptNumber(salesId?: string) {
       vatAmount: vatBreakdown.vatAmount,
       vatExemptSales: vatBreakdown.vatExemptSales,
       zeroRatedSales: vatBreakdown.zeroRatedSales,
-      cashReceived: Number(cashReceived) || total,
-      change_amount: Number(data?.change_amount ?? Math.max(0, (Number(cashReceived) || total) - total)),
+      cashReceived: paymentMethod === "Cash" ? (Number(cashReceived) || total) : total,
+      change_amount: paymentMethod === "Cash" ? Number(data?.change_amount ?? Math.max(0, (Number(cashReceived) || total) - total)) : 0,
       paymentMethod,
+      gcashRefNumber: paymentMethod === "GCash" ? gcashRefNumber.trim() : "",
       cashier: user.name || "Cashier 1",
     };
     setReceiptData(receipt);
@@ -1036,6 +1048,7 @@ function formatReceiptNumber(salesId?: string) {
     setWalkInAge("");
     setPaymentMethod("Cash");
     setCashReceived("");
+    setGcashRefNumber("");
     await queryClient.invalidateQueries({ queryKey: ["products"] });
     await queryClient.invalidateQueries({ queryKey: ["inventory"] });
     await queryClient.invalidateQueries({ queryKey: ["inventoryLog"] });
@@ -1807,6 +1820,41 @@ function formatReceiptNumber(salesId?: string) {
                 </>
               )}
 
+              {paymentMethod === "GCash" && (
+                <div className="space-y-3 rounded-xl border border-[#2e2e42] bg-[#14141e] p-3.5 shadow-inner">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                      GCash Digital Payment
+                    </Label>
+                    <Badge className="bg-sky-500/20 text-sky-300 border-sky-500/30 text-[10px] font-bold">
+                      Exact Transfer
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-yellow-200/80">
+                      GCash Reference No. <span className="text-red-400 font-bold">*</span>
+                    </Label>
+                    <Input
+                      value={gcashRefNumber}
+                      onChange={(e) => setGcashRefNumber(e.target.value.replace(/[^\d\s-]/g, ""))}
+                      placeholder="e.g. 1002 8493 2019"
+                      maxLength={24}
+                      className="h-10 bg-[#1d1d2b] border-[#303042] text-yellow-100 placeholder:text-yellow-300/40 rounded-xl font-mono text-sm tracking-wider focus-visible:ring-sky-400/50"
+                    />
+                    <p className="text-[11px] text-yellow-200/50">
+                      Enter the reference number from the customer&apos;s GCash confirmation.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs pt-2 border-t border-[#252535]">
+                    <span className="text-yellow-200/70">Exact Amount to Receive:</span>
+                    <span className="text-yellow-300 font-bold text-sm">₱{calculateTotal().toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+
               <Button onClick={processPayment} disabled={cart.length === 0} className="w-full h-11 bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold text-sm rounded-xl shadow-lg disabled:opacity-40 flex items-center justify-center gap-2">
                 <Receipt className="w-4 h-4" />
                 Complete Payment & Checkout
@@ -1906,13 +1954,32 @@ function formatReceiptNumber(salesId?: string) {
                   <span className="text-base tabular-nums">₱{receiptData.total.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-zinc-700 pt-1">
-                  <span>PAYMENT MODE ({receiptData.paymentMethod}):</span>
-                  <span className="tabular-nums">₱{(receiptData.cashReceived || receiptData.total).toFixed(2)}</span>
+                  <span>PAYMENT MODE:</span>
+                  <span className="font-bold text-zinc-900">{receiptData.paymentMethod.toUpperCase()}</span>
                 </div>
-                <div className="flex justify-between font-bold text-zinc-900">
-                  <span>CHANGE GIVEN:</span>
-                  <span className="tabular-nums">₱{receiptData.change_amount.toFixed(2)}</span>
-                </div>
+                {receiptData.paymentMethod === "GCash" ? (
+                  <>
+                    <div className="flex justify-between text-zinc-700">
+                      <span>GCASH REF NO:</span>
+                      <span className="font-mono font-bold text-zinc-900 tracking-wide">{receiptData.gcashRefNumber || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-zinc-900">
+                      <span>AMOUNT TRANSFERRED:</span>
+                      <span className="tabular-nums">₱{receiptData.total.toFixed(2)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-zinc-700">
+                      <span>CASH RECEIVED:</span>
+                      <span className="tabular-nums font-semibold">₱{(receiptData.cashReceived || receiptData.total).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-zinc-900">
+                      <span>CHANGE GIVEN:</span>
+                      <span className="tabular-nums">₱{receiptData.change_amount.toFixed(2)}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* TAX SUMMARY */}
