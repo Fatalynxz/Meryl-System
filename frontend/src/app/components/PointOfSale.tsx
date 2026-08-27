@@ -1232,22 +1232,6 @@ function formatReceiptNumber(salesId?: string) {
 
             {/* PRODUCT, COLOR & SHOPEE-STYLE SIZE SELECTION */}
             <div className="space-y-4">
-              {/* QUICK SEARCH BAR TRIGGER */}
-              <div
-                onClick={() => setIsProductGridOpen(true)}
-                className="rounded-xl border border-[#2e2e42] bg-[#14141e] hover:bg-[#1a1a28] hover:border-yellow-400/50 p-3 flex items-center justify-between gap-3 cursor-pointer transition-all shadow-inner group"
-              >
-                <div className="flex items-center gap-2.5 text-xs text-yellow-200/80">
-                  <div className="w-7 h-7 rounded-lg bg-yellow-400/10 flex items-center justify-center border border-yellow-400/20 group-hover:bg-yellow-400 group-hover:text-red-950 transition-colors">
-                    <Search className="w-3.5 h-3.5 text-yellow-400 group-hover:text-red-950" />
-                  </div>
-                  <span className="font-medium group-hover:text-white">Quick Search Products by Shoe Model, Brand, Colorway, Size...</span>
-                </div>
-                <Badge className="bg-yellow-400 text-red-950 font-bold text-[11px] px-2.5 py-0.5 shadow">
-                  Search Products 🔍
-                </Badge>
-              </div>
-
               {/* 1. SELECT PRODUCT DROPDOWN */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
