@@ -1214,78 +1214,68 @@ function ProductSettingsPage({
 
       {/* 3. CONFIGURE ITEM PARAMETERS MODAL / DIALOG */}
       <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
-        <DialogContent className="bg-[#13131c] border-[#2a2c3a] text-yellow-100 max-w-3xl max-h-[92vh] overflow-hidden p-0 shadow-2xl rounded-2xl">
+        <DialogContent className="bg-[#13131c] border-[#2a2c3a] text-yellow-100 !w-[96vw] !max-w-[960px] max-h-[92vh] overflow-hidden p-0 shadow-2xl rounded-2xl">
           {/* MODAL HEADER */}
           <DialogHeader className="border-b border-[#232332] bg-[#181824] px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-white text-lg font-bold flex items-center gap-2">
-                  <SlidersHorizontal className="w-5 h-5 text-yellow-400" />
-                  Configure Stock & Selling Price
-                </DialogTitle>
-                <p className="text-xs text-yellow-200/60 mt-0.5">
-                  Manage inventory quantity, hold reservations, markup margin, and POS status.
-                </p>
-              </div>
-            </div>
+            <DialogTitle className="text-white text-lg font-bold">
+              Configure Product Parameters
+            </DialogTitle>
+            <p className="text-xs text-yellow-200/60 mt-0.5">
+              Set inventory stock-in quantities, markup margins, and POS availability.
+            </p>
           </DialogHeader>
 
           {/* MODAL BODY */}
-          <div className="max-h-[calc(92vh-9rem)] overflow-y-auto p-6 space-y-4">
+          <div className="max-h-[calc(92vh-8.5rem)] overflow-y-auto p-6 space-y-4">
             {activeProduct && (
               <>
-                {/* Clean Product Card */}
-                <div className="rounded-xl border border-[#2d2d40] bg-[#1a1a27] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
+                {/* Product Summary Header Bar */}
+                <div className="rounded-xl border border-[#2d2d40] bg-[#1a1a27] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-base">{activeProduct.brand} {activeProduct.name}</span>
-                      <Badge className="bg-yellow-400/20 text-yellow-300 border-yellow-400/30 text-[10px] px-2 py-0.5 font-semibold">
+                      <span className="font-bold text-white text-base">{activeProduct.brand} - {activeProduct.name}</span>
+                      <span className="bg-[#242436] text-yellow-300 border border-[#36364e] text-xs px-2.5 py-0.5 rounded-md font-medium">
                         {activeProduct.category}
-                      </Badge>
+                      </span>
                     </div>
-                    <p className="text-xs text-yellow-200/70 flex items-center gap-2">
-                      <span>🎨 {activeProduct.color}</span>
-                      <span>•</span>
-                      <span>📏 Size {activeProduct.size} ({activeProduct.gender})</span>
+                    <p className="text-xs text-yellow-200/70">
+                      Color: {activeProduct.color} &nbsp;|&nbsp; Size: {activeProduct.size} &nbsp;|&nbsp; Gender: {activeProduct.gender}
                     </p>
                   </div>
                   <div className="sm:text-right border-t sm:border-t-0 border-[#2b2b3d] pt-2 sm:pt-0">
-                    <span className="text-[11px] text-yellow-200/60 uppercase tracking-wider block">Unit Cost Price</span>
+                    <span className="text-xs text-yellow-200/60 uppercase tracking-wider block">Unit Cost</span>
                     <span className="text-lg font-bold text-yellow-300">{formatMoney(activeProduct.unit_price)}</span>
                   </div>
                 </div>
 
-                {/* 2-COLUMN GRID: LEFT = STOCK, RIGHT = PRICING */}
+                {/* 2-COLUMN GRID */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* CARD 1: INVENTORY & STOCKING */}
+                  {/* COLUMN 1: INVENTORY & STOCKING */}
                   <div className="space-y-3 rounded-xl border border-[#272738] bg-[#161622] p-4 flex flex-col justify-between">
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm font-bold text-yellow-300">
-                          <Package className="w-4 h-4 text-yellow-400" />
-                          <span>1. Stock Management</span>
-                        </div>
-                        <span className="text-xs text-zinc-400">Current on-hand: <strong className="text-white">{currentOnHand}</strong></span>
+                      <div className="flex items-center justify-between border-b border-[#252536] pb-2">
+                        <span className="text-sm font-bold text-white">Inventory Stock</span>
+                        <span className="text-xs text-yellow-200/70">Current On-Hand: <strong className="text-yellow-300">{currentOnHand} units</strong></span>
                       </div>
 
                       <div className="space-y-1.5">
                         <Label className="text-xs text-yellow-200/80 font-medium">
-                          ➕ Add New Stock (Stock-In Quantity)
+                          Add Stock Quantity
                         </Label>
                         <Input
                           type="number"
                           min="0"
                           value={stockForm.stock_in || ""}
                           onChange={(e) => setStockForm({ ...stockForm, stock_in: Number(e.target.value) || 0 })}
-                          placeholder="e.g. 10 (units to add)"
+                          placeholder="0"
                           className="h-10 bg-[#1f1f2e] border-[#303044] text-yellow-100 font-semibold focus-visible:ring-yellow-400/50 rounded-lg text-sm"
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="space-y-1">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
                           <Label className="text-xs text-yellow-200/80 font-medium">
-                            🔒 Held / Reserved
+                            Reserved / Held Stock
                           </Label>
                           <Input
                             type="number"
@@ -1293,12 +1283,12 @@ function ProductSettingsPage({
                             value={stockForm.reserved_quantity}
                             onChange={(e) => setStockForm({ ...stockForm, reserved_quantity: Number(e.target.value) || 0 })}
                             placeholder="0"
-                            className="h-9 bg-[#1f1f2e] border-[#303044] text-yellow-100 text-xs rounded-lg"
+                            className="h-10 bg-[#1f1f2e] border-[#303044] text-yellow-100 text-sm rounded-lg"
                           />
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           <Label className="text-xs text-yellow-200/80 font-medium">
-                            ⚠️ Low Stock Alert
+                            Reorder Alert Level
                           </Label>
                           <Input
                             type="number"
@@ -1306,77 +1296,67 @@ function ProductSettingsPage({
                             value={stockForm.reorder_level}
                             onChange={(e) => setStockForm({ ...stockForm, reorder_level: Number(e.target.value) || 0 })}
                             placeholder="5"
-                            className="h-9 bg-[#1f1f2e] border-[#303044] text-yellow-100 text-xs rounded-lg"
+                            className="h-10 bg-[#1f1f2e] border-[#303044] text-yellow-100 text-sm rounded-lg"
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Live Stock Summary */}
+                    {/* Stock Result Summary */}
                     <div className="rounded-lg bg-[#101018] border border-[#28283a] p-3 flex items-center justify-between mt-2">
-                      <div className="text-xs text-zinc-400">
-                        <span>Available in POS:</span>
-                        <div className="text-[10px] text-zinc-500 font-mono">
-                          {currentOnHand} + {stockInToAdd} in - {heldQuantity} held
-                        </div>
-                      </div>
-                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-xs font-bold px-2.5 py-1">
-                        {projectedAvailable} Pairs Sellable
-                      </Badge>
+                      <span className="text-xs text-yellow-200/70">Ready for POS Sale:</span>
+                      <span className="text-sm font-bold text-emerald-400">
+                        {projectedAvailable} Units Available
+                      </span>
                     </div>
                   </div>
 
-                  {/* CARD 2: SELLING PRICE & MARKUP */}
+                  {/* COLUMN 2: PRICING & MARKUP */}
                   <div className="space-y-3 rounded-xl border border-[#272738] bg-[#161622] p-4 flex flex-col justify-between">
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm font-bold text-yellow-300">
-                          <TrendingUp className="w-4 h-4 text-yellow-400" />
-                          <span>2. Pricing & Profit Margin</span>
-                        </div>
-                        <span className="text-xs text-zinc-400">Cost: <strong className="text-white">{formatMoney(activeCost)}</strong></span>
+                      <div className="flex items-center justify-between border-b border-[#252536] pb-2">
+                        <span className="text-sm font-bold text-white">Pricing & Markup</span>
+                        <span className="text-xs text-yellow-200/70">Cost: <strong className="text-yellow-300">{formatMoney(activeCost)}</strong></span>
                       </div>
 
-                      {/* Markup Quick Preset Pills */}
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-yellow-200/80 font-medium">Select Profit Margin</Label>
-                        <div className="grid grid-cols-4 gap-1.5">
+                        <Label className="text-xs text-yellow-200/80 font-medium">Markup Preset</Label>
+                        <div className="grid grid-cols-4 gap-2">
                           {[
-                            { label: "+20%", rate: 1.20 },
-                            { label: "+35%", rate: 1.35 },
-                            { label: "+50%", rate: 1.50 },
-                            { label: "+90%", rate: 1.90 },
+                            { label: "20%", rate: 1.20 },
+                            { label: "35%", rate: 1.35 },
+                            { label: "50%", rate: 1.50 },
+                            { label: "90%", rate: 1.90 },
                           ].map((item) => (
                             <button
                               key={item.rate}
                               type="button"
                               onClick={() => setStockForm({ ...stockForm, markup_rate: item.rate })}
-                              className={`h-8 rounded-lg text-xs font-bold border transition-all ${
+                              className={`h-9 rounded-lg text-xs font-semibold border transition-all ${
                                 stockForm.markup_rate === item.rate
-                                  ? "bg-yellow-400 text-red-950 border-yellow-400 shadow"
+                                  ? "bg-yellow-400 text-red-950 border-yellow-400 font-bold"
                                   : "bg-[#1f1f2e] border-[#303044] text-yellow-200/80 hover:bg-[#28283c] hover:text-white"
                               }`}
                             >
-                              {item.label}
+                              +{item.label}
                             </button>
                           ))}
                         </div>
                       </div>
 
-                      {/* Or Custom Multiplier Select */}
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-yellow-200/60 font-medium">Or choose exact multiplier</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-yellow-200/80 font-medium">Custom Multiplier</Label>
                         <Select
                           value={String(stockForm.markup_rate)}
                           onValueChange={(value) => setStockForm({ ...stockForm, markup_rate: Number(value) })}
                         >
-                          <SelectTrigger className="h-9 bg-[#1f1f2e] border-[#303044] text-yellow-100 text-xs rounded-lg">
+                          <SelectTrigger className="h-10 bg-[#1f1f2e] border-[#303044] text-yellow-100 text-xs rounded-lg">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-[#181824] border-[#2e2e42] text-yellow-100 text-xs">
                             {MARKUP_RATE_OPTIONS.map((rate) => (
                               <SelectItem key={rate} value={String(rate)}>
-                                {rate.toFixed(2)}x Multiplier (+{Math.round((rate - 1) * 100)}% profit margin)
+                                {rate.toFixed(2)}x Multiplier (+{Math.round((rate - 1) * 100)}% margin)
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1384,12 +1364,12 @@ function ProductSettingsPage({
                       </div>
                     </div>
 
-                    {/* Computed SRP Display */}
+                    {/* Calculated Price Display */}
                     <div className="rounded-lg bg-[#101018] border border-yellow-500/30 p-3 flex items-center justify-between mt-2">
                       <div>
                         <span className="text-xs text-yellow-200/70 block">Selling Price (SRP):</span>
-                        <span className="text-xs text-emerald-400 font-semibold">
-                          +₱{markupAmount.toLocaleString()} profit/pair
+                        <span className="text-xs text-emerald-400 font-medium">
+                          +₱{markupAmount.toLocaleString()} profit per unit
                         </span>
                       </div>
                       <span className="text-lg font-black text-yellow-300">
@@ -1399,34 +1379,34 @@ function ProductSettingsPage({
                   </div>
                 </div>
 
-                {/* BOTTOM CARD: POS ACTIVE STATUS */}
-                <div className="rounded-xl border border-[#272738] bg-[#161622] p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-xs text-yellow-200/80">
-                    <span className="font-semibold text-white">POS Cashier Status:</span>
-                    <span>Control if this product variant is active and sellable in POS.</span>
+                {/* BOTTOM ROW: POS STATUS */}
+                <div className="rounded-xl border border-[#272738] bg-[#161622] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-white block">POS Status</span>
+                    <span className="text-xs text-yellow-200/60">Choose whether this item is available for cashiers to sell in the POS.</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setStockForm({ ...stockForm, status: "Active" })}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
                         stockForm.status === "Active"
-                          ? "bg-emerald-500 text-black shadow"
+                          ? "bg-emerald-500 text-black font-bold shadow"
                           : "bg-[#1f1f2e] text-zinc-400 border border-[#303044] hover:text-white"
                       }`}
                     >
-                      ✅ Active (Sellable)
+                      Active (Sellable)
                     </button>
                     <button
                       type="button"
                       onClick={() => setStockForm({ ...stockForm, status: "Inactive" })}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
                         stockForm.status === "Inactive"
-                          ? "bg-red-500 text-white shadow"
+                          ? "bg-red-500 text-white font-bold shadow"
                           : "bg-[#1f1f2e] text-zinc-400 border border-[#303044] hover:text-white"
                       }`}
                     >
-                      ❌ Inactive (Disabled)
+                      Inactive (Disabled)
                     </button>
                   </div>
                 </div>
@@ -1440,17 +1420,16 @@ function ProductSettingsPage({
               type="button"
               variant="outline"
               onClick={() => setIsConfigDialogOpen(false)}
-              className="h-10 border-[#38384a] bg-transparent text-yellow-200 hover:bg-[#252533] rounded-lg px-4 text-xs font-semibold"
+              className="h-10 border-[#38384a] bg-transparent text-yellow-200 hover:bg-[#252533] rounded-lg px-5 text-xs font-medium"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSaveModal}
               disabled={isSaving}
-              className="h-10 bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold px-6 rounded-lg shadow-lg disabled:opacity-60 flex items-center gap-2 text-xs"
+              className="h-10 bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold px-6 rounded-lg shadow-lg disabled:opacity-60 text-xs"
             >
-              <Check className="w-4 h-4" />
-              <span>{isSaving ? "Saving..." : "Save Parameters"}</span>
+              {isSaving ? "Saving..." : "Save Parameters"}
             </Button>
           </DialogFooter>
         </DialogContent>
