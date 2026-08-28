@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
-import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X, Check, ToggleLeft, ToggleRight, Power } from 'lucide-react';
+import { Tag, Plus, Edit, Trash2, TrendingUp, Coins, ShoppingCart, Percent, Mail, CheckCircle, X, Check, ToggleLeft, ToggleRight, Power, Copy, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCustomers, useProducts, usePromotions, usePromotionsMutations, useSales } from '../../lib/hooks';
 import { useAuth } from '../../lib/auth-context';
@@ -1209,8 +1209,46 @@ export function PromotionManagement() {
     }
   };
 
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended'>('all');
+
+  const handleDuplicatePromotion = (promo: Promotion) => {
+    const today = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(today.getDate() + 7);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const formatDt = (d: Date, timeStr: string) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${timeStr}`;
+
+    setFormData({
+      promo_name: `${promo.promo_name} (Rerun)`,
+      discount_type: promo.discount_type,
+      discount_value: promo.discount_value,
+      targetSalesGoal: promo.targetSalesGoal,
+      targetProducts: promo.targetProducts,
+      start_date: formatDt(today, '08:00'),
+      end_date: formatDt(nextWeek, '23:59'),
+      status: 'Upcoming',
+    });
+    setIsAddDialogOpen(true);
+    toast.info(`Campaign settings cloned from "${promo.promo_name}". Ready for new dates.`);
+  };
+
   const totalRevenue = promotions.reduce((sum, p) => sum + p.salesGenerated, 0);
   const activePromotions = promotions.filter(p => p.status === 'Active').length;
+  const endedPromotions = promotions.filter(p => p.status === 'Ended').length;
+  const upcomingPromotions = promotions.filter(p => p.status === 'Upcoming').length;
+
+  const displayedPromotions = useMemo(() => {
+    if (statusFilter === 'active') {
+      return promotions.filter((p) => p.status === 'Active' || p.status === 'Upcoming' || p.status === 'Inactive');
+    }
+    if (statusFilter === 'ended') {
+      return promotions.filter((p) => p.status === 'Ended');
+    }
+    return promotions;
+  }, [promotions, statusFilter]);
+
   const avgEffectiveness = promotions.filter(p => p.effectiveness > 0).reduce((sum, p) => sum + p.effectiveness, 0) / promotions.filter(p => p.effectiveness > 0).length || 0;
   const sentNotificationCount = lastNotificationBatch.filter(
     (notif) => String(notif.email_status || '').toLowerCase() === 'sent',
@@ -1327,14 +1365,52 @@ export function PromotionManagement() {
       {/* Active Promotions Table */}
       <Card className="bg-red-700 border-red-800">
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-yellow-300 flex items-center gap-2">
-              <Tag className="w-5 h-5" />
-              Promotion Campaigns
-            </CardTitle>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <CardTitle className="text-yellow-300 flex items-center gap-2">
+                <Tag className="w-5 h-5" />
+                Promotion Campaigns
+              </CardTitle>
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1 bg-[#151622] p-1 rounded-xl border border-[#2b2d3e]">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('all')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    statusFilter === 'all'
+                      ? 'bg-yellow-400 text-red-950 shadow font-bold'
+                      : 'text-yellow-200/70 hover:text-white'
+                  }`}
+                >
+                  All ({promotions.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('active')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    statusFilter === 'active'
+                      ? 'bg-yellow-400 text-red-950 shadow font-bold'
+                      : 'text-yellow-200/70 hover:text-white'
+                  }`}
+                >
+                  Active ({activePromotions + upcomingPromotions})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ended')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    statusFilter === 'ended'
+                      ? 'bg-yellow-400 text-red-950 shadow font-bold'
+                      : 'text-yellow-200/70 hover:text-white'
+                  }`}
+                >
+                  Ended / History ({endedPromotions})
+                </button>
+              </div>
+            </div>
             <Dialog open={isAddDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
               <DialogTrigger asChild>
-                <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500 font-bold text-xs sm:text-sm">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Promotion
                 </Button>
@@ -1379,118 +1455,137 @@ export function PromotionManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {promotions.map((promotion) => (
-                  <TableRow key={promotion.promo_id} className="border-red-800">
-                    <TableCell className="min-w-[200px] text-center align-middle">
-                      <div>
-                        <p className="text-yellow-200 break-words leading-tight">{promotion.promo_name}</p>
-                        <p className="mt-1 text-yellow-300 text-xs break-words leading-tight">{promotion.targetProducts}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-center align-middle">
-                      <Badge className="bg-yellow-400 text-red-900">
-                        {promotion.discount_type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-yellow-300 whitespace-nowrap text-center align-middle">
-                      {promotion.discount_type === 'Percentage' ? `${promotion.discount_value}%` :
-                       promotion.discount_type === 'Fixed Amount' ? `₱${promotion.discount_value}` :
-                       promotion.discount_type === 'BOGO' ? 'Buy 1 Get 1' : 'Bundle'}
-                    </TableCell>
-                    <TableCell className="text-yellow-200 text-sm text-center align-middle">
-                      <div className="leading-tight">
-                        <p>{formatPromotionDateTime(promotion.start_date, 'start')}</p>
-                        <p className="text-yellow-300/80">to {formatPromotionDateTime(promotion.end_date, 'end')}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-center align-middle">
-                      <Badge className={
-                        promotion.status === 'Active' ? 'bg-green-600 text-white font-medium' :
-                        promotion.status === 'Upcoming' ? 'bg-yellow-600 text-red-900 font-medium' :
-                        promotion.status === 'Inactive' ? 'bg-zinc-700 text-zinc-300 font-medium' :
-                        'bg-gray-600 text-white font-medium'
-                      }>
-                        {promotion.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="min-w-[220px] text-center align-middle">
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap justify-center gap-3 text-xs text-yellow-200">
-                          <span className="whitespace-nowrap">Sales: ₱{promotion.salesGenerated}</span>
-                          <span className="whitespace-nowrap">Goal: PHP {promotion.targetSalesGoal.toLocaleString()}</span>
-                          <span className="whitespace-nowrap">{promotion.unitsAffected} units</span>
+                {displayedPromotions.length > 0 ? (
+                  displayedPromotions.map((promotion) => (
+                    <TableRow key={promotion.promo_id} className="border-red-800">
+                      <TableCell className="min-w-[200px] text-center align-middle">
+                        <div>
+                          <p className="text-yellow-200 break-words leading-tight">{promotion.promo_name}</p>
+                          <p className="mt-1 text-yellow-300 text-xs break-words leading-tight">{promotion.targetProducts}</p>
                         </div>
-                        <Progress value={promotion.effectiveness} className="h-2 bg-red-600" />
-                        <p className="text-xs text-yellow-300">{promotion.effectiveness}% of target</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center align-middle">
-                      <div className="flex gap-1.5 justify-center items-center">
-                        <Dialog open={editingPromotion?.promo_id === promotion.promo_id} onOpenChange={(open) => !open && setEditingPromotion(null)}>
-                          <DialogTrigger asChild>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-center align-middle">
+                        <Badge className="bg-yellow-400 text-red-900">
+                          {promotion.discount_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-yellow-300 whitespace-nowrap text-center align-middle">
+                        {promotion.discount_type === 'Percentage' ? `${promotion.discount_value}%` :
+                         promotion.discount_type === 'Fixed Amount' ? `₱${promotion.discount_value}` :
+                         promotion.discount_type === 'BOGO' ? 'Buy 1 Get 1' : 'Bundle'}
+                      </TableCell>
+                      <TableCell className="text-yellow-200 text-sm text-center align-middle">
+                        <div className="leading-tight">
+                          <p>{formatPromotionDateTime(promotion.start_date, 'start')}</p>
+                          <p className="text-yellow-300/80">to {formatPromotionDateTime(promotion.end_date, 'end')}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-center align-middle">
+                        <Badge className={
+                          promotion.status === 'Active' ? 'bg-green-600 text-white font-medium' :
+                          promotion.status === 'Upcoming' ? 'bg-yellow-600 text-red-900 font-medium' :
+                          promotion.status === 'Inactive' ? 'bg-zinc-700 text-zinc-300 font-medium' :
+                          'bg-gray-600 text-white font-medium'
+                        }>
+                          {promotion.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="min-w-[220px] text-center align-middle">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap justify-center gap-3 text-xs text-yellow-200">
+                            <span className="whitespace-nowrap">Sales: ₱{promotion.salesGenerated}</span>
+                            <span className="whitespace-nowrap">Goal: PHP {promotion.targetSalesGoal.toLocaleString()}</span>
+                            <span className="whitespace-nowrap">{promotion.unitsAffected} units</span>
+                          </div>
+                          <Progress value={promotion.effectiveness} className="h-2 bg-red-600" />
+                          <p className="text-xs text-yellow-300">{promotion.effectiveness}% of target</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center align-middle">
+                        <div className="flex gap-1.5 justify-center items-center">
+                          <Dialog open={editingPromotion?.promo_id === promotion.promo_id} onOpenChange={(open) => !open && setEditingPromotion(null)}>
+                            <DialogTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-yellow-400 hover:text-yellow-300 hover:bg-zinc-800 h-8 px-2.5 flex items-center gap-1"
+                                onClick={() => openEditDialog(promotion)}
+                                title="Edit Promotion"
+                              >
+                                <Edit className="w-4 h-4" />
+                                <span className="text-xs">Edit</span>
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="bg-[#15161d] border-[#2a2c36] text-yellow-100 max-w-2xl max-h-[88vh] overflow-hidden p-0 shadow-2xl">
+                              <DialogHeader className="border-b border-white/10 bg-[#171821] px-6 py-5">
+                                <DialogTitle className="text-white text-xl">Edit Promotion</DialogTitle>
+                              </DialogHeader>
+                              <div className="max-h-[calc(88vh-10rem)] overflow-y-auto px-6 py-5 pr-4 [scrollbar-width:thin] [scrollbar-color:#facc15_#20212a]">
+                                <PromotionForm
+                                  formData={formData}
+                                  setFormData={setFormData}
+                                  categoryOptions={categoryOptions}
+                                  productOptions={productOptions}
+                                />
+                              </div>
+                              <DialogFooter className="border-t border-white/10 bg-[#171821]/95 px-6 py-4">
+                                <Button
+                                  onClick={handleEditPromotion}
+                                  disabled={isUpdatingPromotion}
+                                  className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
+                                >
+                                  {isUpdatingPromotion ? 'Updating...' : 'Update Promotion'}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+
+                          {/* Activate / Deactivate Toggle OR Duplicate / Rerun for Ended */}
+                          {promotion.status === 'Active' ? (
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-yellow-400 hover:text-yellow-300 hover:bg-zinc-800 h-8 px-2.5 flex items-center gap-1"
-                              onClick={() => openEditDialog(promotion)}
-                              title="Edit Promotion"
+                              className="text-emerald-400 hover:text-red-400 hover:bg-red-950/50 h-8 px-2.5 flex items-center gap-1.5 border border-emerald-500/30 hover:border-red-500/40 rounded-lg transition-colors"
+                              onClick={() => handleTogglePromotionStatus(promotion)}
+                              title="Click to Pause / Deactivate Promotion"
                             >
-                              <Edit className="w-4 h-4" />
-                              <span className="text-xs">Edit</span>
+                              <ToggleRight className="w-4 h-4 text-emerald-400" />
+                              <span className="text-xs font-semibold">Active</span>
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent className="bg-[#15161d] border-[#2a2c36] text-yellow-100 max-w-2xl max-h-[88vh] overflow-hidden p-0 shadow-2xl">
-                            <DialogHeader className="border-b border-white/10 bg-[#171821] px-6 py-5">
-                              <DialogTitle className="text-white text-xl">Edit Promotion</DialogTitle>
-                            </DialogHeader>
-                            <div className="max-h-[calc(88vh-10rem)] overflow-y-auto px-6 py-5 pr-4 [scrollbar-width:thin] [scrollbar-color:#facc15_#20212a]">
-                              <PromotionForm
-                                formData={formData}
-                                setFormData={setFormData}
-                                categoryOptions={categoryOptions}
-                                productOptions={productOptions}
-                              />
-                            </div>
-                            <DialogFooter className="border-t border-white/10 bg-[#171821]/95 px-6 py-4">
-                              <Button
-                                onClick={handleEditPromotion}
-                                disabled={isUpdatingPromotion}
-                                className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
-                              >
-                                {isUpdatingPromotion ? 'Updating...' : 'Update Promotion'}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-
-                        {/* Activate / Deactivate Toggle Button */}
-                        {promotion.status === 'Active' ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-emerald-400 hover:text-red-400 hover:bg-red-950/50 h-8 px-2.5 flex items-center gap-1.5 border border-emerald-500/30 hover:border-red-500/40 rounded-lg transition-colors"
-                            onClick={() => handleTogglePromotionStatus(promotion)}
-                            title="Click to Deactivate Promotion"
-                          >
-                            <ToggleRight className="w-4 h-4 text-emerald-400" />
-                            <span className="text-xs font-semibold">Active</span>
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-zinc-400 hover:text-emerald-300 hover:bg-emerald-950/50 h-8 px-2.5 flex items-center gap-1.5 border border-zinc-700 hover:border-emerald-500/40 rounded-lg transition-colors"
-                            onClick={() => handleTogglePromotionStatus(promotion)}
-                            title="Click to Activate Promotion"
-                          >
-                            <ToggleLeft className="w-4 h-4 text-zinc-400" />
-                            <span className="text-xs font-semibold">Deactivated</span>
-                          </Button>
-                        )}
-                      </div>
+                          ) : promotion.status === 'Ended' ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-yellow-300 hover:text-yellow-100 hover:bg-yellow-400/20 h-8 px-2.5 flex items-center gap-1.5 border border-yellow-500/40 hover:border-yellow-400 rounded-lg transition-colors shadow-sm"
+                              onClick={() => handleDuplicatePromotion(promotion)}
+                              title="Clone and rerun this campaign with fresh analytics (preserves past sales history)"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-yellow-400" />
+                              <span className="text-xs font-semibold">Rerun</span>
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-zinc-400 hover:text-emerald-300 hover:bg-emerald-950/50 h-8 px-2.5 flex items-center gap-1.5 border border-zinc-700 hover:border-emerald-500/40 rounded-lg transition-colors"
+                              onClick={() => handleTogglePromotionStatus(promotion)}
+                              title="Click to Activate Promotion"
+                            >
+                              <ToggleLeft className="w-4 h-4 text-zinc-400" />
+                              <span className="text-xs font-semibold">Paused</span>
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8 text-center text-yellow-200/60 text-sm">
+                      No promotions found in &ldquo;{statusFilter}&rdquo; view.
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
