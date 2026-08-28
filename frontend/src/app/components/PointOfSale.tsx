@@ -1029,7 +1029,6 @@ export function PointOfSale() {
       }
     }
 
-    // Map UI payment method to database value
     const dbPaymentMethod = paymentMethod === "Cash" ? "cash" : "gcash";
 
     const selectedCustomer = customerOptions.find((c) => c.value === customerName);
