@@ -1214,9 +1214,9 @@ function ProductSettingsPage({
 
       {/* 3. CONFIGURE ITEM PARAMETERS MODAL / DIALOG */}
       <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
-        <DialogContent className="bg-[#13131c] border-[#2a2c3a] text-yellow-100 !w-[96vw] !max-w-[960px] max-h-[92vh] overflow-hidden p-0 shadow-2xl rounded-2xl">
+        <DialogContent className="bg-[#13131c] border-[#2a2c3a] text-yellow-100 !w-[96vw] !max-w-[960px] max-h-[88vh] flex flex-col p-0 shadow-2xl rounded-2xl overflow-hidden">
           {/* MODAL HEADER */}
-          <DialogHeader className="border-b border-[#232332] bg-[#181824] px-6 py-4">
+          <DialogHeader className="border-b border-[#232332] bg-[#181824] px-6 py-4 flex-shrink-0">
             <DialogTitle className="text-white text-lg font-bold">
               Configure Product Parameters
             </DialogTitle>
@@ -1226,7 +1226,7 @@ function ProductSettingsPage({
           </DialogHeader>
 
           {/* MODAL BODY */}
-          <div className="max-h-[calc(92vh-8.5rem)] overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 [scrollbar-width:thin] [scrollbar-color:#eab308_#1f1f2e]">
             {activeProduct && (
               <>
                 {/* Product Summary Header Bar */}
@@ -1415,7 +1415,7 @@ function ProductSettingsPage({
           </div>
 
           {/* MODAL FOOTER */}
-          <DialogFooter className="border-t border-[#232332] bg-[#181824] px-6 py-4 flex items-center justify-end gap-3">
+          <DialogFooter className="border-t border-[#232332] bg-[#181824] px-6 py-4 flex items-center justify-end gap-3 flex-shrink-0">
             <Button
               type="button"
               variant="outline"
