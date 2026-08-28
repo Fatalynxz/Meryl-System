@@ -1020,12 +1020,12 @@ export function PointOfSale() {
     if (paid < total) return toast.error("Insufficient payment amount");
 
     if (paymentMethod === "GCash") {
-      const cleanRef = gcashRefNumber.trim();
-      if (!cleanRef) {
+      const cleanDigits = gcashRefNumber.replace(/\D/g, "");
+      if (!cleanDigits) {
         return toast.error("Please enter the GCash Reference Number");
       }
-      if (cleanRef.length < 6) {
-        return toast.error("GCash Reference Number must be at least 6 digits");
+      if (cleanDigits.length !== 13) {
+        return toast.error(`GCash Reference Number must be exactly 13 digits (currently ${cleanDigits.length} digits)`);
       }
     }
 
@@ -1923,18 +1923,31 @@ function formatReceiptNumber(salesId?: string) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-yellow-200/80">
-                      GCash Reference No. <span className="text-red-400 font-bold">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs text-yellow-200/80 font-medium">
+                        GCash Reference No. <span className="text-red-400 font-bold">*</span>
+                      </Label>
+                      <span className={`text-[11px] font-mono font-semibold ${
+                        gcashRefNumber.replace(/\D/g, "").length === 13
+                          ? "text-emerald-400"
+                          : "text-yellow-200/50"
+                      }`}>
+                        {gcashRefNumber.replace(/\D/g, "").length}/13 digits
+                      </span>
+                    </div>
                     <Input
                       value={gcashRefNumber}
-                      onChange={(e) => setGcashRefNumber(e.target.value.replace(/[^\d\s-]/g, ""))}
-                      placeholder="e.g. 1002 8493 2019"
-                      maxLength={24}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, "").slice(0, 13);
+                        const formatted = raw.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+                        setGcashRefNumber(formatted);
+                      }}
+                      placeholder="e.g. 1002 8493 2019 1"
+                      maxLength={16}
                       className="h-10 bg-[#1d1d2b] border-[#303042] text-yellow-100 placeholder:text-yellow-300/40 rounded-xl font-mono text-sm tracking-wider focus-visible:ring-sky-400/50"
                     />
                     <p className="text-[11px] text-yellow-200/50">
-                      Enter the reference number from the customer&apos;s GCash confirmation.
+                      Must be exactly 13 digits from the customer&apos;s GCash confirmation.
                     </p>
                   </div>
 
