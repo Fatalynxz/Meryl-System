@@ -377,6 +377,75 @@ export function PointOfSale() {
 
   const isSearchActive = productSearch.trim().length > 0 || modalCategoryFilter !== "All";
 
+  type SearchShoeModel = {
+    key: string;
+    product_name: string;
+    brand: string;
+    category: string;
+    image_url?: string;
+    price: number;
+    total_stock: number;
+    colors: string[];
+    sizes: string[];
+    variants: ProductVariant[];
+  };
+
+  const sellableShoeModels = useMemo<SearchShoeModel[]>(() => {
+    const map = new Map<string, SearchShoeModel>();
+    for (const v of sellableProductInventory) {
+      const key = v.product_name;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          product_name: v.product_name,
+          brand: v.brand,
+          category: v.category,
+          image_url: v.image_url,
+          price: v.price,
+          total_stock: 0,
+          colors: [],
+          sizes: [],
+          variants: [],
+        });
+      }
+      const item = map.get(key)!;
+      item.total_stock += Number(v.stock_quantity || 0);
+      if (v.image_url && !item.image_url) item.image_url = v.image_url;
+      if (v.price && (!item.price || item.price <= 0)) item.price = v.price;
+      if (v.color && v.color !== "N/A" && v.color !== "Default" && !item.colors.includes(v.color)) {
+        item.colors.push(v.color);
+      }
+      if (v.size && v.size !== "N/A" && v.size !== "Default" && !item.sizes.includes(v.size)) {
+        item.sizes.push(v.size);
+      }
+      item.variants.push(v);
+    }
+    return Array.from(map.values());
+  }, [sellableProductInventory]);
+
+  const filteredShoeModels = useMemo(() => {
+    const term = productSearch.trim().toLowerCase();
+    let source = sellableShoeModels;
+    if (modalCategoryFilter !== "All") {
+      source = source.filter((m) => String(m.category || "").toLowerCase() === modalCategoryFilter.toLowerCase());
+    }
+    if (!term && modalCategoryFilter === "All") return [];
+    if (!term) return source;
+    return source.filter((m) =>
+      [
+        m.product_name,
+        m.brand,
+        m.category,
+        m.colors.join(" "),
+        m.sizes.join(" "),
+        String(m.price),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [sellableShoeModels, productSearch, modalCategoryFilter]);
+
   const filteredProductInventory = useMemo(() => {
     const term = productSearch.trim().toLowerCase();
     let sourceProducts = sellableProductInventory;
@@ -752,6 +821,17 @@ export function PointOfSale() {
     setSelectedColor("");
     setSelectedSize("");
     setQuantity("1");
+  };
+
+  const selectShoeModel = (model: SearchShoeModel) => {
+    setSelectedProductKey(model.product_name);
+    const firstColor = model.colors[0] || (model.variants[0]?.color ?? "");
+    setSelectedColor(firstColor);
+    setSelectedSize("");
+    setQuantity("1");
+    setIsProductGridOpen(false);
+    setProductSearch("");
+    toast.success(`Selected "${model.product_name}". Please pick size on the main POS screen.`);
   };
 
   const fillProductSelection = (variant: ProductVariant) => {
@@ -1165,105 +1245,81 @@ function formatReceiptNumber(salesId?: string) {
                         <Table className="w-full text-sm table-fixed">
                           <TableHeader className="sticky top-0 z-10 bg-[#1a1a28]">
                             <TableRow className="border-b border-[#282838] hover:bg-transparent">
-                              <TableHead className="w-20 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
-                              <TableHead className="w-[23%] py-3 text-left pl-8 text-xs font-semibold uppercase tracking-wide text-yellow-300">Product Model</TableHead>
-                              <TableHead className="w-[12%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
+                              <TableHead className="w-16 py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Photo</TableHead>
+                              <TableHead className="w-[26%] py-3 text-left pl-6 text-xs font-semibold uppercase tracking-wide text-yellow-300">Shoe Model</TableHead>
+                              <TableHead className="w-[14%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Brand</TableHead>
                               <TableHead className="w-[14%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Category</TableHead>
-                              <TableHead className="w-[18%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Colorway / Size</TableHead>
-                              <TableHead className="w-[12%] py-3 text-right pr-6 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price</TableHead>
-                              <TableHead className="w-[11%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Stock</TableHead>
+                              <TableHead className="w-[20%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Available Options</TableHead>
+                              <TableHead className="w-[14%] py-3 text-right pr-6 text-xs font-semibold uppercase tracking-wide text-yellow-300">Price (SRP)</TableHead>
                               <TableHead className="w-[12%] py-3 text-center text-xs font-semibold uppercase tracking-wide text-yellow-300">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredProductInventory.length > 0 ? (
-                              filteredProductInventory.map((product) => {
-                                const sellable = isSellableProduct(product);
+                            {filteredShoeModels.length > 0 ? (
+                              filteredShoeModels.map((model) => {
                                 return (
                                   <TableRow
-                                    key={product.product_id}
-                                    onClick={() => {
-                                      if (sellable) fillProductSelection(product);
-                                    }}
+                                    key={model.key}
+                                    onClick={() => selectShoeModel(model)}
                                     className="border-t border-[#232333] hover:bg-[#1f1f30] cursor-pointer transition-colors group"
                                   >
                                     <TableCell className="py-3 text-center">
                                       <div className="flex justify-center">
-                                        <ProductPhotoPlaceholder productName={product.product_name} imageUrl={product.image_url} />
+                                        <ProductPhotoPlaceholder productName={model.product_name} imageUrl={model.image_url} />
                                       </div>
                                     </TableCell>
-                                    <TableCell className="py-3 text-left pl-8 font-semibold text-white truncate group-hover:text-yellow-300" title={product.product_name}>
-                                      {product.product_name}
+                                    <TableCell className="py-3 text-left pl-6 font-semibold text-white truncate group-hover:text-yellow-300" title={model.product_name}>
+                                      <p className="font-bold text-sm text-white group-hover:text-yellow-300">{model.product_name}</p>
+                                      <span className="text-[11px] text-emerald-400 font-medium">{model.total_stock} pairs in stock</span>
                                     </TableCell>
-                                    <TableCell className="py-3 text-center text-yellow-100/90 truncate" title={product.brand}>
-                                      {product.brand}
+                                    <TableCell className="py-3 text-center text-yellow-100/90 truncate" title={model.brand}>
+                                      {model.brand}
                                     </TableCell>
-                                    <TableCell className="py-3 text-center text-yellow-200/60 text-xs truncate" title={product.category}>
-                                      {product.category}
+                                    <TableCell className="py-3 text-center text-yellow-200/60 text-xs truncate" title={model.category}>
+                                      {model.category}
                                     </TableCell>
                                     <TableCell className="py-3 text-center">
-                                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                        {product.color && product.color.toLowerCase() !== "n/a" && product.color.toLowerCase() !== "default" && (
-                                          <span className="text-[11px] font-medium text-white px-2 py-0.5 rounded bg-[#202030] border border-[#2e2e42]">
-                                            {product.color}
-                                          </span>
+                                      <div className="flex flex-col items-center gap-1">
+                                        {model.colors.length > 0 && (
+                                          <div className="flex items-center justify-center gap-1 flex-wrap">
+                                            {model.colors.slice(0, 3).map((c) => (
+                                              <span key={c} className="text-[10px] font-medium text-white px-1.5 py-0.5 rounded bg-[#202030] border border-[#2e2e42]">
+                                                {c}
+                                              </span>
+                                            ))}
+                                            {model.colors.length > 3 && (
+                                              <span className="text-[10px] text-yellow-200/60 font-medium">+{model.colors.length - 3}</span>
+                                            )}
+                                          </div>
                                         )}
-                                        {product.size && product.size.toLowerCase() !== "n/a" && product.size.toLowerCase() !== "default" && (
-                                          <span className="text-[11px] font-bold text-yellow-300 px-2 py-0.5 rounded bg-[#26241a] border border-yellow-500/35">
-                                            Size {product.size}
+                                        {model.sizes.length > 0 && (
+                                          <span className="text-[10px] text-yellow-300 font-medium">
+                                            Sizes: {model.sizes.slice(0, 4).join(", ")}{model.sizes.length > 4 ? ` (+${model.sizes.length - 4})` : ""}
                                           </span>
-                                        )}
-                                        {product.gender && product.gender.toLowerCase() !== "n/a" && product.gender.toLowerCase() !== "default" && (
-                                          <span className="text-[10px] text-yellow-200/60 font-medium px-1.5 py-0.5 rounded bg-[#161622]">
-                                            {product.gender}
-                                          </span>
-                                        )}
-                                        {(!product.color || product.color.toLowerCase() === "n/a" || product.color.toLowerCase() === "default") &&
-                                         (!product.size || product.size.toLowerCase() === "n/a" || product.size.toLowerCase() === "default") &&
-                                         (!product.gender || product.gender.toLowerCase() === "n/a" || product.gender.toLowerCase() === "default") && (
-                                          <span className="text-xs text-yellow-200/50">Standard</span>
                                         )}
                                       </div>
                                     </TableCell>
-                                    <TableCell className="py-3 text-right pr-6 font-bold text-yellow-300 truncate" title={`PHP ${product.price}`}>
-                                      PHP {product.price.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="py-3 text-center">
-                                      <Badge className="rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 font-bold text-xs">
-                                        {product.stock_quantity} available
-                                      </Badge>
+                                    <TableCell className="py-3 text-right pr-6 font-bold text-yellow-300 truncate" title={`PHP ${model.price}`}>
+                                      PHP {model.price.toLocaleString()}
                                     </TableCell>
                                     <TableCell className="py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                      <div className="flex items-center justify-center gap-1.5">
-                                        <Button
-                                          size="sm"
-                                          disabled={!sellable}
-                                          onClick={() => fillProductSelection(product)}
-                                          className="h-8 rounded-lg bg-yellow-400 px-3 font-bold text-xs text-red-950 hover:bg-yellow-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500 shadow"
-                                          title="Load into Product Selection to pick size and quantity"
-                                        >
-                                          Select
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          disabled={!sellable}
-                                          onClick={() => quickAddToCart(product)}
-                                          className="h-8 rounded-lg border-[#3e3e52] bg-[#1a1a28] px-2.5 font-semibold text-xs text-yellow-300 hover:bg-yellow-400 hover:text-red-950 shadow"
-                                          title="Direct 1-tap add to shopping cart"
-                                        >
-                                          + Add
-                                        </Button>
-                                      </div>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => selectShoeModel(model)}
+                                        className="h-8 rounded-lg bg-yellow-400 px-4 font-bold text-xs text-red-950 hover:bg-yellow-500 shadow"
+                                        title="Select this shoe model to pick size on the main POS screen"
+                                      >
+                                        Select
+                                      </Button>
                                     </TableCell>
                                   </TableRow>
                                 );
                               })
                             ) : (
                               <TableRow>
-                                <TableCell colSpan={8} className="py-12 text-center text-sm text-yellow-200/60 space-y-2">
-                                  <div className="text-zinc-400 font-semibold text-base">No products found matching &ldquo;{productSearch}&rdquo;</div>
-                                  <div className="text-xs text-yellow-200/40">Check your spelling or try searching by brand (Nike, Adidas, Rocco) or shoe model name.</div>
+                                <TableCell colSpan={7} className="py-12 text-center text-sm text-yellow-200/60 space-y-2">
+                                  <div className="text-zinc-400 font-semibold text-base">No shoe models found matching &ldquo;{productSearch}&rdquo;</div>
+                                  <div className="text-xs text-yellow-200/40">Check your spelling or try searching by brand (Nike, Adidas, Rocco) or model name.</div>
                                 </TableCell>
                               </TableRow>
                             )}
@@ -1272,7 +1328,7 @@ function formatReceiptNumber(salesId?: string) {
                       </div>
                     </div>
                     <p className="mt-3 text-center text-xs text-yellow-200/50">
-                      💡 Tip: Click any row or &quot;Select&quot; to automatically fill the Product Selection panel on the main POS screen. Click &quot;+ Add&quot; for direct 1-tap cart checkout.
+                      💡 Tip: Click any shoe or &quot;Select&quot; to load it onto the POS screen and choose your color &amp; size tiles.
                     </p>
                   </div>
                 )}
