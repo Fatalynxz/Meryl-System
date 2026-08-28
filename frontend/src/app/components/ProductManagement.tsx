@@ -819,7 +819,30 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
             return (
               <TableRow key={product.product_id} className="border-red-800">
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap font-medium">{product.name}</TableCell>
-                <TableCell className="text-yellow-200 text-center whitespace-nowrap" title={variantLabel(product)}>{variantLabel(product)}</TableCell>
+                <TableCell className="text-center">
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                    {product.color && product.color.toLowerCase() !== "n/a" && product.color.toLowerCase() !== "default" && (
+                      <span className="text-[11px] font-medium text-white px-2 py-0.5 rounded bg-black/40 border border-white/10">
+                        {product.color}
+                      </span>
+                    )}
+                    {product.size && product.size.toLowerCase() !== "n/a" && product.size.toLowerCase() !== "default" && (
+                      <span className="text-[11px] font-bold text-yellow-300 px-2 py-0.5 rounded bg-black/50 border border-yellow-400/40">
+                        Size {product.size}
+                      </span>
+                    )}
+                    {product.gender && product.gender.toLowerCase() !== "n/a" && product.gender.toLowerCase() !== "default" && (
+                      <span className="text-[10px] text-yellow-200/60 font-medium px-1.5 py-0.5 rounded bg-black/20">
+                        {product.gender}
+                      </span>
+                    )}
+                    {(!product.color || product.color.toLowerCase() === "n/a" || product.color.toLowerCase() === "default") &&
+                     (!product.size || product.size.toLowerCase() === "n/a" || product.size.toLowerCase() === "default") &&
+                     (!product.gender || product.gender.toLowerCase() === "n/a" || product.gender.toLowerCase() === "default") && (
+                      <span className="text-xs text-yellow-200/50">Standard</span>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatMoney(product.srp)}</TableCell>
                 <TableCell className="text-center whitespace-nowrap">
                   <Badge className={product.available_stock > 0 ? "bg-green-700 text-white" : "bg-red-800 text-yellow-100"}>

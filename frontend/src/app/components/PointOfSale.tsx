@@ -1201,8 +1201,29 @@ function formatReceiptNumber(salesId?: string) {
                                     <TableCell className="py-3 text-center text-yellow-200/60 text-xs truncate" title={product.category}>
                                       {product.category}
                                     </TableCell>
-                                    <TableCell className="py-3 text-center text-yellow-100 font-medium truncate" title={productVariantLabel(product)}>
-                                      {productVariantLabel(product)}
+                                    <TableCell className="py-3 text-center">
+                                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                        {product.color && product.color.toLowerCase() !== "n/a" && product.color.toLowerCase() !== "default" && (
+                                          <span className="text-[11px] font-medium text-white px-2 py-0.5 rounded bg-[#202030] border border-[#2e2e42]">
+                                            {product.color}
+                                          </span>
+                                        )}
+                                        {product.size && product.size.toLowerCase() !== "n/a" && product.size.toLowerCase() !== "default" && (
+                                          <span className="text-[11px] font-bold text-yellow-300 px-2 py-0.5 rounded bg-[#26241a] border border-yellow-500/35">
+                                            Size {product.size}
+                                          </span>
+                                        )}
+                                        {product.gender && product.gender.toLowerCase() !== "n/a" && product.gender.toLowerCase() !== "default" && (
+                                          <span className="text-[10px] text-yellow-200/60 font-medium px-1.5 py-0.5 rounded bg-[#161622]">
+                                            {product.gender}
+                                          </span>
+                                        )}
+                                        {(!product.color || product.color.toLowerCase() === "n/a" || product.color.toLowerCase() === "default") &&
+                                         (!product.size || product.size.toLowerCase() === "n/a" || product.size.toLowerCase() === "default") &&
+                                         (!product.gender || product.gender.toLowerCase() === "n/a" || product.gender.toLowerCase() === "default") && (
+                                          <span className="text-xs text-yellow-200/50">Standard</span>
+                                        )}
+                                      </div>
                                     </TableCell>
                                     <TableCell className="py-3 text-right pr-6 font-bold text-yellow-300 truncate" title={`PHP ${product.price}`}>
                                       PHP {product.price.toLocaleString()}
