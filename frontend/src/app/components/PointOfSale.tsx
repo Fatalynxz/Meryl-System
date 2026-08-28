@@ -1474,22 +1474,22 @@ function formatReceiptNumber(salesId?: string) {
               )}
 
               {/* 4. QUANTITY STEPPER & ADD TO CART BAR */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end pt-1">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
-                    Quantity
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-3 border-t border-[#222230]">
+                <div className="flex items-center gap-3">
+                  <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider whitespace-nowrap">
+                    Quantity:
                   </Label>
-                  <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center gap-1 bg-[#14141f] p-1 rounded-xl border border-[#2e2e42]">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       onClick={() => {
                         const current = Math.max(1, Number(quantity) || 1);
                         if (current > 1) setQuantity(String(current - 1));
                       }}
                       disabled={!selectedSize || Number(quantity) <= 1}
-                      className="h-10 w-10 border-[#2e2e3f] bg-[#171724] text-yellow-100 hover:bg-[#222232] rounded-xl"
+                      className="h-8 w-8 bg-[#1e1e2d] text-yellow-200 hover:bg-[#2c2c40] hover:text-white rounded-lg disabled:opacity-30 text-sm font-bold"
                     >
                       -
                     </Button>
@@ -1504,34 +1504,32 @@ function formatReceiptNumber(salesId?: string) {
                       onBlur={() => {
                         if (!quantity || Number(quantity) <= 0) setQuantity("1");
                       }}
-                      className="h-10 text-center font-bold text-base bg-[#171724] border-[#2e2e3f] text-yellow-100 rounded-xl"
+                      className="h-8 w-14 text-center font-bold text-sm bg-transparent border-0 text-yellow-100 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       onClick={() => {
                         const current = Math.max(1, Number(quantity) || 1);
                         setQuantity(String(current + 1));
                       }}
                       disabled={!selectedSize}
-                      className="h-10 w-10 border-[#2e2e3f] bg-[#171724] text-yellow-100 hover:bg-[#222232] rounded-xl"
+                      className="h-8 w-8 bg-[#1e1e2d] text-yellow-200 hover:bg-[#2c2c40] hover:text-white rounded-lg disabled:opacity-30 text-sm font-bold"
                     >
                       +
                     </Button>
                   </div>
                 </div>
 
-                <div className="flex justify-end">
-                  <Button
-                    onClick={addToCart}
-                    disabled={!selectedProductKey || !selectedSize}
-                    className="h-10 w-full sm:w-auto bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold px-6 rounded-xl shadow-lg disabled:opacity-40 flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add to Cart</span>
-                  </Button>
-                </div>
+                <Button
+                  onClick={addToCart}
+                  disabled={!selectedProductKey || !selectedSize}
+                  className="h-10 bg-yellow-400 text-red-950 hover:bg-yellow-500 font-bold text-xs sm:text-sm px-6 rounded-xl shadow-lg disabled:opacity-40 flex items-center justify-center gap-2 transition-transform active:scale-95"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add to Cart</span>
+                </Button>
               </div>
             </div>
           </CardContent>
