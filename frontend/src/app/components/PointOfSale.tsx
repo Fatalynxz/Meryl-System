@@ -45,6 +45,7 @@ type ProductVariant = {
   reserved_quantity: number;
   expiration_date: string;
   status: string;
+  image_url?: string;
 };
 
 type ProductGroup = {
@@ -86,13 +87,26 @@ function isSellableProduct(product: ProductVariant) {
   );
 }
 
-function ProductPhotoPlaceholder({ productName }: { productName: string }) {
+function ProductPhotoPlaceholder({ productName, imageUrl }: { productName: string; imageUrl?: string }) {
   const initial = String(productName || "P").trim().charAt(0).toUpperCase() || "P";
 
+  if (imageUrl) {
+    return (
+      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#2e2e42] bg-[#1a1a27] shadow-inner">
+        <img
+          src={imageUrl}
+          alt={productName}
+          className="h-full w-full object-cover"
+          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-yellow-400/25 bg-[#211b18] text-yellow-200 shadow-inner shadow-black/25">
-      <Package className="h-6 w-6 text-yellow-300/75" />
-      <span className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-tl-md bg-yellow-400 text-[10px] font-bold text-red-950">
+    <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-yellow-400/20 bg-[#1e1e2c] text-yellow-200 shadow-inner">
+      <Package className="h-5 w-5 text-yellow-300/60" />
+      <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-tl-md bg-yellow-400 text-[9px] font-bold text-red-950">
         {initial}
       </span>
     </div>
@@ -342,6 +356,7 @@ export function PointOfSale() {
         reserved_quantity: reservedQuantity,
         expiration_date: expirationDate ?? "",
         status: expired ? "Expired" : status === "active" || status === "available" ? "Active" : "Inactive",
+        image_url: row.image_url ?? row.image ?? "",
       });
     }
     return variants;
@@ -1174,7 +1189,7 @@ function formatReceiptNumber(salesId?: string) {
                                   >
                                     <TableCell className="py-3 text-center">
                                       <div className="flex justify-center">
-                                        <ProductPhotoPlaceholder productName={product.product_name} />
+                                        <ProductPhotoPlaceholder productName={product.product_name} imageUrl={product.image_url} />
                                       </div>
                                     </TableCell>
                                     <TableCell className="py-3 text-left pl-8 font-semibold text-white truncate group-hover:text-yellow-300" title={product.product_name}>

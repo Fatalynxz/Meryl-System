@@ -40,6 +40,7 @@ type UiProduct = {
   expiration_date: string;
   hasInventory: boolean;
   isArchived: boolean;
+  image_url?: string;
 };
 
 type ProductFormData = {
@@ -50,6 +51,7 @@ type ProductFormData = {
   gender: string;
   size: string;
   unit_price: number;
+  image_url: string;
 };
 
 type StockFormData = {
@@ -71,6 +73,7 @@ const defaultProductForm: ProductFormData = {
   gender: "",
   size: "",
   unit_price: 0,
+  image_url: "",
 };
 
 const defaultStockForm: StockFormData = {
@@ -257,6 +260,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         expiration_date: String(inventory?.expiration_date ?? ""),
         hasInventory: Boolean(inventory?.inventory_id),
         isArchived,
+        image_url: String(row.image_url ?? "").trim(),
       };
     });
   }, [inventoryByProductId, productsQuery.data]);
@@ -310,6 +314,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       gender: product.gender === "N/A" ? "" : product.gender,
       size: product.size === "N/A" ? "" : product.size,
       unit_price: product.unit_price,
+      image_url: product.image_url || "",
     });
     const variantIds = products
       .filter((candidate) => productGroupKey(candidate) === productGroupKey(product))
@@ -354,6 +359,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       brand: productForm.brand.trim(),
       category_id: productForm.category_id,
       cost_price: Number(productForm.unit_price || 0),
+      image_url: productForm.image_url?.trim() || null,
     } as any;
 
     const thisVariantPayload = {
@@ -361,6 +367,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       size: productForm.size.trim() || null,
       color: productForm.color.trim() || null,
       gender: productForm.gender || null,
+      image_url: productForm.image_url?.trim() || null,
     } as any;
 
     try {
@@ -1093,7 +1100,8 @@ function ProductSettingsPage({
             <Table>
               <TableHeader className="bg-[#171724]">
                 <TableRow className="border-[#262633] hover:bg-transparent">
-                  <TableHead className="text-yellow-300 font-semibold text-xs py-3.5">Product & SKU</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs py-3.5 w-[56px] pl-4">Photo</TableHead>
+                  <TableHead className="text-yellow-300 font-semibold text-xs">Product & SKU</TableHead>
                   <TableHead className="text-yellow-300 font-semibold text-xs">Brand & Category</TableHead>
                   <TableHead className="text-yellow-300 font-semibold text-xs">Variant (Color/Size)</TableHead>
                   <TableHead className="text-yellow-300 font-semibold text-xs text-right">Unit Cost</TableHead>
@@ -1113,6 +1121,22 @@ function ProductSettingsPage({
 
                     return (
                       <TableRow key={product.product_id} className="border-[#262633] hover:bg-[#1b1b26] transition-colors">
+                        {/* Thumbnail Photo */}
+                        <TableCell className="py-2.5 pl-4 pr-1">
+                          <div className="w-10 h-10 rounded-lg bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center flex-shrink-0">
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
+                            ) : (
+                              <Package className="w-4 h-4 text-yellow-400/40" />
+                            )}
+                          </div>
+                        </TableCell>
+
                         {/* Product & SKU */}
                         <TableCell className="py-3">
                           <p className="font-semibold text-white text-sm">{product.name}</p>
@@ -1467,6 +1491,29 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
           </Select>
         </div>
         <NumberField label="Unit Price" value={formData.unit_price} onChange={(value) => setFormData({ ...formData, unit_price: value })} />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-yellow-300">Product Image URL (Optional)</Label>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center flex-shrink-0">
+            {formData.image_url ? (
+              <img
+                src={formData.image_url}
+                alt="Preview"
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+              />
+            ) : (
+              <Package className="w-5 h-5 text-yellow-400/40" />
+            )}
+          </div>
+          <Input
+            value={formData.image_url || ""}
+            onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+            placeholder="e.g. https://images.unsplash.com/... or direct image link"
+            className="h-10 bg-red-950/60 border-red-800 text-yellow-100 placeholder:text-yellow-300/30 text-xs rounded-xl flex-1"
+          />
+        </div>
       </div>
     </div>
   );
