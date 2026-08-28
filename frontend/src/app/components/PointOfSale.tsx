@@ -1319,7 +1319,7 @@ function formatReceiptNumber(salesId?: string) {
                 <div className="space-y-2 rounded-xl bg-[#14141e] border border-[#262636] p-3.5 shadow-inner">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold text-yellow-300 uppercase tracking-wider">
-                      3. Available Sizes (Shopee-Style Tiles)
+                      3. Available Sizes
                     </Label>
                     <span className="text-xs text-yellow-200/60">
                       Tap a size tile to select
