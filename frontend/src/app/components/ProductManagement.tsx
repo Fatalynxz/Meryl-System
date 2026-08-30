@@ -354,21 +354,26 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     if (validation) return toast.error(validation);
 
     const cleanProductName = productNameWithoutBrand(productForm.name, productForm.brand);
-    const basePayload = {
+    const trimmedImageUrl = productForm.image_url?.trim();
+    const basePayload: any = {
       product_name: cleanProductName,
       brand: productForm.brand.trim(),
       category_id: productForm.category_id,
       cost_price: Number(productForm.unit_price || 0),
-      image_url: productForm.image_url?.trim() || null,
-    } as any;
+    };
+    if (trimmedImageUrl) {
+      basePayload.image_url = trimmedImageUrl;
+    }
 
-    const thisVariantPayload = {
+    const thisVariantPayload: any = {
       ...basePayload,
       size: productForm.size.trim() || null,
       color: productForm.color.trim() || null,
       gender: productForm.gender || null,
-      image_url: productForm.image_url?.trim() || null,
-    } as any;
+    };
+    if (trimmedImageUrl) {
+      thisVariantPayload.image_url = trimmedImageUrl;
+    }
 
     try {
       if (editingProduct) {
@@ -383,7 +388,12 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
           if (!targetIds.length) {
             return toast.error("Select at least one variant to update.");
           }
-          const { error } = await supabase.from("product").update(basePayload as any).in("product_id", targetIds);
+          let { error } = await supabase.from("product").update(basePayload as any).in("product_id", targetIds);
+          if (error && String(error.message ?? "").toLowerCase().includes("image_url")) {
+            const { image_url, ...restPayload } = basePayload;
+            const retry = await supabase.from("product").update(restPayload as any).in("product_id", targetIds);
+            error = retry.error;
+          }
           if (error) throw error;
           toast.success(`Updated ${targetIds.length} variant${targetIds.length === 1 ? "" : "s"} (base fields only).`);
         }
