@@ -335,9 +335,9 @@ export function PointOfSale() {
       const inventory = Array.isArray(row.inventory)
         ? row.inventory[0]
         : row.inventory ?? inventoryByProductId.get(String(row.product_id ?? ""));
-      const availableStock = Number(inventory?.stock_quantity ?? 0);
-      const onHandStock = Number(inventory?.on_hand_stock ?? inventory?.stock_quantity ?? 0);
-      const reservedQuantity = Number(inventory?.held_stock ?? inventory?.reserved_quantity ?? 0);
+      const onHandStock = Number(inventory?.stock_quantity ?? 0);
+      const reservedQuantity = Number(inventory?.reserved_quantity ?? inventory?.held_stock ?? 0);
+      const availableStock = Math.max(0, onHandStock - reservedQuantity);
       const expirationDate = inventory?.expiration_date ? String(inventory.expiration_date).slice(0, 10) : null;
       const status = String(row.status ?? "active").toLowerCase();
       const expired = Boolean(expirationDate && new Date(expirationDate).getTime() < Date.now());
@@ -1269,7 +1269,7 @@ function formatReceiptNumber(salesId?: string) {
                                     </TableCell>
                                     <TableCell className="py-3 text-left pl-6 font-semibold text-white truncate group-hover:text-yellow-300" title={model.product_name}>
                                       <p className="font-bold text-sm text-white group-hover:text-yellow-300">{model.product_name}</p>
-                                      <span className="text-[11px] text-emerald-400 font-medium">{model.total_stock} pairs in stock</span>
+                                      <span className="text-[11px] text-emerald-400 font-medium">{model.total_stock} pairs available</span>
                                     </TableCell>
                                     <TableCell className="py-3 text-center text-yellow-100/90 truncate" title={model.brand}>
                                       {model.brand}
@@ -1458,7 +1458,7 @@ function formatReceiptNumber(salesId?: string) {
                                       : "bg-emerald-950/70 text-emerald-300 border border-emerald-500/30"
                               }`}
                             >
-                              {isOutOfStock ? "Out of Stock" : isLowStock ? `🔥 Only ${variant.stock_quantity} left!` : `${variant.stock_quantity} in stock`}
+                              {isOutOfStock ? "Out of Stock" : isLowStock ? `Low Stock (${variant.stock_quantity} left)` : `${variant.stock_quantity} available`}
                             </span>
                           </button>
                         );
