@@ -1279,17 +1279,17 @@ export function ReportsAnalytics() {
             </CardContent>
           </Card>
 
-          {/* TOP 5 LEADERBOARD & MULTI-DIMENSIONAL RANKINGS */}
+          {/* TOP 5 PRODUCT RANKINGS */}
           <Card className="bg-[#0b0b0f] border-[#24242d] shadow-xl overflow-hidden">
             <CardHeader className="border-b border-[#1f1f2b] pb-4 bg-[#0e0e14]">
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="text-yellow-300 flex items-center gap-2.5 text-lg font-bold">
-                    <Trophy className="w-5 h-5 text-yellow-400" />
-                    Top 5 Best-Selling Leaderboard
+                    <BarChart3 className="w-5 h-5 text-yellow-400" />
+                    Top 5 Product Rankings
                   </CardTitle>
                   <p className="mt-1 text-xs text-zinc-400">
-                    Rankings across brand, size, variant, category, gender & payment method • {selectedRangeLabel}
+                    Performance rankings across brand, size, variant, category, gender, and payment method • {selectedRangeLabel}
                   </p>
                 </div>
 
@@ -1335,7 +1335,7 @@ export function ReportsAnalytics() {
                           : 'text-zinc-400 hover:text-white'
                       }`}
                     >
-                      Revenue (₱)
+                      Revenue (PHP)
                     </button>
                   </div>
                 </div>
@@ -1351,7 +1351,7 @@ export function ReportsAnalytics() {
                   { id: 'category', label: 'Category', icon: BarChart3 },
                   { id: 'gender', label: 'Gender', icon: UserCheck },
                   { id: 'payment', label: 'Payment Method', icon: CreditCard },
-                  { id: 'grid', label: 'View All (Grid)', icon: Grid },
+                  { id: 'grid', label: 'All Dimensions (Grid)', icon: Grid },
                 ].map((tab) => {
                   const Icon = tab.icon;
                   const isActive = topDimensionTab === tab.id;
@@ -1376,8 +1376,8 @@ export function ReportsAnalytics() {
 
             <CardContent className="p-5">
               {topDimensionTab !== 'grid' ? (
-                // SINGLE DIMENSION EXPANDED VIEW
-                <div className="space-y-3">
+                // SINGLE DIMENSION FORMAL VIEW
+                <div className="space-y-2.5">
                   {(() => {
                     const currentList =
                       topSortBy === 'units'
@@ -1392,103 +1392,74 @@ export function ReportsAnalytics() {
                       );
                     }
 
-                    return currentList.map((item: any) => {
-                      const isGold = item.rank === 1;
-                      const isSilver = item.rank === 2;
-                      const isBronze = item.rank === 3;
-
-                      return (
-                        <div
-                          key={item.key}
-                          className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all ${
-                            isGold
-                              ? 'bg-gradient-to-r from-yellow-950/20 via-[#13131d] to-[#0e0e16] border-yellow-500/30'
-                              : 'bg-[#101017] border-[#222230] hover:border-[#333346]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3.5">
-                            {/* Rank Badge */}
-                            <div
-                              className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm border shadow-sm ${
-                                isGold
-                                  ? 'bg-yellow-400 text-red-950 border-yellow-300 font-extrabold'
-                                  : isSilver
-                                    ? 'bg-zinc-200 text-zinc-900 border-zinc-100 font-bold'
-                                    : isBronze
-                                      ? 'bg-amber-600 text-amber-950 border-amber-400 font-bold'
-                                      : 'bg-[#1a1a24] text-zinc-400 border-[#2d2d3d]'
-                              }`}
-                            >
-                              #{item.rank}
-                            </div>
-
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="text-yellow-100 font-semibold text-sm sm:text-base">
-                                  {item.name}
-                                </p>
-                                {isGold && (
-                                  <Badge className="bg-yellow-400/20 text-yellow-300 border-yellow-500/40 text-[10px] py-0 px-1.5">
-                                    Top 1 Leader
-                                  </Badge>
-                                )}
-                              </div>
-                              {item.subtitle && (
-                                <p className="text-xs text-zinc-400 mt-0.5">{item.subtitle}</p>
-                              )}
-                            </div>
+                    return currentList.map((item: any) => (
+                      <div
+                        key={item.key}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border bg-[#101017] border-[#222230] hover:border-[#333346] transition-colors"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          {/* Formal Numeric Rank Badge */}
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs bg-[#161622] text-zinc-300 border border-[#2a2a3c] shrink-0">
+                            {item.rank}
                           </div>
 
-                          <div className="mt-3 sm:mt-0 flex items-center gap-6 sm:justify-end">
-                            {/* Relative Progress Bar */}
-                            <div className="w-28 sm:w-36 hidden md:block">
-                              <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
-                                <span>Share</span>
-                                <span>{item.share}%</span>
-                              </div>
-                              <div className="w-full bg-[#1e1e2c] h-2 rounded-full overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full ${
-                                    isGold ? 'bg-yellow-400' : isSilver ? 'bg-zinc-300' : isBronze ? 'bg-amber-500' : 'bg-sky-400'
-                                  }`}
-                                  style={{ width: `${item.share}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Numbers */}
-                            <div className="text-right min-w-[120px]">
-                              <p className="text-yellow-300 font-bold text-sm sm:text-base">
-                                {money(item.revenue)}
-                              </p>
-                              <p className="text-xs text-zinc-400">
-                                {item.sales.toLocaleString()} {topDimensionTab === 'payment' ? 'transactions' : 'pairs sold'}
-                              </p>
-                            </div>
+                          <div>
+                            <p className="text-yellow-100 font-semibold text-sm">
+                              {item.name}
+                            </p>
+                            {item.subtitle && (
+                              <p className="text-xs text-zinc-400 mt-0.5">{item.subtitle}</p>
+                            )}
                           </div>
                         </div>
-                      );
-                    });
+
+                        <div className="mt-2.5 sm:mt-0 flex items-center gap-6 sm:justify-end">
+                          {/* Relative Share Bar */}
+                          <div className="w-28 sm:w-36 hidden md:block">
+                            <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
+                              <span>Share</span>
+                              <span>{item.share}%</span>
+                            </div>
+                            <div className="w-full bg-[#1e1e2c] h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-yellow-400/80"
+                                style={{ width: `${item.share}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Metric Numbers */}
+                          <div className="text-right min-w-[120px]">
+                            <p className="text-yellow-300 font-semibold text-sm">
+                              {money(item.revenue)}
+                            </p>
+                            <p className="text-xs text-zinc-400">
+                              {item.sales.toLocaleString()} {topDimensionTab === 'payment' ? 'transactions' : 'pairs'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ));
                   })()}
                 </div>
               ) : (
-                // GRID VIEW: ALL DIMENSIONS SIDE-BY-SIDE
+                // FORMAL GRID VIEW: ALL DIMENSIONS SIDE-BY-SIDE
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {[
-                    { title: 'Top 5 Shoe Models', list: topSortBy === 'units' ? topRankings.products.byUnits : topRankings.products.byRevenue, icon: Package },
-                    { title: 'Top 5 Brands', list: topSortBy === 'units' ? topRankings.brand.byUnits : topRankings.brand.byRevenue, icon: Tag },
-                    { title: 'Top 5 Sizes', list: topSortBy === 'units' ? topRankings.size.byUnits : topRankings.size.byRevenue, icon: Layers },
-                    { title: 'Top 5 Variants (Color)', list: topSortBy === 'units' ? topRankings.variant.byUnits : topRankings.variant.byRevenue, icon: Sparkles },
-                    { title: 'Top 5 Categories', list: topSortBy === 'units' ? topRankings.category.byUnits : topRankings.category.byRevenue, icon: BarChart3 },
-                    { title: 'Top 5 Genders', list: topSortBy === 'units' ? topRankings.gender.byUnits : topRankings.gender.byRevenue, icon: UserCheck },
+                    { title: 'Shoe Models', list: topSortBy === 'units' ? topRankings.products.byUnits : topRankings.products.byRevenue, icon: Package },
+                    { title: 'Brand', list: topSortBy === 'units' ? topRankings.brand.byUnits : topRankings.brand.byRevenue, icon: Tag },
+                    { title: 'Size', list: topSortBy === 'units' ? topRankings.size.byUnits : topRankings.size.byRevenue, icon: Layers },
+                    { title: 'Variant (Color)', list: topSortBy === 'units' ? topRankings.variant.byUnits : topRankings.variant.byRevenue, icon: Sparkles },
+                    { title: 'Category', list: topSortBy === 'units' ? topRankings.category.byUnits : topRankings.category.byRevenue, icon: BarChart3 },
+                    { title: 'Gender', list: topSortBy === 'units' ? topRankings.gender.byUnits : topRankings.gender.byRevenue, icon: UserCheck },
                   ].map((dim) => {
                     const DimIcon = dim.icon;
                     return (
                       <div key={dim.title} className="bg-[#101018] border border-[#222232] rounded-xl p-4 space-y-3">
                         <div className="flex items-center justify-between border-b border-[#1f1f2e] pb-2">
-                          <h4 className="text-xs uppercase tracking-wider text-yellow-300 font-bold flex items-center gap-1.5">
+                          <h4 className="text-xs uppercase tracking-wider text-yellow-300 font-semibold flex items-center gap-1.5">
                             <DimIcon className="w-3.5 h-3.5 text-yellow-400" />
-                            {dim.title}
+                            Top 5 {dim.title}
                           </h4>
                           <span className="text-[10px] text-zinc-400">
                             {topSortBy === 'units' ? 'by units' : 'by revenue'}
@@ -1497,24 +1468,22 @@ export function ReportsAnalytics() {
 
                         <div className="space-y-2">
                           {dim.list.map((item: any) => (
-                            <div key={item.key} className="flex items-center justify-between text-xs py-1 border-b border-[#181824] last:border-0">
+                            <div key={item.key} className="flex items-center justify-between text-xs py-1.5 border-b border-[#181824] last:border-0">
                               <div className="flex items-center gap-2 overflow-hidden pr-2">
-                                <span className={`w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] shrink-0 ${
-                                  item.rank === 1 ? 'bg-yellow-400 text-red-950' : item.rank === 2 ? 'bg-zinc-200 text-zinc-900' : item.rank === 3 ? 'bg-amber-600 text-amber-950' : 'bg-zinc-800 text-zinc-400'
-                                }`}>
-                                  #{item.rank}
+                                <span className="w-5 h-5 rounded flex items-center justify-center font-medium text-[11px] bg-[#161622] text-zinc-400 border border-[#262638] shrink-0">
+                                  {item.rank}
                                 </span>
-                                <span className="text-yellow-100 truncate font-medium">{item.name}</span>
+                                <span className="text-zinc-200 truncate font-medium">{item.name}</span>
                               </div>
                               <div className="text-right shrink-0">
-                                <span className="text-yellow-300 font-bold">
+                                <span className="text-yellow-300 font-semibold">
                                   {topSortBy === 'units' ? `${item.sales} pairs` : money(item.revenue)}
                                 </span>
                               </div>
                             </div>
                           ))}
                           {!dim.list.length && (
-                            <p className="text-xs text-zinc-500 py-3 text-center">No sales yet.</p>
+                            <p className="text-xs text-zinc-500 py-3 text-center">No sales recorded.</p>
                           )}
                         </div>
                       </div>
