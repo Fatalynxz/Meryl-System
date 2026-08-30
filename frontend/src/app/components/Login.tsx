@@ -46,7 +46,7 @@ export function Login() {
     setNotice('');
 
     try {
-      const cleanUsername = username.trim();
+      const cleanUsername = username.trim().toLowerCase();
       const cleanPassword = password.trim();
 
       // Step 1: Validate credentials (tries RPC first, then fallback direct table lookup)
@@ -66,8 +66,8 @@ export function Login() {
         setCurrentUser(authUser);
         navigate(getPostLoginPath(authUser));
       }, 3000);
-    } catch {
-      setError('Invalid username or password');
+    } catch (err: any) {
+      setError(err?.message || 'Invalid username or password');
       setSubmitting(false);
     }
   };
@@ -317,9 +317,9 @@ export function Login() {
                   type="text"
                   placeholder="Enter username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                   required
-                  className="w-full pl-10 pr-3 py-2.5 bg-[#1D1D25] border border-white/5 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFD60A]/40 focus:ring-2 focus:ring-[#FFD60A]/20 transition"
+                  className="w-full pl-10 pr-3 py-2.5 bg-[#1D1D25] border border-white/5 rounded-xl text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#FFD60A]/40 focus:ring-2 focus:ring-[#FFD60A]/20 transition lowercase"
                 />
               </div>
             </div>

@@ -134,8 +134,12 @@ async function findAppUserByEmail(email: string): Promise<AuthUser | null> {
       }
     | undefined;
 
-  if (!row || String(row.status ?? "active").toLowerCase() !== "active") {
+  if (!row) {
     return null;
+  }
+
+  if (String(row.status ?? "active").toLowerCase() === "inactive" || String(row.status ?? "").toLowerCase() === "disabled") {
+    throw new Error("This account is inactive. Please contact the administrator.");
   }
 
   const { data: roleRows, error: roleError } = await supabase
@@ -389,7 +393,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const validateCredentials = useCallback(async (username: string, password: string): Promise<AuthUser | null> => {
-    const cleanUsername = username.trim();
+    const cleanUsername = username.trim().toLowerCase();
     const cleanPassword = password.trim();
     if (!cleanUsername || !cleanPassword) return null;
 
@@ -401,9 +405,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!error && data) {
+        const payload = data as any;
+        if (payload.error === "inactive" || String(payload.status ?? "").toLowerCase() === "inactive") {
+          throw new Error("This account is inactive. Please contact the administrator.");
+        }
         return data as AuthUser;
       }
-    } catch {
+    } catch (rpcErr: any) {
+      if (rpcErr?.message && rpcErr.message.toLowerCase().includes("inactive")) {
+        throw rpcErr;
+      }
       // Ignore RPC error and fall through to direct DB lookup
     }
 
@@ -418,22 +429,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userError || !users || users.length === 0) return null;
 
       const row = users[0] as any;
-      if (String(row.status ?? "active").toLowerCase() !== "active") return null;
+      const isInactive =
+        String(row.status ?? "active").trim().toLowerCase() === "inactive" ||
+        String(row.status ?? "").trim().toLowerCase() === "disabled" ||
+        String(row.status ?? "").trim().toLowerCase() === "deactivated";
 
       const dbPassword = String(row.password ?? "");
       const isMatch = (dbPassword === cleanPassword) || (dbPassword === password);
 
-      if (!isMatch) {
-        // Check default fallback accounts
-        const isDefaultAdmin = (cleanUsername.toLowerCase() === "admin" && (cleanPassword === "admin123" || cleanPassword === "Admin@123"));
-        const isDefaultSales = (cleanUsername.toLowerCase() === "sales" && (cleanPassword === "sales123" || cleanPassword === "Cashier@123"));
-        const isDefaultCashier1 = (cleanUsername.toLowerCase() === "cashier1" && (cleanPassword === "sales123" || cleanPassword === "Cashier@123"));
-        const isDefaultCashier2 = (cleanUsername.toLowerCase() === "cashier2" && (cleanPassword === "sales123" || cleanPassword === "Cashier@123"));
-        const isDefaultInventory = (cleanUsername.toLowerCase() === "inventory" && (cleanPassword === "inv123" || cleanPassword === "Inventory@123"));
+      // Check default fallback accounts
+      const isDefaultAdmin = (cleanUsername === "admin" && (cleanPassword === "admin123" || cleanPassword === "Admin@123"));
+      const isDefaultSales = (cleanUsername === "sales" && (cleanPassword === "sales123" || cleanPassword === "Cashier@123"));
+      const isDefaultCashier1 = (cleanUsername === "cashier1" && (cleanPassword === "sales123" || cleanPassword === "Cashier@123"));
+      const isDefaultCashier2 = (cleanUsername === "cashier2" && (cleanPassword === "sales123" || cleanPassword === "Cashier@123"));
+      const isDefaultInventory = (cleanUsername === "inventory" && (cleanPassword === "inv123" || cleanPassword === "Inventory@123"));
 
-        if (!isDefaultAdmin && !isDefaultSales && !isDefaultCashier1 && !isDefaultCashier2 && !isDefaultInventory) {
-          return null;
-        }
+      if (isInactive) {
+        throw new Error("This account is inactive. Please contact the administrator.");
+      }
+
+      if (!isMatch && !isDefaultAdmin && !isDefaultSales && !isDefaultCashier1 && !isDefaultCashier2 && !isDefaultInventory) {
+        return null;
       }
 
       // Fetch role

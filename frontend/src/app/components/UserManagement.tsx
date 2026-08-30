@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
-import { Plus, Search, Edit, Trash2, Users, Shield, UserCog } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, Shield, UserCog, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../lib/auth-context';
 import { useRoles, useUsers, useUsersMutations } from '../../lib/hooks';
@@ -22,6 +22,7 @@ type UserRow = {
   staff_code: string;
   name: string;
   username: string;
+  password?: string;
   email?: string | null;
   role: AppRole;
   role_id: string;
@@ -124,7 +125,8 @@ export function UserManagement() {
         display_id: `USR-${String(index + 1).padStart(3, '0')}`,
         staff_code: String(raw.staff_code ?? ''),
         name: String(raw.name ?? 'Unnamed User'),
-        username: String(raw.username ?? ''),
+        username: String(raw.username ?? '').toLowerCase(),
+        password: String(raw.password ?? ''),
         email: raw.email ?? '',
         role,
         role_id: String(raw.role_id ?? raw.role?.role_id ?? ''),
@@ -159,16 +161,21 @@ export function UserManagement() {
     if (!roleId) throw new Error('Role data is still loading. Please try again.');
     if (!currentUser?.user_id) throw new Error('You must be logged in as an administrator.');
 
-    return {
+    const payload: any = {
       actor_user_id: currentUser.user_id,
       staff_code: source.staff_code.trim() || null,
       name: source.name.trim() || existing?.name,
-      username: source.username.trim() || existing?.username,
-      password: source.password.trim(),
+      username: (source.username.trim() || existing?.username || '').toLowerCase().replace(/\s+/g, ''),
       role_id: roleId,
       status: toDbUserStatus(source.status),
       email: source.email.trim() || null,
     };
+    if (source.password.trim()) {
+      payload.password = source.password.trim();
+    } else if (existing?.password) {
+      payload.password = existing.password;
+    }
+    return payload;
   };
 
   const handleAddUser = async () => {
@@ -316,10 +323,10 @@ export function UserManagement() {
     setEditingUser(item);
     setFormData({
       name: item.name,
-      username: item.username,
+      username: item.username.toLowerCase(),
       staff_code: item.staff_code || '',
       email: item.email ?? '',
-      password: '',
+      password: item.password || '',
       role: item.role,
       status: item.status,
     });
@@ -514,6 +521,8 @@ function UserForm({ formData, setFormData, requirePassword = false }: {
   setFormData: (data: UserFormData) => void;
   requirePassword?: boolean;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div className="grid gap-4 py-4">
       <div className="space-y-2">
@@ -552,8 +561,9 @@ function UserForm({ formData, setFormData, requirePassword = false }: {
           <Input
             id="username"
             value={formData.username}
-            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-            className="bg-red-600 border-red-800 text-yellow-200"
+            onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
+            placeholder="e.g., admin_user"
+            className="bg-red-600 border-red-800 text-yellow-200 lowercase"
           />
         </div>
         <div className="space-y-2">
@@ -571,13 +581,25 @@ function UserForm({ formData, setFormData, requirePassword = false }: {
         <Label htmlFor="password" className="text-yellow-300">
           Password {requirePassword ? '*' : '(leave blank to keep current)'}
         </Label>
-        <Input
-          id="password"
-          type="password"
-          value={formData.password}
-          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          className="bg-red-600 border-red-800 text-yellow-200"
-        />
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            placeholder={requirePassword ? 'Enter password' : 'Enter password or leave blank'}
+            className="bg-red-600 border-red-800 text-yellow-200 pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-yellow-300/70 hover:text-yellow-200 transition-colors p-1"
+            tabIndex={-1}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+          >
+            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
