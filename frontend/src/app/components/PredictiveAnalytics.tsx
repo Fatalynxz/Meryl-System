@@ -18,7 +18,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useCustomers, useProducts, usePromotions, useSales } from "../../lib/hooks";
+import { useCustomers, useProducts, usePromotions, useReturns, useSales } from "../../lib/hooks";
 import { productAnalyticsSnapshotsApi } from "../../lib/api";
 
 type RevenueTrendPeriod = "daily" | "weekly" | "monthly" | "quarterly" | "annually";
@@ -307,11 +307,60 @@ export function PredictiveAnalytics() {
   const productsQuery = useProducts();
   const customersQuery = useCustomers();
   const promotionsQuery = usePromotions();
+  const returnsQuery = useReturns();
 
   const sales = ((salesQuery.data as any[]) ?? []).filter(isCompletedSale);
   const products = (productsQuery.data as any[]) ?? [];
   const customers = (customersQuery.data as any[]) ?? [];
   const promotions = (promotionsQuery.data as any[]) ?? [];
+  const returnsData = (returnsQuery.data as any[]) ?? [];
+
+  const { defectiveReplacementsByProduct, totalReplacementsCount, totalDefectiveLoss, totalAvailableStock, totalReservedStock } = useMemo(() => {
+    const map = new Map<string, { count: number; lossAmount: number }>();
+    let count = 0;
+    let loss = 0;
+
+    const pMap = new Map(products.map((p: any) => [String(p.product_id ?? ""), p]));
+
+    returnsData.forEach((ret: any) => {
+      const details = Array.isArray(ret.return_details) ? ret.return_details : [];
+      details.forEach((d: any) => {
+        const pid = String(d.returned_product_id ?? d.product_id ?? "");
+        if (!pid) return;
+        const qty = Number(d.quantity_returned ?? d.quantity ?? 1);
+        const product = pMap.get(pid);
+        const unitCost = Number(product?.cost_price ?? product?.unit_price ?? product?.price ?? 0);
+        const lineLoss = unitCost * qty;
+
+        count += qty;
+        loss += lineLoss;
+
+        const existing = map.get(pid) ?? { count: 0, lossAmount: 0 };
+        existing.count += qty;
+        existing.lossAmount += lineLoss;
+        map.set(pid, existing);
+      });
+    });
+
+    let availStock = 0;
+    let resStock = 0;
+    products.forEach((p: any) => {
+      const inv = getInventory(p);
+      const onHand = Number(inv?.stock_quantity ?? p?.stock_quantity ?? 0);
+      const reserved = Number(inv?.reserved_quantity ?? inv?.held_stock ?? p?.reserved_stock ?? 0);
+      availStock += Math.max(0, onHand - reserved);
+      resStock += reserved;
+    });
+
+    return {
+      defectiveReplacementsByProduct: map,
+      totalReplacementsCount: count,
+      totalDefectiveLoss: loss,
+      totalAvailableStock: availStock,
+      totalReservedStock: resStock,
+    };
+  }, [returnsData, products]);
+
   const effectiveProductAnalyticsPeriod: RevenueTrendPeriod =
     productAnalyticsPeriod === "custom" ? "monthly" : productAnalyticsPeriod;
   const snapshotQuery = useQuery({
@@ -1706,6 +1755,30 @@ export function PredictiveAnalytics() {
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-4">
+            {/* Inventory Reconciliation & Quality Summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-[#2b2b36] bg-[#111118] p-3">
+                <span className="text-xs text-white/50 block font-medium">Available Sellable Stock</span>
+                <span className="text-lg font-bold text-emerald-400 block mt-0.5">{totalAvailableStock} pairs</span>
+                <span className="text-[11px] text-white/40 block">Excludes {totalReservedStock} held units</span>
+              </div>
+              <div className="rounded-xl border border-[#2b2b36] bg-[#111118] p-3">
+                <span className="text-xs text-white/50 block font-medium">Customer Units Sold</span>
+                <span className="text-lg font-bold text-yellow-300 block mt-0.5">{analytics.totalUnits90} pairs</span>
+                <span className="text-[11px] text-white/40 block">Actual customer purchases</span>
+              </div>
+              <div className="rounded-xl border border-[#2b2b36] bg-[#111118] p-3">
+                <span className="text-xs text-white/50 block font-medium">Defective Replacements</span>
+                <span className="text-lg font-bold text-amber-400 block mt-0.5">{totalReplacementsCount} pair{totalReplacementsCount === 1 ? "" : "s"}</span>
+                <span className="text-[11px] text-amber-400/80 block">Quarantined / Not restocked</span>
+              </div>
+              <div className="rounded-xl border border-[#2b2b36] bg-[#111118] p-3">
+                <span className="text-xs text-white/50 block font-medium">Defective Stock Loss</span>
+                <span className="text-lg font-bold text-red-400 block mt-0.5">{money(totalDefectiveLoss)}</span>
+                <span className="text-[11px] text-white/40 block">Wholesale cost write-off</span>
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-[#2b2b36] bg-[#111118] p-4">
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -1745,16 +1818,22 @@ export function PredictiveAnalytics() {
                           const product = row.sizes.get(size);
                           const sold = Number(product?.unitsPeriod ?? 0);
                           const stock = Number(product?.stock ?? 0);
+                          const defectInfo = product ? defectiveReplacementsByProduct.get(product.id) : null;
+                          const defectCount = defectInfo?.count ?? 0;
                           const diameter = product ? Math.max(12, Math.min(36, 10 + (stock / maxSizeCurveStock) * 26)) : 0;
                           const backgroundColor = salesVelocityColor(sold, maxSizeCurveSold);
                           return (
                             <div
                               key={`${row.key}-${size}`}
                               className="flex min-h-[68px] items-center justify-center border-b border-r border-[#2b2b36] px-2 py-2"
-                              title={product ? `${row.productName} / Size ${size}: ${sold} sold, ${stock} available` : `${row.productName} / Size ${size}: no variant`}
+                              title={
+                                product
+                                  ? `${row.productName} / Size ${size}: ${sold} sold, ${stock} available${defectCount > 0 ? ` (${defectCount} defective replaced)` : ""}`
+                                  : `${row.productName} / Size ${size}: no variant`
+                              }
                             >
                               {product ? (
-                                <div className="flex flex-col items-center gap-1">
+                                <div className="flex flex-col items-center gap-0.5">
                                   <span
                                     className="inline-flex items-center justify-center rounded-full border border-white/25 text-[10px] font-bold text-white shadow-sm"
                                     style={{ width: `${diameter}px`, height: `${diameter}px`, backgroundColor }}
@@ -1762,6 +1841,9 @@ export function PredictiveAnalytics() {
                                     {stock}
                                   </span>
                                   <span className="text-[10px] font-semibold text-white/60">{sold} sold</span>
+                                  {defectCount > 0 ? (
+                                    <span className="text-[9px] font-semibold text-amber-400">({defectCount} replaced)</span>
+                                  ) : null}
                                 </div>
                               ) : (
                                 <span className="text-xs text-white/20">-</span>
