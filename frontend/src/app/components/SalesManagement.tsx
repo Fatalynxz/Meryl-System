@@ -71,7 +71,7 @@ function extractReplacementName(text: string) {
 }
 
 function formatCurrency(value: number) {
-  return `PHP ${Number(value || 0).toFixed(2)}`;
+  return `PHP ${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function SalesManagement() {
@@ -208,16 +208,39 @@ export function SalesManagement() {
           replacementCredits: replacementInfo.credits,
           replacementDetails: replacementInfo.details,
           lastActivityDate: formatDate(replacementInfo.lastActivity ?? sale.updated_at ?? sale.transaction_date),
-          saleDetails: details.map((d: any) => ({
-            sales_detail_id: d.sales_detail_id,
-            product_id: d.product_id,
-            productName: (Array.isArray(d.product) ? d.product[0]?.product_name : d.product?.product_name) ?? "N/A",
-            quantity: Number(d.quantity ?? 0),
-            returned_quantity: Number(d.returned_quantity ?? 0),
-            price: Number(d.price ?? 0),
-            discount_applied: Number(d.discount_applied ?? 0),
-            subtotal: Number(d.subtotal ?? 0),
-          })),
+          saleDetails: details.map((d: any) => {
+            const product = Array.isArray(d.product) ? d.product[0] : d.product;
+            const quantity = Number(d.quantity ?? 0);
+            const price = Number(d.price ?? 0);
+            const subtotal = Number(d.subtotal ?? 0);
+            const rawDiscount = Number(d.discount_applied ?? 0);
+            const gross = price * quantity;
+
+            let discountAmount = Math.max(0, gross - subtotal);
+            let discountPercent = rawDiscount;
+
+            if (discountPercent > 0 && discountAmount === 0 && gross > 0) {
+              discountAmount = Math.round(((gross * discountPercent) / 100) * 100) / 100;
+            } else if (discountPercent <= 0 && gross > 0 && discountAmount > 0) {
+              discountPercent = Math.round((discountAmount / gross) * 100);
+            }
+
+            return {
+              sales_detail_id: d.sales_detail_id,
+              product_id: d.product_id,
+              productName: (product?.product_name ?? "Unknown Shoe").trim(),
+              brand: String(product?.brand ?? "").trim(),
+              size: String(product?.size ?? "").trim(),
+              color: String(product?.color ?? "").trim(),
+              quantity,
+              returned_quantity: Number(d.returned_quantity ?? 0),
+              price,
+              gross,
+              discount_percent: discountPercent,
+              discount_amount: discountAmount,
+              subtotal,
+            };
+          }),
         };
       });
     },
@@ -422,72 +445,199 @@ export function SalesManagement() {
                             <Eye className="w-4 h-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-3xl max-h-[85vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle className="text-zinc-100">Sale Details - {sale.display_sales_id}</DialogTitle>
+                        <DialogContent className="bg-zinc-950 border border-zinc-800 text-zinc-100 max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl">
+                          <DialogHeader className="border-b border-zinc-800/80 pb-3">
+                            <div className="flex items-center justify-between pr-6">
+                              <DialogTitle className="text-zinc-100 text-lg font-bold">
+                                Sale Details • {sale.display_sales_id}
+                              </DialogTitle>
+                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
+                                sale.status === 'Completed' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' :
+                                sale.status === 'Pending' ? 'bg-amber-950 text-amber-300 border border-amber-800' :
+                                'bg-red-950 text-red-300 border border-red-800'
+                              }`}>
+                                {sale.status}
+                              </span>
+                            </div>
                           </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-                              <div><p className="text-sm text-zinc-400">Customer</p><p className="text-zinc-100">{sale.customerName}</p></div>
-                              {isAdmin && <div><p className="text-sm text-zinc-400">Cashier</p><p className="text-zinc-100">{sale.cashierName} ({sale.cashierCode})</p></div>}
-                              <div><p className="text-sm text-zinc-400">Transaction Date</p><p className="text-zinc-100">{sale.transaction_date}</p></div>
-                            </div>
-                            <div>
-                              <p className="text-sm text-zinc-400 mb-2">Products</p>
-                              {sale.saleDetails.map((detail: any, idx: number) => (
-                                <div key={idx} className="rounded-md border border-zinc-800 bg-zinc-900/80 p-3 mb-2">
-                                  <p className="text-zinc-100">{detail.productName}</p>
-                                  <p className="text-yellow-200 text-xs">Qty: {detail.quantity} x {formatCurrency(detail.price)} = {formatCurrency(detail.subtotal)}</p>
-                                  {detail.discount_applied > 0 && <p className="text-yellow-200 text-xs">Discount: -PHP {Number(detail.discount_applied ?? 0).toFixed(2)}</p>}
-                                </div>
-                              ))}
-                            </div>
-                            {sale.replacementDetails.length > 0 && (
-                              <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-                                <p className="mb-3 text-sm text-zinc-400">Replacement Items</p>
-                                <div className="space-y-3">
-                                  {sale.replacementDetails.map((detail: any) => (
-                                    <div key={detail.return_detail_id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:items-stretch">
-                                        <div className="rounded-md border border-red-900/50 bg-red-950/20 p-3">
-                                          <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replaced Item</p>
-                                          <p className="font-medium text-zinc-100">{detail.returnedProductName}</p>
-                                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-300">
-                                            <span>Qty: {detail.returnedQuantity}</span>
-                                            <span>Price: {formatCurrency(detail.returnedPrice)}</span>
-                                            <span>Size: {detail.returnedSize}</span>
-                                            <span>Color: {detail.returnedColor}</span>
-                                          </div>
-                                        </div>
-                                        <div className="rounded-md border border-emerald-900/50 bg-emerald-950/20 p-3">
-                                          <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replacement Item</p>
-                                          <p className="font-medium text-zinc-100">{detail.replacementProductName}</p>
-                                          <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-300">
-                                            <span>Qty: {detail.replacementQuantity}</span>
-                                            <span>Price: {formatCurrency(detail.replacementPrice)}</span>
-                                            <span>Size: {detail.replacementSize}</span>
-                                            <span>Color: {detail.replacementColor}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-300">
-                                        <Badge className="bg-zinc-800 text-zinc-200">Difference: {formatCurrency(detail.priceDifference)}</Badge>
-                                        <Badge className="bg-zinc-800 text-zinc-200">Inventory: {detail.inventoryAction}</Badge>
-                                      </div>
+
+                          {(() => {
+                            const totalGross = sale.saleDetails.reduce((sum: number, d: any) => sum + (d.gross || 0), 0);
+                            const totalDiscount = sale.saleDetails.reduce((sum: number, d: any) => sum + (d.discount_amount || 0), 0);
+                            const totalItemsCount = sale.saleDetails.reduce((sum: number, d: any) => sum + (d.quantity || 0), 0);
+
+                            return (
+                              <div className="space-y-4 py-3">
+                                {/* TRANSACTION INFO */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl border border-zinc-800 bg-zinc-900/60 text-xs">
+                                  <div>
+                                    <p className="text-[11px] text-zinc-400 font-medium">Customer</p>
+                                    <p className="font-semibold text-zinc-100 truncate mt-0.5">{sale.customerName}</p>
+                                  </div>
+                                  {isAdmin && (
+                                    <div>
+                                      <p className="text-[11px] text-zinc-400 font-medium">Cashier</p>
+                                      <p className="font-semibold text-zinc-100 truncate mt-0.5">{sale.cashierName}</p>
+                                      <p className="text-[10px] text-zinc-400">{sale.cashierCode}</p>
                                     </div>
-                                  ))}
+                                  )}
+                                  <div>
+                                    <p className="text-[11px] text-zinc-400 font-medium">Transaction Date</p>
+                                    <p className="font-semibold text-zinc-100 mt-0.5">{sale.transaction_date}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] text-zinc-400 font-medium">Payment Method</p>
+                                    <p className="font-semibold text-zinc-100 uppercase mt-0.5">{sale.payment_method}</p>
+                                  </div>
+                                </div>
+
+                                {/* PURCHASED PRODUCTS */}
+                                <div className="space-y-2.5">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
+                                      Purchased Items ({totalItemsCount} {totalItemsCount === 1 ? 'pair' : 'pairs'})
+                                    </p>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    {sale.saleDetails.map((detail: any, idx: number) => {
+                                      const hasDiscount = detail.discount_amount > 0 || detail.discount_percent > 0;
+                                      return (
+                                        <div
+                                          key={idx}
+                                          className="rounded-xl border border-zinc-800 bg-zinc-900/70 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                                        >
+                                          <div className="space-y-1.5">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <span className="font-bold text-zinc-100 text-sm">{detail.productName}</span>
+                                              {detail.brand && detail.brand !== "N/A" && (
+                                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700">
+                                                  {detail.brand}
+                                                </span>
+                                              )}
+                                              {detail.size && detail.size !== "N/A" && (
+                                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700">
+                                                  Size {detail.size}
+                                                </span>
+                                              )}
+                                              {detail.color && detail.color !== "N/A" && (
+                                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300 border border-zinc-700">
+                                                  {detail.color}
+                                                </span>
+                                              )}
+                                            </div>
+
+                                            <p className="text-xs text-zinc-400">
+                                              Qty: <span className="text-zinc-200 font-medium">{detail.quantity} {detail.quantity === 1 ? 'pair' : 'pairs'}</span> × {formatCurrency(detail.price)}
+                                            </p>
+
+                                            {hasDiscount && (
+                                              <p className="text-xs font-semibold text-emerald-400">
+                                                Discount: {detail.discount_percent > 0 ? `${detail.discount_percent}%` : ''} (-{formatCurrency(detail.discount_amount)})
+                                              </p>
+                                            )}
+                                          </div>
+
+                                          <div className="text-right shrink-0">
+                                            <p className="text-[11px] text-zinc-400">Item Total</p>
+                                            <p className="text-sm font-bold text-yellow-300">{formatCurrency(detail.subtotal)}</p>
+                                            {hasDiscount && (
+                                              <p className="text-[11px] text-zinc-500 line-through">
+                                                {formatCurrency(detail.gross)}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* REPLACEMENTS SECTION */}
+                                {sale.replacementDetails.length > 0 && (
+                                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+                                    <p className="mb-3 text-xs uppercase tracking-wider text-zinc-400 font-semibold">Replacement Items</p>
+                                    <div className="space-y-3">
+                                      {sale.replacementDetails.map((detail: any) => (
+                                        <div key={detail.return_detail_id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:items-stretch">
+                                            <div className="rounded-md border border-red-900/50 bg-red-950/20 p-3">
+                                              <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replaced Item</p>
+                                              <p className="font-medium text-zinc-100">{detail.returnedProductName}</p>
+                                              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                                                <span>Qty: {detail.returnedQuantity}</span>
+                                                <span>Price: {formatCurrency(detail.returnedPrice)}</span>
+                                                <span>Size: {detail.returnedSize}</span>
+                                                <span>Color: {detail.returnedColor}</span>
+                                              </div>
+                                            </div>
+                                            <div className="rounded-md border border-emerald-900/50 bg-emerald-950/20 p-3">
+                                              <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">Replacement Item</p>
+                                              <p className="font-medium text-zinc-100">{detail.replacementProductName}</p>
+                                              <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-300">
+                                                <span>Qty: {detail.replacementQuantity}</span>
+                                                <span>Price: {formatCurrency(detail.replacementPrice)}</span>
+                                                <span>Size: {detail.replacementSize}</span>
+                                                <span>Color: {detail.replacementColor}</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="mt-3 flex flex-wrap gap-2 text-xs text-zinc-300">
+                                            <Badge className="bg-zinc-800 text-zinc-200">Difference: {formatCurrency(detail.priceDifference)}</Badge>
+                                            <Badge className="bg-zinc-800 text-zinc-200">Inventory: {detail.inventoryAction}</Badge>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* FINANCIAL SUMMARY */}
+                                <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
+                                  <p className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">Payment & Settlement</p>
+
+                                  <div className="space-y-1.5 text-xs text-zinc-300 border-b border-zinc-800 pb-3">
+                                    <div className="flex justify-between">
+                                      <span className="text-zinc-400">Gross Subtotal:</span>
+                                      <span className="font-medium text-zinc-200">{formatCurrency(totalGross)}</span>
+                                    </div>
+                                    {totalDiscount > 0 && (
+                                      <div className="flex justify-between text-emerald-400 font-medium">
+                                        <span>Total Discount:</span>
+                                        <span>-{formatCurrency(totalDiscount)}</span>
+                                      </div>
+                                    )}
+                                    {sale.replacementPayments > 0 && (
+                                      <div className="flex justify-between text-amber-300 font-medium">
+                                        <span>Replacement Additional Payments:</span>
+                                        <span>+{formatCurrency(sale.replacementPayments)}</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex justify-between items-baseline pt-1">
+                                    <span className="text-sm font-bold text-zinc-100">Total Net Amount:</span>
+                                    <span className="text-lg font-black text-yellow-300">{formatCurrency(sale.total_amount)}</span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-800 text-xs">
+                                    <div>
+                                      <p className="text-zinc-400 text-[11px]">Payment Mode</p>
+                                      <p className="font-semibold text-zinc-200 uppercase mt-0.5">{sale.payment_method}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-zinc-400 text-[11px]">Replacements</p>
+                                      <p className="font-semibold text-zinc-200 mt-0.5">{sale.replacementCount} item{sale.replacementCount === 1 ? '' : 's'}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-zinc-400 text-[11px]">Last Activity</p>
+                                      <p className="font-semibold text-zinc-200 mt-0.5">{sale.lastActivityDate}</p>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            )}
-                            <div className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-                              <div><p className="text-sm text-zinc-400">Payment Method</p><p className="text-zinc-100">{sale.payment_method}</p></div>
-                              <div><p className="text-sm text-zinc-400">Total Amount</p><p className="text-zinc-100">PHP {Number(sale.total_amount ?? 0).toFixed(2)}</p></div>
-                              <div><p className="text-sm text-zinc-400">Replacements</p><p className="text-zinc-100">{sale.replacementCount}</p></div>
-                              <div><p className="text-sm text-zinc-400">Added Payments</p><p className="text-zinc-100">{formatCurrency(sale.replacementPayments ?? 0)}</p></div>
-                              <div><p className="text-sm text-zinc-400">Last Activity</p><p className="text-zinc-100">{sale.lastActivityDate}</p></div>
-                            </div>
-                            <div><p className="text-sm text-zinc-400">Status</p><p className="text-zinc-100">{sale.status}</p></div>
-                          </div>
+                            );
+                          })()}
                         </DialogContent>
                       </Dialog>
                     </TableCell>
