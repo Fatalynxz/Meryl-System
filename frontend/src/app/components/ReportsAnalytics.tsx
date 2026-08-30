@@ -1289,7 +1289,7 @@ export function ReportsAnalytics() {
                     Top 5 Product Rankings
                   </CardTitle>
                   <p className="mt-1 text-xs text-zinc-400">
-                    Performance rankings across brand, size, variant, category, gender, and payment method • {selectedRangeLabel}
+                    Performance rankings across brand, size, variant, category, department, and payment method • {selectedRangeLabel}
                   </p>
                 </div>
 
@@ -1349,7 +1349,7 @@ export function ReportsAnalytics() {
                   { id: 'size', label: 'Size', icon: Layers },
                   { id: 'variant', label: 'Variant (Color)', icon: Sparkles },
                   { id: 'category', label: 'Category', icon: BarChart3 },
-                  { id: 'gender', label: 'Gender', icon: UserCheck },
+                  { id: 'gender', label: 'Department', icon: UserCheck },
                   { id: 'payment', label: 'Payment Method', icon: CreditCard },
                   { id: 'grid', label: 'All Dimensions (Grid)', icon: Grid },
                 ].map((tab) => {
@@ -1451,7 +1451,7 @@ export function ReportsAnalytics() {
                     { title: 'Size', list: topSortBy === 'units' ? topRankings.size.byUnits : topRankings.size.byRevenue, icon: Layers },
                     { title: 'Variant (Color)', list: topSortBy === 'units' ? topRankings.variant.byUnits : topRankings.variant.byRevenue, icon: Sparkles },
                     { title: 'Category', list: topSortBy === 'units' ? topRankings.category.byUnits : topRankings.category.byRevenue, icon: BarChart3 },
-                    { title: 'Gender', list: topSortBy === 'units' ? topRankings.gender.byUnits : topRankings.gender.byRevenue, icon: UserCheck },
+                    { title: 'Department', list: topSortBy === 'units' ? topRankings.gender.byUnits : topRankings.gender.byRevenue, icon: UserCheck },
                   ].map((dim) => {
                     const DimIcon = dim.icon;
                     return (
