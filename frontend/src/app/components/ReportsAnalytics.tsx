@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText } from 'lucide-react';
+import { BarChart3, TrendingUp, Coins, Package, Calendar, Download, FileText, Trophy, Medal, Sparkles, Layers, Tag, UserCheck, CreditCard, Grid } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { toast } from 'sonner';
 import { useProducts, useSales } from '../../lib/hooks';
@@ -192,6 +192,8 @@ export function ReportsAnalytics() {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [showComparison, setShowComparison] = useState(true);
+  const [topDimensionTab, setTopDimensionTab] = useState<'products' | 'brand' | 'size' | 'variant' | 'category' | 'gender' | 'payment' | 'grid'>('products');
+  const [topSortBy, setTopSortBy] = useState<'units' | 'revenue'>('units');
   const salesQuery = useSales();
   const productsQuery = useProducts();
 
@@ -284,81 +286,147 @@ export function ReportsAnalytics() {
       .sort((a, b) => a.sortDate - b.sortDate);
   }, [customEndDate, customStartDate, salesRows, timeRange]);
 
-  const topProducts = useMemo(() => {
+  const topRankings = useMemo(() => {
     const { now, start } = rangeWindow(timeRange, customStartDate, customEndDate);
-    const byProduct = new Map<string, { id: string; name: string; sales: number; revenue: number; margin: number }>();
+
+    const byProduct = new Map<string, { key: string; name: string; subtitle?: string; sales: number; revenue: number; margin: number }>();
+    const byBrand = new Map<string, { key: string; name: string; subtitle?: string; sales: number; revenue: number }>();
+    const bySize = new Map<string, { key: string; name: string; subtitle?: string; sales: number; revenue: number }>();
+    const byVariant = new Map<string, { key: string; name: string; subtitle?: string; sales: number; revenue: number }>();
+    const byCategory = new Map<string, { key: string; name: string; subtitle?: string; sales: number; revenue: number }>();
+    const byGender = new Map<string, { key: string; name: string; subtitle?: string; sales: number; revenue: number }>();
+    const byPayment = new Map<string, { key: string; name: string; subtitle?: string; sales: number; revenue: number }>();
+
     salesRows.forEach((sale) => {
       const date = saleDate(sale);
       if (!date || date < start || date > now) return;
+
+      // Payment method
+      const payment = Array.isArray(sale.payment) ? sale.payment[0] : sale.payment;
+      const rawPayMethod = String(payment?.payment_method ?? sale.payment_method ?? 'Cash').toLowerCase();
+      const payMethodLabel = rawPayMethod.includes('gcash') ? 'GCash' : 'Cash';
+      const saleRevenue = Number(sale.total_amount ?? 0);
+      const prevPay = byPayment.get(payMethodLabel) ?? { key: payMethodLabel, name: payMethodLabel, subtitle: 'Payment Method', sales: 0, revenue: 0 };
+      prevPay.sales += 1;
+      prevPay.revenue += saleRevenue;
+      byPayment.set(payMethodLabel, prevPay);
+
       const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
       details.forEach((detail: any) => {
-        const product = productLookup.get(String(detail.product_id ?? ''));
-        const id = String(detail.product_id ?? '');
-        const prev = byProduct.get(id) ?? {
-          id,
-          name: product?.product_name ?? detail.product?.product_name ?? 'Unknown Product',
+        const product = productLookup.get(String(detail.product_id ?? '')) ?? detail.product;
+        const qty = Number(detail.quantity ?? 0);
+        const revenue = Number(detail.subtotal ?? (Number(detail.price ?? 0) * qty));
+        const cost = Number(product?.cost_price ?? 0) * qty;
+
+        // 1. Shoe Model / Product
+        const productName = String(product?.product_name ?? detail.product?.product_name ?? 'Unknown Shoe').trim();
+        const brandName = String(product?.brand ?? 'Meryl Shoes').trim();
+        const categoryName = String(product?.category?.[0]?.category_name ?? product?.category?.category_name ?? 'Footwear').trim();
+        const prevProd = byProduct.get(productName) ?? {
+          key: productName,
+          name: productName,
+          subtitle: `${brandName} • ${categoryName}`,
           sales: 0,
           revenue: 0,
           margin: 0,
         };
-        const revenue = Number(detail.subtotal ?? 0);
-        const cost = Number(product?.cost_price ?? 0) * Number(detail.quantity ?? 0);
-        prev.sales += Number(detail.quantity ?? 0);
-        prev.revenue += revenue;
-        prev.margin = prev.revenue > 0 ? Math.max(0, Math.round(((prev.revenue - cost) / prev.revenue) * 100)) : 0;
-        byProduct.set(id, prev);
+        prevProd.sales += qty;
+        prevProd.revenue += revenue;
+        prevProd.margin = prevProd.revenue > 0 ? Math.max(0, Math.round(((prevProd.revenue - cost) / prevProd.revenue) * 100)) : 0;
+        byProduct.set(productName, prevProd);
+
+        // 2. Brand
+        const prevBrand = byBrand.get(brandName) ?? { key: brandName, name: brandName, subtitle: 'Shoe Brand', sales: 0, revenue: 0 };
+        prevBrand.sales += qty;
+        prevBrand.revenue += revenue;
+        byBrand.set(brandName, prevBrand);
+
+        // 3. Size
+        const rawSize = String(product?.size ?? '').trim();
+        const sizeLabel = rawSize ? `Size ${rawSize}` : 'Standard';
+        const prevSize = bySize.get(sizeLabel) ?? { key: sizeLabel, name: sizeLabel, subtitle: 'Shoe Size', sales: 0, revenue: 0 };
+        prevSize.sales += qty;
+        prevSize.revenue += revenue;
+        bySize.set(sizeLabel, prevSize);
+
+        // 4. Variant / Colorway
+        const rawColor = String(product?.color ?? '').trim();
+        const variantLabel = rawColor || 'Standard Color';
+        const prevVariant = byVariant.get(variantLabel) ?? { key: variantLabel, name: variantLabel, subtitle: 'Color / Style', sales: 0, revenue: 0 };
+        prevVariant.sales += qty;
+        prevVariant.revenue += revenue;
+        byVariant.set(variantLabel, prevVariant);
+
+        // 5. Category
+        const prevCat = byCategory.get(categoryName) ?? { key: categoryName, name: categoryName, subtitle: 'Category', sales: 0, revenue: 0 };
+        prevCat.sales += qty;
+        prevCat.revenue += revenue;
+        byCategory.set(categoryName, prevCat);
+
+        // 6. Gender
+        const rawGender = String(product?.gender ?? '').trim();
+        const genderLabel = !rawGender || rawGender.toLowerCase() === 'n/a' ? 'Unisex' : rawGender;
+        const prevGender = byGender.get(genderLabel) ?? { key: genderLabel, name: genderLabel, subtitle: 'Department', sales: 0, revenue: 0 };
+        prevGender.sales += qty;
+        prevGender.revenue += revenue;
+        byGender.set(genderLabel, prevGender);
       });
     });
-    return Array.from(byProduct.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+
+    const rank = (map: Map<string, any>) => {
+      const all = Array.from(map.values());
+      const maxSales = Math.max(1, ...all.map((item) => item.sales));
+      const maxRevenue = Math.max(1, ...all.map((item) => item.revenue));
+      return {
+        byUnits: [...all].sort((a, b) => b.sales - a.sales || b.revenue - a.revenue).slice(0, 5).map((item, idx) => ({
+          ...item,
+          rank: idx + 1,
+          share: Math.round((item.sales / maxSales) * 100),
+        })),
+        byRevenue: [...all].sort((a, b) => b.revenue - a.revenue || b.sales - a.sales).slice(0, 5).map((item, idx) => ({
+          ...item,
+          rank: idx + 1,
+          share: Math.round((item.revenue / maxRevenue) * 100),
+        })),
+      };
+    };
+
+    return {
+      products: rank(byProduct),
+      brand: rank(byBrand),
+      size: rank(bySize),
+      variant: rank(byVariant),
+      category: rank(byCategory),
+      gender: rank(byGender),
+      payment: rank(byPayment),
+    };
   }, [customEndDate, customStartDate, productLookup, salesRows, timeRange]);
+
+  const topProducts = useMemo(() => {
+    return topRankings.products.byRevenue.map((p) => ({
+      id: p.key,
+      name: p.name,
+      sales: p.sales,
+      revenue: p.revenue,
+      margin: p.margin ?? 0,
+    }));
+  }, [topRankings]);
 
   const topBrands = useMemo(() => {
-    const { now, start } = rangeWindow(timeRange, customStartDate, customEndDate);
-    const byBrand = new Map<string, { name: string; sales: number; revenue: number }>();
-
-    salesRows.forEach((sale) => {
-      const date = saleDate(sale);
-      if (!date || date < start || date > now) return;
-      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
-
-      details.forEach((detail: any) => {
-        const product = productLookup.get(String(detail.product_id ?? '')) ?? detail.product;
-        const brand = String(product?.brand ?? 'N/A');
-        const qty = Number(detail.quantity ?? 0);
-        const revenue = Number(detail.subtotal ?? 0);
-        const prev = byBrand.get(brand) ?? { name: brand, sales: 0, revenue: 0 };
-        prev.sales += qty;
-        prev.revenue += revenue;
-        byBrand.set(brand, prev);
-      });
-    });
-
-    return Array.from(byBrand.values()).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  }, [customEndDate, customStartDate, productLookup, salesRows, timeRange]);
+    return topRankings.brand.byRevenue.map((b) => ({
+      name: b.name,
+      sales: b.sales,
+      revenue: b.revenue,
+    }));
+  }, [topRankings]);
 
   const topSizes = useMemo(() => {
-    const { now, start } = rangeWindow(timeRange, customStartDate, customEndDate);
-    const bySize = new Map<string, { name: string; sales: number; revenue: number }>();
-
-    salesRows.forEach((sale) => {
-      const date = saleDate(sale);
-      if (!date || date < start || date > now) return;
-      const details = Array.isArray(sale.sales_details) ? sale.sales_details : [];
-
-      details.forEach((detail: any) => {
-        const product = productLookup.get(String(detail.product_id ?? '')) ?? detail.product;
-        const size = String(product?.size ?? 'N/A');
-        const qty = Number(detail.quantity ?? 0);
-        const revenue = Number(detail.subtotal ?? 0);
-        const prev = bySize.get(size) ?? { name: size, sales: 0, revenue: 0 };
-        prev.sales += qty;
-        prev.revenue += revenue;
-        bySize.set(size, prev);
-      });
-    });
-
-    return Array.from(bySize.values()).sort((a, b) => b.sales - a.sales).slice(0, 5);
-  }, [customEndDate, customStartDate, productLookup, salesRows, timeRange]);
+    return topRankings.size.byUnits.map((s) => ({
+      name: s.name.replace(/^Size\s*/i, ''),
+      sales: s.sales,
+      revenue: s.revenue,
+    }));
+  }, [topRankings]);
 
   const revenueByCategory = useMemo(() => {
     const { now, start, previousStart } = rangeWindow(timeRange, customStartDate, customEndDate);
@@ -795,8 +863,14 @@ export function ReportsAnalytics() {
     } else if (reportType === 'sales') {
       drawTitle('Sales Breakdown');
       drawTable(['Period', 'Pairs Sold', 'Gross Revenue', 'Discount Applied', 'Net Sales'], salesBreakdownRows.map((row) => [row.date, row.pairs, money(row.gross), money(row.discount), money(row.net)]));
-      drawTitle('Top Products');
-      drawTable(['Product', 'Units', 'Revenue'], topProducts.map((row) => [row.name, row.sales, money(row.revenue)]), [260, 80, 175]);
+      drawTitle('Top 5 Shoe Models');
+      drawTable(['Rank', 'Shoe Model', 'Pairs', 'Revenue'], topRankings.products.byRevenue.map((row) => [`#${row.rank}`, row.name, `${row.sales}`, money(row.revenue)]), [40, 240, 65, 170]);
+      drawTitle('Top 5 Brands');
+      drawTable(['Rank', 'Brand', 'Pairs', 'Revenue'], topRankings.brand.byRevenue.map((row) => [`#${row.rank}`, row.name, `${row.sales}`, money(row.revenue)]), [40, 240, 65, 170]);
+      drawTitle('Top 5 Sizes');
+      drawTable(['Rank', 'Size', 'Pairs', 'Revenue'], topRankings.size.byUnits.map((row) => [`#${row.rank}`, row.name, `${row.sales}`, money(row.revenue)]), [40, 240, 65, 170]);
+      drawTitle('Top 5 Variants (Colors)');
+      drawTable(['Rank', 'Variant / Color', 'Pairs', 'Revenue'], topRankings.variant.byRevenue.map((row) => [`#${row.rank}`, row.name, `${row.sales}`, money(row.revenue)]), [40, 240, 65, 170]);
     } else if (reportType === 'revenue') {
       drawTitle('Revenue by Category');
       drawTable(['Category', 'Revenue', 'Share', 'Growth'], revenueByCategory.map((row) => [row.category, money(row.revenue), `${row.percentage}%`, `${row.growth}%`]));
@@ -1205,44 +1279,251 @@ export function ReportsAnalytics() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardHeader><CardTitle className="text-yellow-300">Top Products</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {topProducts.map((product) => (
-                  <div key={product.id} className="flex justify-between items-center border-b border-[#24242d] pb-2">
-                    <div><p className="text-yellow-200">{product.name}</p><p className="text-yellow-300 text-xs">{product.sales} units sold</p></div>
-                    <p className="text-yellow-300">{money(product.revenue)}</p>
+          {/* TOP 5 LEADERBOARD & MULTI-DIMENSIONAL RANKINGS */}
+          <Card className="bg-[#0b0b0f] border-[#24242d] shadow-xl overflow-hidden">
+            <CardHeader className="border-b border-[#1f1f2b] pb-4 bg-[#0e0e14]">
+              <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-yellow-300 flex items-center gap-2.5 text-lg font-bold">
+                    <Trophy className="w-5 h-5 text-yellow-400" />
+                    Top 5 Best-Selling Leaderboard
+                  </CardTitle>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Rankings across brand, size, variant, category, gender & payment method • {selectedRangeLabel}
+                  </p>
+                </div>
+
+                {/* Controls: Timeframe Quick-Pills + Metric Toggle */}
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Timeframe Quick-Pills */}
+                  <div className="flex items-center bg-[#151520] border border-[#2b2b3b] rounded-xl p-1 shadow-inner">
+                    {(['daily', 'weekly', 'monthly', 'quarterly', 'annually'] as const).map((period) => (
+                      <button
+                        key={period}
+                        type="button"
+                        onClick={() => setTimeRange(period)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all ${
+                          timeRange === period
+                            ? 'bg-yellow-400 text-red-950 font-bold shadow'
+                            : 'text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {period}
+                      </button>
+                    ))}
                   </div>
-                ))}
-                {!topProducts.length && <p className="text-yellow-200 text-sm">No product sales yet.</p>}
-              </CardContent>
-            </Card>
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardHeader><CardTitle className="text-yellow-300">Top Brands</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {topBrands.map((brand) => (
-                  <div key={brand.name} className="flex justify-between items-center border-b border-[#24242d] pb-2">
-                    <div><p className="text-yellow-200">{brand.name}</p><p className="text-yellow-300 text-xs">{brand.sales} pairs</p></div>
-                    <p className="text-yellow-300">{money(brand.revenue)}</p>
+
+                  {/* Metric Switcher */}
+                  <div className="flex items-center bg-[#151520] border border-[#2b2b3b] rounded-xl p-1 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => setTopSortBy('units')}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        topSortBy === 'units'
+                          ? 'bg-yellow-400 text-red-950 font-bold shadow'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Pairs Sold
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTopSortBy('revenue')}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        topSortBy === 'revenue'
+                          ? 'bg-yellow-400 text-red-950 font-bold shadow'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Revenue (₱)
+                    </button>
                   </div>
-                ))}
-                {!topBrands.length && <p className="text-yellow-200 text-sm">No brand sales yet.</p>}
-              </CardContent>
-            </Card>
-            <Card className="bg-[#0b0b0f] border-[#24242d]">
-              <CardHeader><CardTitle className="text-yellow-300">Top Sizes</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {topSizes.map((size) => (
-                  <div key={size.name} className="flex justify-between items-center border-b border-[#24242d] pb-2">
-                    <div><p className="text-yellow-200">Size {size.name}</p><p className="text-yellow-300 text-xs">{size.sales} pairs</p></div>
-                    <p className="text-yellow-300">{money(size.revenue)}</p>
-                  </div>
-                ))}
-                {!topSizes.length && <p className="text-yellow-200 text-sm">No size sales yet.</p>}
-              </CardContent>
-            </Card>
-          </div>
+                </div>
+              </div>
+
+              {/* Dimension Navigation Tabs */}
+              <div className="flex items-center gap-1.5 pt-3 overflow-x-auto [scrollbar-width:none]">
+                {[
+                  { id: 'products', label: 'Shoe Models', icon: Package },
+                  { id: 'brand', label: 'Brand', icon: Tag },
+                  { id: 'size', label: 'Size', icon: Layers },
+                  { id: 'variant', label: 'Variant (Color)', icon: Sparkles },
+                  { id: 'category', label: 'Category', icon: BarChart3 },
+                  { id: 'gender', label: 'Gender', icon: UserCheck },
+                  { id: 'payment', label: 'Payment Method', icon: CreditCard },
+                  { id: 'grid', label: 'View All (Grid)', icon: Grid },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = topDimensionTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setTopDimensionTab(tab.id as any)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                        isActive
+                          ? 'bg-yellow-400/15 text-yellow-300 border border-yellow-400/40 font-bold'
+                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 border border-transparent'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-5">
+              {topDimensionTab !== 'grid' ? (
+                // SINGLE DIMENSION EXPANDED VIEW
+                <div className="space-y-3">
+                  {(() => {
+                    const currentList =
+                      topSortBy === 'units'
+                        ? (topRankings as any)[topDimensionTab]?.byUnits ?? []
+                        : (topRankings as any)[topDimensionTab]?.byRevenue ?? [];
+
+                    if (!currentList.length) {
+                      return (
+                        <div className="py-12 text-center text-zinc-400 text-sm">
+                          No sales recorded for this period ({selectedRangeLabel}).
+                        </div>
+                      );
+                    }
+
+                    return currentList.map((item: any) => {
+                      const isGold = item.rank === 1;
+                      const isSilver = item.rank === 2;
+                      const isBronze = item.rank === 3;
+
+                      return (
+                        <div
+                          key={item.key}
+                          className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border transition-all ${
+                            isGold
+                              ? 'bg-gradient-to-r from-yellow-950/20 via-[#13131d] to-[#0e0e16] border-yellow-500/30'
+                              : 'bg-[#101017] border-[#222230] hover:border-[#333346]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5">
+                            {/* Rank Badge */}
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm border shadow-sm ${
+                                isGold
+                                  ? 'bg-yellow-400 text-red-950 border-yellow-300 font-extrabold'
+                                  : isSilver
+                                    ? 'bg-zinc-200 text-zinc-900 border-zinc-100 font-bold'
+                                    : isBronze
+                                      ? 'bg-amber-600 text-amber-950 border-amber-400 font-bold'
+                                      : 'bg-[#1a1a24] text-zinc-400 border-[#2d2d3d]'
+                              }`}
+                            >
+                              #{item.rank}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-yellow-100 font-semibold text-sm sm:text-base">
+                                  {item.name}
+                                </p>
+                                {isGold && (
+                                  <Badge className="bg-yellow-400/20 text-yellow-300 border-yellow-500/40 text-[10px] py-0 px-1.5">
+                                    Top 1 Leader
+                                  </Badge>
+                                )}
+                              </div>
+                              {item.subtitle && (
+                                <p className="text-xs text-zinc-400 mt-0.5">{item.subtitle}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 sm:mt-0 flex items-center gap-6 sm:justify-end">
+                            {/* Relative Progress Bar */}
+                            <div className="w-28 sm:w-36 hidden md:block">
+                              <div className="flex justify-between text-[11px] text-zinc-400 mb-1">
+                                <span>Share</span>
+                                <span>{item.share}%</span>
+                              </div>
+                              <div className="w-full bg-[#1e1e2c] h-2 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    isGold ? 'bg-yellow-400' : isSilver ? 'bg-zinc-300' : isBronze ? 'bg-amber-500' : 'bg-sky-400'
+                                  }`}
+                                  style={{ width: `${item.share}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Numbers */}
+                            <div className="text-right min-w-[120px]">
+                              <p className="text-yellow-300 font-bold text-sm sm:text-base">
+                                {money(item.revenue)}
+                              </p>
+                              <p className="text-xs text-zinc-400">
+                                {item.sales.toLocaleString()} {topDimensionTab === 'payment' ? 'transactions' : 'pairs sold'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                // GRID VIEW: ALL DIMENSIONS SIDE-BY-SIDE
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {[
+                    { title: 'Top 5 Shoe Models', list: topSortBy === 'units' ? topRankings.products.byUnits : topRankings.products.byRevenue, icon: Package },
+                    { title: 'Top 5 Brands', list: topSortBy === 'units' ? topRankings.brand.byUnits : topRankings.brand.byRevenue, icon: Tag },
+                    { title: 'Top 5 Sizes', list: topSortBy === 'units' ? topRankings.size.byUnits : topRankings.size.byRevenue, icon: Layers },
+                    { title: 'Top 5 Variants (Color)', list: topSortBy === 'units' ? topRankings.variant.byUnits : topRankings.variant.byRevenue, icon: Sparkles },
+                    { title: 'Top 5 Categories', list: topSortBy === 'units' ? topRankings.category.byUnits : topRankings.category.byRevenue, icon: BarChart3 },
+                    { title: 'Top 5 Genders', list: topSortBy === 'units' ? topRankings.gender.byUnits : topRankings.gender.byRevenue, icon: UserCheck },
+                  ].map((dim) => {
+                    const DimIcon = dim.icon;
+                    return (
+                      <div key={dim.title} className="bg-[#101018] border border-[#222232] rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between border-b border-[#1f1f2e] pb-2">
+                          <h4 className="text-xs uppercase tracking-wider text-yellow-300 font-bold flex items-center gap-1.5">
+                            <DimIcon className="w-3.5 h-3.5 text-yellow-400" />
+                            {dim.title}
+                          </h4>
+                          <span className="text-[10px] text-zinc-400">
+                            {topSortBy === 'units' ? 'by units' : 'by revenue'}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {dim.list.map((item: any) => (
+                            <div key={item.key} className="flex items-center justify-between text-xs py-1 border-b border-[#181824] last:border-0">
+                              <div className="flex items-center gap-2 overflow-hidden pr-2">
+                                <span className={`w-5 h-5 rounded-md flex items-center justify-center font-bold text-[10px] shrink-0 ${
+                                  item.rank === 1 ? 'bg-yellow-400 text-red-950' : item.rank === 2 ? 'bg-zinc-200 text-zinc-900' : item.rank === 3 ? 'bg-amber-600 text-amber-950' : 'bg-zinc-800 text-zinc-400'
+                                }`}>
+                                  #{item.rank}
+                                </span>
+                                <span className="text-yellow-100 truncate font-medium">{item.name}</span>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-yellow-300 font-bold">
+                                  {topSortBy === 'units' ? `${item.sales} pairs` : money(item.revenue)}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          {!dim.list.length && (
+                            <p className="text-xs text-zinc-500 py-3 text-center">No sales yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
