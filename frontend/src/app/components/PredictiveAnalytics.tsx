@@ -129,7 +129,9 @@ function getInventory(product: any) {
 
 function getStock(product: any) {
   const inventory = getInventory(product);
-  return Number(inventory?.stock_quantity ?? product?.stock_quantity ?? 0);
+  const onHand = Number(inventory?.stock_quantity ?? product?.stock_quantity ?? 0);
+  const reserved = Number(inventory?.reserved_quantity ?? inventory?.held_stock ?? product?.reserved_stock ?? 0);
+  return Math.max(0, onHand - reserved);
 }
 
 function getReorder(product: any) {
@@ -1095,7 +1097,7 @@ export function PredictiveAnalytics() {
     const productMovement = snapshotData.snapshots
       .map((row) => {
         const product = productById.get(String(row.product_id ?? ""));
-        const stock = Number(row.stock_quantity ?? 0);
+        const stock = product ? getStock(product) : Number(row.stock_quantity ?? 0);
         const reorder = getReorder(product);
         const movement = movementLabel(row.movement_label);
         const stockCondition = stock <= 0
@@ -1708,7 +1710,7 @@ export function PredictiveAnalytics() {
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-white">Size Curve Bubble Heatmap</p>
-                  <p className="mt-1 text-xs text-white/50">Rows are product styles, columns are sizes. Color shows sales velocity; bubble size shows stock depth.</p>
+                  <p className="mt-1 text-xs text-white/50">Rows are product styles, columns are sizes. Color shows sales velocity; bubble size shows available stock depth.</p>
                 </div>
                 <Badge className="bg-yellow-400 text-red-950">{sizeCurveRows.length} styles</Badge>
               </div>
@@ -1730,7 +1732,7 @@ export function PredictiveAnalytics() {
                       Sold
                     </div>
                     <div className="border-b border-[#2b2b36] bg-[#1b1b26] px-2 py-2 text-center text-xs font-semibold uppercase tracking-[0.08em] text-white/55">
-                      Stock
+                      Available
                     </div>
 
                     {sizeCurveRows.map((row) => (
@@ -1749,7 +1751,7 @@ export function PredictiveAnalytics() {
                             <div
                               key={`${row.key}-${size}`}
                               className="flex min-h-[68px] items-center justify-center border-b border-r border-[#2b2b36] px-2 py-2"
-                              title={product ? `${row.productName} / Size ${size}: ${sold} sold, ${stock} stock` : `${row.productName} / Size ${size}: no variant`}
+                              title={product ? `${row.productName} / Size ${size}: ${sold} sold, ${stock} available` : `${row.productName} / Size ${size}: no variant`}
                             >
                               {product ? (
                                 <div className="flex flex-col items-center gap-1">

@@ -210,7 +210,9 @@ export function ReportsAnalytics() {
     const map = new Map<string, number>();
     productRows.forEach((product: any) => {
       const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
-      map.set(String(product.product_id ?? ''), Number(inventory?.stock_quantity ?? 0));
+      const onHand = Number(inventory?.stock_quantity ?? product.stock ?? 0);
+      const reserved = Number(inventory?.reserved_quantity ?? inventory?.held_stock ?? product.reserved_stock ?? 0);
+      map.set(String(product.product_id ?? ''), Math.max(0, onHand - reserved));
     });
     return map;
   }, [productRows]);
@@ -571,7 +573,9 @@ export function ReportsAnalytics() {
     productRows
       .map((product: any) => {
         const inventory = Array.isArray(product.inventory) ? product.inventory[0] : product.inventory;
-        const stock = Number(inventory?.stock_quantity ?? 0);
+        const onHand = Number(inventory?.stock_quantity ?? product.stock ?? 0);
+        const reserved = Number(inventory?.reserved_quantity ?? inventory?.held_stock ?? product.reserved_stock ?? 0);
+        const stock = Math.max(0, onHand - reserved);
         const reorder = Number(product.reorder_level ?? inventory?.reorder_level ?? 10);
         const status = stock <= Math.max(2, Math.floor(reorder * 0.4))
           ? 'Critical'
