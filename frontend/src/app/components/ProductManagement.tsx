@@ -624,14 +624,14 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
             </div>
             <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
               <DialogTrigger asChild>
-                <Button onClick={openAddProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                <Button onClick={openAddProduct} className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Product Master
+                  Add Product
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl">
+              <DialogContent className="bg-[#15161d] border-[#2a2c36] text-yellow-100 max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle className="text-yellow-300">{editingProduct ? "Edit Product Master" : "Add Product Master"}</DialogTitle>
+                  <DialogTitle className="text-yellow-300">{editingProduct ? "Edit Product" : "Add Product"}</DialogTitle>
                 </DialogHeader>
                 <ProductMasterForm formData={productForm} setFormData={setProductForm} categories={categories} />
                 {editingProduct && (
@@ -644,7 +644,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                   />
                 )}
                 <DialogFooter>
-                  <Button onClick={saveProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                  <Button onClick={saveProduct} className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold">
                     {editingProduct ? "Update Product" : "Save Product"}
                   </Button>
                 </DialogFooter>
@@ -693,14 +693,14 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                 {activeTab === "list" && isExternallyRouted && (
                   <Dialog open={isProductDialogOpen} onOpenChange={setIsProductDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button onClick={openAddProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                      <Button onClick={openAddProduct} className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold">
                         <Plus className="w-4 h-4 mr-2" />
                         Add Product
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-red-700 border-red-800 text-yellow-200 max-w-2xl">
+                    <DialogContent className="bg-[#15161d] border-[#2a2c36] text-yellow-100 max-w-2xl">
                       <DialogHeader>
-                        <DialogTitle className="text-yellow-300">{editingProduct ? "Edit Product Master" : "Add Product Master"}</DialogTitle>
+                        <DialogTitle className="text-yellow-300">{editingProduct ? "Edit Product" : "Add Product"}</DialogTitle>
                       </DialogHeader>
                       <ProductMasterForm formData={productForm} setFormData={setProductForm} categories={categories} />
                       {editingProduct && (
@@ -723,7 +723,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                             {editingProduct.isArchived ? "Restore Product" : "Delete / Archive Product"}
                           </Button>
                         ) : <span />}
-                        <Button onClick={saveProduct} className="bg-yellow-400 text-red-900 hover:bg-yellow-500">
+                        <Button onClick={saveProduct} className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold">
                           {editingProduct ? "Update Product" : "Save Product"}
                         </Button>
                       </DialogFooter>
@@ -1506,8 +1506,8 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
         <div className="space-y-2">
           <Label className="text-yellow-300">Category *</Label>
           <Select value={formData.category_id} onValueChange={(value) => setFormData({ ...formData, category_id: value })}>
-            <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200"><SelectValue placeholder="Select category" /></SelectTrigger>
-            <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+            <SelectTrigger className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100"><SelectValue placeholder="Select category" /></SelectTrigger>
+            <SelectContent className="bg-[#181824] border-[#2d2d3a] text-yellow-100">
               {categories.map((category: any) => <SelectItem key={category.category_id} value={category.category_id}>{category.category_name}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -1519,8 +1519,8 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
         <div className="space-y-2">
           <Label className="text-yellow-300">Department</Label>
           <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
-            <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200"><SelectValue placeholder="Select department" /></SelectTrigger>
-            <SelectContent className="bg-red-700 border-red-800 text-yellow-200"><SelectItem value="Men">Men</SelectItem><SelectItem value="Women">Women</SelectItem><SelectItem value="Kids">Kids</SelectItem><SelectItem value="Unisex">Unisex</SelectItem></SelectContent>
+            <SelectTrigger className="bg-[#1d1d27] border-[#2d2d3a] text-yellow-100"><SelectValue placeholder="Select department" /></SelectTrigger>
+            <SelectContent className="bg-[#181824] border-[#2d2d3a] text-yellow-100"><SelectItem value="Men">Men</SelectItem><SelectItem value="Women">Women</SelectItem><SelectItem value="Kids">Kids</SelectItem><SelectItem value="Unisex">Unisex</SelectItem></SelectContent>
           </Select>
         </div>
         <NumberField label="Unit Price" value={formData.unit_price} onChange={(value) => setFormData({ ...formData, unit_price: value })} />
@@ -1544,7 +1544,7 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
             value={formData.image_url || ""}
             onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
             placeholder="e.g. https://images.unsplash.com/... or direct image link"
-            className="h-10 bg-red-950/60 border-red-800 text-yellow-100 placeholder:text-yellow-300/30 text-xs rounded-xl flex-1"
+            className="h-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-zinc-500 text-xs rounded-xl flex-1 focus-visible:ring-yellow-400/40"
           />
         </div>
       </div>
