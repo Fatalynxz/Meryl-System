@@ -1267,45 +1267,45 @@ export function PromotionManagement() {
     <div className="space-y-6">
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-red-700 border-red-800">
+        <Card className="bg-[#15151D] border-[#24242F]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Active Promotions</p>
-                <p className="text-2xl text-yellow-300">{activePromotions}</p>
+                <p className="text-sm text-zinc-400">Active Promotions</p>
+                <p className="text-2xl font-bold text-yellow-300">{activePromotions}</p>
               </div>
               <Tag className="h-8 w-8 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-red-700 border-red-800">
+        <Card className="bg-[#15151D] border-[#24242F]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Revenue Generated</p>
-                <p className="text-2xl text-yellow-300">₱{totalRevenue.toLocaleString()}</p>
+                <p className="text-sm text-zinc-400">Revenue Generated</p>
+                <p className="text-2xl font-bold text-yellow-300">₱{totalRevenue.toLocaleString()}</p>
               </div>
               <Coins className="h-8 w-8 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-red-700 border-red-800">
+        <Card className="bg-[#15151D] border-[#24242F]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Avg Effectiveness</p>
-                <p className="text-2xl text-yellow-300">{avgEffectiveness.toFixed(1)}%</p>
+                <p className="text-sm text-zinc-400">Avg Effectiveness</p>
+                <p className="text-2xl font-bold text-yellow-300">{avgEffectiveness.toFixed(1)}%</p>
               </div>
               <TrendingUp className="h-8 w-8 text-yellow-400" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-red-700 border-red-800">
+        <Card className="bg-[#15151D] border-[#24242F]">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-yellow-200">Units Affected</p>
-                <p className="text-2xl text-yellow-300">{promotions.reduce((sum, p) => sum + p.unitsAffected, 0)}</p>
+                <p className="text-sm text-zinc-400">Units Affected</p>
+                <p className="text-2xl font-bold text-yellow-300">{promotions.reduce((sum, p) => sum + p.unitsAffected, 0)}</p>
               </div>
               <ShoppingCart className="h-8 w-8 text-yellow-400" />
             </div>
@@ -1314,24 +1314,24 @@ export function PromotionManagement() {
       </div>
 
       {/* Analytics Recommendations */}
-      <Card className="bg-red-700 border-red-800">
+      <Card className="bg-[#15151D] border-[#24242F]">
         <CardHeader>
           <CardTitle className="text-yellow-300 flex items-center gap-2">
-            <Percent className="w-5 h-5" />
+            <Percent className="w-5 h-5 text-yellow-400" />
             Recommended by Analytics
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {visibleProductRecommendations.map((rec) => (
-              <div key={rec.id} className="rounded-lg border border-red-800 bg-red-800/40 p-3">
+              <div key={rec.id} className="rounded-xl border border-[#2B2B38] bg-[#1A1A24] p-3 hover:border-yellow-400/30 transition">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-yellow-200 font-medium">{rec.title}</p>
-                    <p className="text-yellow-300/80 text-xs mt-1">{rec.rationale}</p>
+                    <p className="text-white font-semibold">{rec.title}</p>
+                    <p className="text-zinc-400 text-xs mt-1">{rec.rationale}</p>
                     <div className="flex gap-2 mt-2">
-                      <Badge className="bg-yellow-400 text-red-900">{rec.discount_type}</Badge>
-                      <Badge className="bg-red-600 text-yellow-200">
+                      <Badge className="bg-yellow-400 text-black font-semibold">{rec.discount_type}</Badge>
+                      <Badge className="bg-[#242432] text-yellow-300 border border-zinc-700 font-semibold">
                         {rec.discount_type === 'Percentage'
                           ? `${rec.discount_value}%`
                           : rec.discount_type === 'Fixed Amount'
@@ -1344,7 +1344,7 @@ export function PromotionManagement() {
                   </div>
                   <Button
                     size="sm"
-                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                    className="bg-yellow-400 text-black font-bold hover:bg-yellow-300 shadow-sm"
                     onClick={() => applyRecommendation(rec)}
                   >
                     Apply
@@ -1363,12 +1363,12 @@ export function PromotionManagement() {
       </Card>
 
       {/* Active Promotions Table */}
-      <Card className="bg-red-700 border-red-800">
+      <Card className="bg-[#15151D] border-[#24242F]">
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex items-center gap-3 flex-wrap">
               <CardTitle className="text-yellow-300 flex items-center gap-2">
-                <Tag className="w-5 h-5" />
+                <Tag className="w-5 h-5 text-yellow-400" />
                 Promotion Campaigns
               </CardTitle>
               {/* Filter Tabs */}
@@ -1378,8 +1378,8 @@ export function PromotionManagement() {
                   onClick={() => setStatusFilter('all')}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                     statusFilter === 'all'
-                      ? 'bg-yellow-400 text-red-950 shadow font-bold'
-                      : 'text-yellow-200/70 hover:text-white'
+                      ? 'bg-yellow-400 text-black shadow font-bold'
+                      : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   All ({promotions.length})
@@ -1389,8 +1389,8 @@ export function PromotionManagement() {
                   onClick={() => setStatusFilter('active')}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                     statusFilter === 'active'
-                      ? 'bg-yellow-400 text-red-950 shadow font-bold'
-                      : 'text-yellow-200/70 hover:text-white'
+                      ? 'bg-yellow-400 text-black shadow font-bold'
+                      : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   Active ({activePromotions + upcomingPromotions})
@@ -1400,8 +1400,8 @@ export function PromotionManagement() {
                   onClick={() => setStatusFilter('ended')}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                     statusFilter === 'ended'
-                      ? 'bg-yellow-400 text-red-950 shadow font-bold'
-                      : 'text-yellow-200/70 hover:text-white'
+                      ? 'bg-yellow-400 text-black shadow font-bold'
+                      : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   Ended / History ({endedPromotions})
@@ -1410,7 +1410,7 @@ export function PromotionManagement() {
             </div>
             <Dialog open={isAddDialogOpen} onOpenChange={handleCreateDialogOpenChange}>
               <DialogTrigger asChild>
-                <Button className="bg-yellow-400 text-red-900 hover:bg-yellow-500 font-bold text-xs sm:text-sm">
+                <Button className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold text-xs sm:text-sm">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Promotion
                 </Button>
@@ -1431,7 +1431,7 @@ export function PromotionManagement() {
                   <Button
                     onClick={handleAddPromotion}
                     disabled={isSavingPromotion}
-                    className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
+                    className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold disabled:opacity-60"
                   >
                     {isSavingPromotion ? 'Creating...' : 'Create Promotion'}
                   </Button>
@@ -1441,10 +1441,10 @@ export function PromotionManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="border border-red-800 rounded-lg overflow-x-auto">
+          <div className="border border-[#24242F] rounded-xl overflow-x-auto bg-[#111118]">
             <Table className="w-full min-w-[920px]">
               <TableHeader>
-                <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                <TableRow className="bg-[#181824] hover:bg-[#181824] border-[#24242F]">
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Promotion Name</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Type</TableHead>
                   <TableHead className="text-yellow-300 whitespace-nowrap text-center">Discount</TableHead>
@@ -1457,47 +1457,47 @@ export function PromotionManagement() {
               <TableBody>
                 {displayedPromotions.length > 0 ? (
                   displayedPromotions.map((promotion) => (
-                    <TableRow key={promotion.promo_id} className="border-red-800">
+                    <TableRow key={promotion.promo_id} className="border-[#24242F] hover:bg-white/[0.02]">
                       <TableCell className="min-w-[200px] text-center align-middle">
                         <div>
-                          <p className="text-yellow-200 break-words leading-tight">{promotion.promo_name}</p>
-                          <p className="mt-1 text-yellow-300 text-xs break-words leading-tight">{promotion.targetProducts}</p>
+                          <p className="text-white font-semibold break-words leading-tight">{promotion.promo_name}</p>
+                          <p className="mt-1 text-zinc-400 text-xs break-words leading-tight">{promotion.targetProducts}</p>
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-center align-middle">
-                        <Badge className="bg-yellow-400 text-red-900">
+                        <Badge className="bg-yellow-400 text-black font-semibold">
                           {promotion.discount_type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-yellow-300 whitespace-nowrap text-center align-middle">
+                      <TableCell className="text-yellow-300 whitespace-nowrap text-center align-middle font-semibold">
                         {promotion.discount_type === 'Percentage' ? `${promotion.discount_value}%` :
                          promotion.discount_type === 'Fixed Amount' ? `₱${promotion.discount_value}` :
                          promotion.discount_type === 'BOGO' ? 'Buy 1 Get 1' : 'Bundle'}
                       </TableCell>
-                      <TableCell className="text-yellow-200 text-sm text-center align-middle">
+                      <TableCell className="text-zinc-200 text-sm text-center align-middle">
                         <div className="leading-tight">
-                          <p>{formatPromotionDateTime(promotion.start_date, 'start')}</p>
-                          <p className="text-yellow-300/80">to {formatPromotionDateTime(promotion.end_date, 'end')}</p>
+                          <p className="text-white font-medium">{formatPromotionDateTime(promotion.start_date, 'start')}</p>
+                          <p className="text-zinc-400 text-xs">to {formatPromotionDateTime(promotion.end_date, 'end')}</p>
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-center align-middle">
                         <Badge className={
-                          promotion.status === 'Active' ? 'bg-green-600 text-white font-medium' :
-                          promotion.status === 'Upcoming' ? 'bg-yellow-600 text-red-900 font-medium' :
+                          promotion.status === 'Active' ? 'bg-emerald-600 text-white font-medium' :
+                          promotion.status === 'Upcoming' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-medium' :
                           promotion.status === 'Inactive' ? 'bg-zinc-700 text-zinc-300 font-medium' :
-                          'bg-gray-600 text-white font-medium'
+                          'bg-zinc-800 text-zinc-400 border border-zinc-700 font-medium'
                         }>
                           {promotion.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="min-w-[220px] text-center align-middle">
                         <div className="space-y-1">
-                          <div className="flex flex-wrap justify-center gap-3 text-xs text-yellow-200">
+                          <div className="flex flex-wrap justify-center gap-3 text-xs text-zinc-300">
                             <span className="whitespace-nowrap">Sales: ₱{promotion.salesGenerated}</span>
                             <span className="whitespace-nowrap">Goal: PHP {promotion.targetSalesGoal.toLocaleString()}</span>
                             <span className="whitespace-nowrap">{promotion.unitsAffected} units</span>
                           </div>
-                          <Progress value={promotion.effectiveness} className="h-2 bg-red-600" />
+                          <Progress value={promotion.effectiveness} className="h-2 bg-zinc-800" />
                           <p className="text-xs text-yellow-300">{promotion.effectiveness}% of target</p>
                         </div>
                       </TableCell>
@@ -1532,7 +1532,7 @@ export function PromotionManagement() {
                                 <Button
                                   onClick={handleEditPromotion}
                                   disabled={isUpdatingPromotion}
-                                  className="bg-yellow-400 text-red-900 hover:bg-yellow-500 disabled:opacity-60"
+                                  className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold disabled:opacity-60"
                                 >
                                   {isUpdatingPromotion ? 'Updating...' : 'Update Promotion'}
                                 </Button>
@@ -1779,7 +1779,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
           id="promo_name"
           value={formData.promo_name || ''}
           onChange={(e) => setFormData({ ...formData, promo_name: e.target.value })}
-          className="bg-red-600 border-red-800 text-yellow-200"
+          className="bg-[#1D1D26] border-[#313342] text-white placeholder:text-zinc-500 focus-visible:ring-yellow-400/40"
           placeholder="e.g., Spring Sale 2026"
         />
       </div>
@@ -1796,10 +1796,10 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
               })
             }
           >
-            <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+            <SelectTrigger className="bg-[#1D1D26] border-[#313342] text-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+            <SelectContent className="bg-[#181822] border-[#313342] text-white">
               <SelectItem value="Percentage">Percentage Discount</SelectItem>
               <SelectItem value="Fixed Amount">Fixed Amount Off</SelectItem>
               <SelectItem value="BOGO">Buy One Get One</SelectItem>
@@ -1816,7 +1816,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
             type="number"
             value={formData.discount_value || ''}
             onChange={(e) => setFormData({ ...formData, discount_value: parseFloat(e.target.value) })}
-            className="bg-red-600 border-red-800 text-yellow-200"
+            className="bg-[#1D1D26] border-[#313342] text-white placeholder:text-zinc-500 focus-visible:ring-yellow-400/40"
             placeholder={
               isBogoType
                 ? 'Auto for BOGO (default 50)'
@@ -1840,14 +1840,14 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
           type="number"
           value={formData.targetSalesGoal || ''}
           onChange={(e) => setFormData({ ...formData, targetSalesGoal: e.target.value ? Number(e.target.value) : undefined })}
-          className="bg-red-600 border-red-800 text-yellow-200"
+          className="bg-[#1D1D26] border-[#313342] text-white placeholder:text-zinc-500 focus-visible:ring-yellow-400/40"
           placeholder="e.g. 10000"
         />
-        <p className="text-xs text-yellow-300/80">Promotion effectiveness is measured as sales generated during the promo period divided by this goal.</p>
+        <p className="text-xs text-zinc-400">Promotion effectiveness is measured as sales generated during the promo period divided by this goal.</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="targetProducts" className="text-yellow-300">Target Products *</Label>
-        <div className="space-y-3 rounded-lg border border-red-800 p-3">
+        <div className="space-y-3 rounded-lg border border-[#313342] bg-[#161622] p-3">
           <Input
             id="targetProducts"
             value={formData.targetProducts || 'All Products'}
@@ -1861,10 +1861,10 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                 targetProducts: 'All Products',
               });
             }}
-            className="bg-red-600 border-red-800 text-yellow-200 cursor-pointer"
+            className="bg-[#1D1D26] border-[#313342] text-white cursor-pointer"
           />
-          <p className="text-xs text-yellow-300/80">
-            Tip: Click <span className="text-yellow-300">All Products</span> button or click the field above to target all products.
+          <p className="text-xs text-zinc-400">
+            Tip: Click <span className="text-yellow-300 font-semibold">All Products</span> button or click the field above to target all products.
           </p>
           {isBogoType ? (
             <p className="text-xs text-amber-300/90">
@@ -1879,10 +1879,10 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                 addCategory(value);
                 setPendingCategory('');
               }}>
-                <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
+                <SelectTrigger className="bg-[#1D1D26] border-[#313342] text-white">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
-                <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
+                <SelectContent className="bg-[#181822] border-[#313342] text-white">
                   {categoryOptions.map((category) => (
                     <SelectItem key={category} value={category}>{category}</SelectItem>
                   ))}
@@ -1890,7 +1890,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
               </Select>
               <div className="flex flex-wrap gap-2 min-h-6">
                 {selectedCategories.map((category) => (
-                  <Badge key={category} className="bg-yellow-400 text-red-900 gap-1 pr-1">
+                  <Badge key={category} className="bg-yellow-400 text-black font-semibold gap-1 pr-1">
                     {category}
                     <button type="button" className="ml-1" onClick={() => removeCategory(category)}>
                       <X className="w-3 h-3" />
@@ -1904,8 +1904,8 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                 variant="outline"
                 className={`border transition-all duration-200 ${
                   isAllProductsSelected
-                    ? 'border-yellow-400 bg-yellow-400 text-red-900 hover:bg-yellow-300'
-                    : 'border-red-800 bg-red-600 text-yellow-200 hover:bg-red-500'
+                    ? 'border-yellow-400 bg-yellow-400 text-black hover:bg-yellow-300 font-bold'
+                    : 'border-[#313342] bg-[#1D1D26] text-white hover:bg-[#252530]'
                 }`}
               onClick={() => {
                 setSelectedCategories([]);
@@ -1925,7 +1925,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
               <Label className="text-yellow-300 text-xs">Products (filtered by category)</Label>
               <Dialog open={isProductPickerOpen} onOpenChange={setIsProductPickerOpen}>
                 <DialogTrigger asChild>
-                  <Button type="button" className="w-full justify-start bg-red-600 border border-red-800 text-yellow-200 hover:bg-red-500">
+                  <Button type="button" className="w-full justify-start bg-[#1D1D26] border border-[#313342] text-white hover:bg-[#252530]">
                     Select product
                   </Button>
                 </DialogTrigger>
@@ -1937,13 +1937,13 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                     <Input
                       value={productSearch}
                       onChange={(e) => setProductSearch(e.target.value)}
-                      className="bg-red-600 border-red-800 text-yellow-200"
+                      className="bg-[#1D1D26] border-[#313342] text-white placeholder:text-zinc-500"
                       placeholder="Search by product or category..."
                     />
-                    <div className="max-h-[48vh] overflow-y-auto rounded-lg border border-red-800">
+                    <div className="max-h-[48vh] overflow-y-auto rounded-lg border border-[#313342] bg-[#12121A]">
                       <Table className="w-full text-sm">
                         <TableHeader>
-                          <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
+                          <TableRow className="bg-[#181824] hover:bg-[#181824] border-[#313342]">
                             <TableHead className="text-yellow-300 text-center">Product</TableHead>
                             <TableHead className="text-yellow-300 text-center">Category</TableHead>
                             <TableHead className="text-yellow-300 text-center">Stock</TableHead>
@@ -1952,15 +1952,15 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                         </TableHeader>
                         <TableBody>
                           {searchedProductOptions.map((product) => (
-                            <TableRow key={`${product.name}-${product.category}`} className="border-red-800">
-                              <TableCell className="text-yellow-200 text-center">{product.name}</TableCell>
-                              <TableCell className="text-yellow-200 text-center">{product.category || 'Uncategorized'}</TableCell>
-                              <TableCell className="text-yellow-300 text-center">{product.stock}</TableCell>
+                            <TableRow key={`${product.name}-${product.category}`} className="border-[#313342] hover:bg-white/[0.02]">
+                              <TableCell className="text-white text-center font-medium">{product.name}</TableCell>
+                              <TableCell className="text-zinc-400 text-center">{product.category || 'Uncategorized'}</TableCell>
+                              <TableCell className="text-yellow-300 text-center font-semibold">{product.stock}</TableCell>
                               <TableCell className="text-center">
                                 <Button
                                   type="button"
                                   size="sm"
-                                  className="bg-yellow-400 text-red-900 hover:bg-yellow-500"
+                                  className="bg-yellow-400 text-black hover:bg-yellow-300 font-bold"
                                   onClick={() => addProduct(product.name)}
                                 >
                                   Add
@@ -1976,7 +1976,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
               </Dialog>
               <div className="flex flex-wrap gap-2 min-h-6">
                 {selectedProducts.map((product) => (
-                  <Badge key={product} className="bg-red-500 text-yellow-200 gap-1 pr-1">
+                  <Badge key={product} className="bg-[#2B2B38] text-yellow-300 border border-zinc-700 font-semibold gap-1 pr-1">
                     {product}
                     <button type="button" className="ml-1" onClick={() => removeProduct(product)}>
                       <X className="w-3 h-3" />
@@ -2007,7 +2007,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
                     : formData.end_date,
               });
             }}
-            className="bg-red-600 border-red-800 text-yellow-200"
+            className="bg-[#1D1D26] border-[#313342] text-white focus-visible:ring-yellow-400/40"
           />
         </div>
         <div className="space-y-2">
@@ -2018,7 +2018,7 @@ function PromotionForm({ formData, setFormData, categoryOptions, productOptions 
             min={normalizePromotionDateTime(formData.start_date, 'start') || minPromotionDate}
             value={normalizePromotionDateTime(formData.end_date, 'end')}
             onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-            className="bg-red-600 border-red-800 text-yellow-200"
+            className="bg-[#1D1D26] border-[#313342] text-white focus-visible:ring-yellow-400/40"
           />
         </div>
       </div>
