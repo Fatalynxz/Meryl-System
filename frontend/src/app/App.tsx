@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { Toaster } from './components/ui/sonner';
+import { ScreenLockModal } from './components/ScreenLockModal';
 
 function hasVisibleModal() {
   const modalSelector = [
@@ -44,6 +45,9 @@ function unlockStuckUi() {
 
     document.querySelectorAll(overlaySelector).forEach((element) => {
       const node = element as HTMLElement;
+      if (node.hasAttribute('data-lock-screen') || node.closest('[data-lock-screen]')) {
+        return;
+      }
       const style = window.getComputedStyle(node);
       const rect = node.getBoundingClientRect();
       const coversViewport = rect.width >= window.innerWidth * 0.9 && rect.height >= window.innerHeight * 0.9;
@@ -113,6 +117,7 @@ export default function App() {
     <>
       <UiUnlocker />
       <RouterProvider router={router} />
+      <ScreenLockModal />
       <Toaster />
     </>
   );

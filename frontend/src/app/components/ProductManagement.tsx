@@ -12,6 +12,7 @@ import { Edit, Eye, Info, Package, Plus, Search, Settings, Warehouse, SlidersHor
 import { toast } from "sonner";
 import { useCategories, useInventory, useProducts, useProductsMutations } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
+import { logAuditEvent } from "../../lib/api/audit-logger";
 
 type InventoryStatus = "Active" | "Inactive";
 type ProductTab = "list" | "settings" | "inventory";
@@ -375,6 +376,13 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       if (editingProduct) {
         if (editScope === "this_variant") {
           await productMutations.updateMutation.mutateAsync({ id: editingProduct.product_id, payload: thisVariantPayload });
+          logAuditEvent({
+            action_type: "PRODUCT_UPDATED",
+            entity_type: "PRODUCT",
+            entity_id: editingProduct.product_id,
+            old_data: { name: editingProduct.name, price: editingProduct.unit_price, size: editingProduct.size },
+            new_data: thisVariantPayload,
+          });
           toast.success("Product variant updated.");
         } else {
           const targetIds =
@@ -391,10 +399,23 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
             error = retry.error;
           }
           if (error) throw error;
+          logAuditEvent({
+            action_type: "PRODUCT_UPDATED",
+            entity_type: "PRODUCT",
+            entity_id: targetIds.join(","),
+            metadata: { updated_count: targetIds.length, scope: editScope },
+            new_data: basePayload,
+          });
           toast.success(`Updated ${targetIds.length} variant${targetIds.length === 1 ? "" : "s"} (base fields only).`);
         }
       } else {
         await productMutations.createMutation.mutateAsync(thisVariantPayload);
+        logAuditEvent({
+          action_type: "PRODUCT_CREATED",
+          entity_type: "PRODUCT",
+          entity_id: cleanProductName,
+          new_data: thisVariantPayload,
+        });
         toast.success("Product added to Product List.");
       }
       await queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -486,6 +507,18 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         if (holdLogError) throw holdLogError;
       }
 
+      logAuditEvent({
+        action_type: "STOCK_ADJUSTED",
+        entity_type: "INVENTORY",
+        entity_id: product.product_id,
+        metadata: {
+          product_name: product.name,
+          added_stock: stockForm.stock_in,
+          new_srp: computedSrp,
+          reorder_level: stockForm.reorder_level,
+        },
+      });
+
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       await queryClient.invalidateQueries({ queryKey: ["inventoryLog"] });
@@ -530,6 +563,13 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
           .eq("product_id", productId);
         if (restoreInventoryError) throw restoreInventoryError;
 
+        logAuditEvent({
+          action_type: "PRODUCT_UPDATED",
+          entity_type: "PRODUCT",
+          entity_id: productId,
+          metadata: { action: "RESTORED", name: product.name, sku: product.sku },
+        });
+
         await queryClient.invalidateQueries({ queryKey: ["products"] });
         await queryClient.invalidateQueries({ queryKey: ["inventory"] });
         setIsProductDialogOpen(false);
@@ -558,6 +598,13 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
       if (inventoryDeleteError) throw inventoryDeleteError;
 
       await productMutations.removeMutation.mutateAsync(productId);
+      logAuditEvent({
+        action_type: "PRODUCT_ARCHIVED",
+        entity_type: "PRODUCT",
+        entity_id: productId,
+        metadata: { action: "DELETED", name: product.name, sku: product.sku },
+      });
+
       await queryClient.invalidateQueries({ queryKey: ["products"] });
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       await queryClient.invalidateQueries({ queryKey: ["inventoryLog"] });

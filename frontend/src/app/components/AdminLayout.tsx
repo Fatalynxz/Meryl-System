@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Dashboard } from './Dashboard';
-import { ClipboardList, LayoutDashboard, Package, ShoppingCart, Users, CreditCard, TrendingUp, Tag, BarChart3, LogOut, UserCog, RotateCcw, Sparkles, SlidersHorizontal, Warehouse } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, Package, ShoppingCart, Users, CreditCard, TrendingUp, Tag, BarChart3, LogOut, UserCog, RotateCcw, Sparkles, SlidersHorizontal, Warehouse, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { useAuth } from '../../lib/auth-context';
 import { BrandLogo } from './BrandLogo';
@@ -17,6 +17,7 @@ const loadUserManagement = () => import('./UserManagement');
 const loadReturnManagement = () => import('./ReturnManagement');
 const loadNotificationCenter = () => import('./NotificationCenter');
 const loadInventoryLogPage = () => import('./InventoryLogPage');
+const loadAuditLogViewer = () => import('./AuditLogViewer');
 
 const PointOfSale = lazy(() => loadPointOfSale().then((module) => ({ default: module.PointOfSale })));
 const ProductManagement = lazy(() => loadProductManagement().then((module) => ({ default: module.ProductManagement })));
@@ -29,6 +30,7 @@ const UserManagement = lazy(() => loadUserManagement().then((module) => ({ defau
 const ReturnManagement = lazy(() => loadReturnManagement().then((module) => ({ default: module.ReturnManagement })));
 const NotificationCenter = lazy(() => loadNotificationCenter().then((module) => ({ default: module.NotificationCenter })));
 const InventoryLogPage = lazy(() => loadInventoryLogPage().then((module) => ({ default: module.InventoryLogPage })));
+const AuditLogViewer = lazy(() => loadAuditLogViewer().then((module) => ({ default: module.AuditLogViewer })));
 
 function clearOrphanedModalState() {
   if (typeof document === 'undefined') return;
@@ -139,6 +141,7 @@ export function AdminLayout() {
     { id: 'promotions', label: 'Promotions', icon: Tag },
     { id: 'reports', label: 'Reports', icon: BarChart3 },
     { id: 'users', label: 'Users', icon: UserCog },
+    { id: 'audit-log', label: 'Security & Audit', icon: ShieldCheck },
   ];
 
   const preloadByView: Record<string, () => Promise<unknown>> = {
@@ -154,6 +157,7 @@ export function AdminLayout() {
     returns: loadReturnManagement,
     reports: loadReportsAnalytics,
     users: loadUserManagement,
+    'audit-log': loadAuditLogViewer,
   };
 
   const renderContent = () => {
@@ -171,6 +175,7 @@ export function AdminLayout() {
       case 'returns': return <ReturnManagement />;
       case 'reports': return <ReportsAnalytics />;
       case 'users': return <UserManagement />;
+      case 'audit-log': return <AuditLogViewer />;
       default: return <Dashboard />;
     }
   };

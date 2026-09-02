@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from './ui/button';
-import { ArrowLeft, KeyRound, LogIn, Mail, User, Lock, ShieldCheck, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
-import { getPostLoginPath, useAuth } from '../../lib/auth-context';
+import { ArrowLeft, KeyRound, LogIn, Mail, User, Lock, ShieldCheck, Eye, EyeOff, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { checkLockoutStatus, clearFailedAttempts, getPostLoginPath, recordFailedAttempt, useAuth } from '../../lib/auth-context';
+import { logAuditEvent } from '../../lib/api/audit-logger';
 import { supabase } from '../../lib/supabase';
 import { BrandLogo } from './BrandLogo';
 
@@ -24,6 +25,29 @@ export function Login() {
   const [externalSubmitting, setExternalSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
+
+  useEffect(() => {
+    const clean = username.trim().toLowerCase();
+    if (!clean) {
+      setLockoutRemaining(0);
+      return;
+    }
+    const status = checkLockoutStatus(clean);
+    setLockoutRemaining(status.remainingSeconds);
+
+    if (status.isLocked) {
+      const timer = setInterval(() => {
+        const current = checkLockoutStatus(clean);
+        setLockoutRemaining(current.remainingSeconds);
+        if (!current.isLocked) {
+          clearInterval(timer);
+          setError('');
+        }
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [username]);
 
   useEffect(() => {
     const resetExternalSubmitting = () => {
@@ -41,31 +65,63 @@ export function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    // Check brute-force lockout status before validating
+    const lockout = checkLockoutStatus(cleanUsername);
+    if (lockout.isLocked) {
+      setLockoutRemaining(lockout.remainingSeconds);
+      setError(`Security Lockout: Account temporarily locked due to 5 failed attempts. Please wait.`);
+      return;
+    }
+
     setSubmitting(true);
     setError('');
     setNotice('');
 
     try {
-      const cleanUsername = username.trim().toLowerCase();
-      const cleanPassword = password.trim();
-
-      // Step 1: Validate credentials (tries RPC first, then fallback direct table lookup)
+      // Step 1: Validate credentials
       const authUser = await validateCredentials(cleanUsername, cleanPassword);
 
       if (!authUser) {
-        setError('Invalid username or password');
+        const attempt = recordFailedAttempt(cleanUsername);
+        logAuditEvent({
+          action_type: attempt.isLocked ? "AUTH_ACCOUNT_LOCKED" : "AUTH_FAILED_LOGIN",
+          entity_type: "USER",
+          entity_id: cleanUsername,
+          metadata: { username: cleanUsername, attempt_count: attempt.count },
+        });
+
+        if (attempt.isLocked) {
+          setLockoutRemaining(300);
+          setError("Security Alert: Account temporarily locked due to 5 failed attempts. Please wait 5 minutes before retrying.");
+        } else {
+          const remaining = 5 - attempt.count;
+          setError(`Invalid username or password. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining before temporary lockout)`);
+        }
         setSubmitting(false);
         return;
       }
 
-      // Step 2: Show success overlay on the login page
+      // Step 2: Clear failed attempts on success and log audit
+      clearFailedAttempts(cleanUsername);
+      logAuditEvent({
+        action_type: "AUTH_LOGIN",
+        entity_type: "USER",
+        entity_id: authUser.user_id,
+        metadata: { username: authUser.username, role: authUser.role_name },
+      });
+
+      // Step 3: Show success overlay on the login page
       setLoginSuccess(true);
 
-      // Step 3: After 3 seconds, set user state and redirect
+      // Step 4: After 2 seconds, set user state and redirect
       setTimeout(() => {
         setCurrentUser(authUser);
         navigate(getPostLoginPath(authUser));
-      }, 3000);
+      }, 2000);
     } catch (err: any) {
       setError(err?.message || 'Invalid username or password');
       setSubmitting(false);
@@ -309,6 +365,22 @@ export function Login() {
           </form>
           ) : (
           <form onSubmit={handleLogin} className="space-y-4">
+            {lockoutRemaining > 0 && (
+              <div className="rounded-xl px-4 py-3 bg-red-950/70 border border-red-500/40 text-sm text-red-200 flex items-start gap-2.5 animate-in fade-in">
+                <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-red-300">Account Temporarily Locked</p>
+                  <p className="text-xs text-zinc-300 mt-0.5">
+                    Too many consecutive failed attempts. Please wait{' '}
+                    <span className="font-mono font-bold text-yellow-400">
+                      {Math.floor(lockoutRemaining / 60)}:{(lockoutRemaining % 60).toString().padStart(2, '0')}
+                    </span>{' '}
+                    before trying again.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="text-xs text-white/60 mb-1.5 block">Username</label>
               <div className="relative">
@@ -362,11 +434,11 @@ export function Login() {
 
             <Button
               type="submit"
-              disabled={submitting}
-              className="w-full h-11 rounded-xl bg-gradient-to-r from-[#E5202A] to-[#B81820] hover:from-[#C71820] hover:to-[#9A1218] text-white shadow-lg shadow-red-900/30"
+              disabled={submitting || lockoutRemaining > 0}
+              className="w-full h-11 rounded-xl bg-gradient-to-r from-[#E5202A] to-[#B81820] hover:from-[#C71820] hover:to-[#9A1218] text-white shadow-lg shadow-red-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <LogIn className="w-4 h-4 mr-2" />
-              Sign in
+              {lockoutRemaining > 0 ? 'Locked (Please Wait)' : 'Sign in'}
             </Button>
           </form>
           )}

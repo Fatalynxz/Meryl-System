@@ -9,10 +9,11 @@ import { Label } from "./ui/label";
 import { Checkbox } from "./ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Coins, CreditCard, Minus, Package, Plus, Receipt, Search, Trash2, Users } from "lucide-react";
+import { Coins, CreditCard, KeyRound, Minus, Package, Plus, Receipt, Search, ShieldAlert, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useCustomers, useInventory, useProducts, usePromotions } from "../../lib/hooks";
-import { useAuth } from "../../lib/auth-context";
+import { getRoleGroup, useAuth } from "../../lib/auth-context";
+import { logAuditEvent } from "../../lib/api/audit-logger";
 import { supabase } from "../../lib/supabase";
 
 type CartItem = {
@@ -280,11 +281,21 @@ function formatPercentValue(value: number) {
 
 export function PointOfSale() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, validateCredentials } = useAuth();
   const productsQuery = useProducts();
   const inventoryQuery = useInventory();
   const customersQuery = useCustomers();
   const promotionsQuery = usePromotions();
+
+  // Manager Override & Security State
+  const [managerOverrideOpen, setManagerOverrideOpen] = useState(false);
+  const [managerUsername, setManagerUsername] = useState("");
+  const [managerPassword, setManagerPassword] = useState("");
+  const [managerVerifying, setManagerVerifying] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    description: string;
+    action: () => void;
+  } | null>(null);
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProductKey, setSelectedProductKey] = useState<string>("");
@@ -853,11 +864,71 @@ export function PointOfSale() {
     setProductSearch("");
   };
 
+  const requestManagerApproval = (description: string, action: () => void) => {
+    // If current logged-in user is an administrator, authorize immediately without prompt
+    if (getRoleGroup(user?.role_name) === "admin") {
+      action();
+      return;
+    }
+    setPendingAction({ description, action });
+    setManagerUsername("");
+    setManagerPassword("");
+    setManagerOverrideOpen(true);
+  };
+
+  const handleManagerAuthorize = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!managerUsername.trim() || !managerPassword.trim()) {
+      toast.error("Please enter manager username and password.");
+      return;
+    }
+
+    setManagerVerifying(true);
+    try {
+      const verifiedUser = await validateCredentials(managerUsername.trim(), managerPassword.trim());
+      if (!verifiedUser || getRoleGroup(verifiedUser.role_name) !== "admin") {
+        toast.error("Authorization failed. Administrator or Manager credentials required.");
+        setManagerVerifying(false);
+        return;
+      }
+
+      // Log override event in audit trail
+      logAuditEvent({
+        action_type: "POS_MANAGER_OVERRIDE",
+        entity_type: "POS",
+        metadata: {
+          action: pendingAction?.description,
+          cashier: user?.username || "Cashier",
+          manager: verifiedUser.username,
+        },
+      });
+
+      // Execute approved action
+      pendingAction?.action();
+      toast.success(`Action authorized by ${verifiedUser.name}.`);
+      setManagerOverrideOpen(false);
+      setPendingAction(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Manager authorization failed.");
+    } finally {
+      setManagerVerifying(false);
+    }
+  };
+
   const removeFromCart = (id: string) =>
     setCart((prev) => {
       const next = prev.filter((item) => item.id !== id);
       return recalculatePromotions(next);
     });
+
+  const handleRemoveFromCart = (id: string) => {
+    const item = cart.find((i) => i.id === id);
+    const desc = item ? `Void line item: ${item.productName} (${item.size})` : "Void item from cart";
+    requestManagerApproval(desc, () => {
+      removeFromCart(id);
+      toast.success("Item removed from cart.");
+    });
+  };
 
   const updateQuantity = (id: string, newQuantity: number) => {
     const currentItem = cart.find((item) => item.id === id);
@@ -943,10 +1014,26 @@ export function PointOfSale() {
   };
 
   const commitDiscountInput = (id: string) => {
+    const currentItem = cart.find((item) => item.id === id);
+    if (currentItem && isBogoCartItem(currentItem)) return;
+    const cleanDiscount = Math.min(100, Math.max(0, Number(currentItem?.discountInput ?? currentItem?.discount) || 0));
+
+    // If discount > 20% and current discount was <= 20%, require manager approval
+    if (cleanDiscount > 20 && (!currentItem || currentItem.discount <= 20)) {
+      requestManagerApproval(`High Custom Discount: ${cleanDiscount}% on ${currentItem?.productName || "Product"}`, () => {
+        setCart((prev) =>
+          prev.map((item) => {
+            if (item.id !== id || isBogoCartItem(item)) return item;
+            return { ...item, discount: cleanDiscount, discountInput: String(cleanDiscount) };
+          }),
+        );
+      });
+      return;
+    }
+
     setCart((prev) =>
       prev.map((item) => {
         if (item.id !== id || isBogoCartItem(item)) return item;
-        const cleanDiscount = Math.min(100, Math.max(0, Number(item.discountInput ?? item.discount) || 0));
         return { ...item, discount: cleanDiscount, discountInput: String(cleanDiscount) };
       }),
     );
@@ -1135,6 +1222,17 @@ function formatReceiptNumber(salesId?: string) {
     };
     setReceiptData(receipt);
     setShowReceipt(true);
+    logAuditEvent({
+      action_type: "POS_SALE_COMPLETED",
+      entity_type: "SALE",
+      entity_id: receiptNumber,
+      metadata: {
+        total: receiptTotal,
+        payment_method: paymentMethod,
+        items_count: cart.length,
+        cashier: user?.name || user?.username || "Cashier",
+      },
+    });
     setCart([]);
     setCustomerName("walk-in");
     setSaveWalkInDetails(false);
@@ -1686,7 +1784,8 @@ function formatReceiptNumber(salesId?: string) {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => removeFromCart(item.id)}
+                              onClick={() => handleRemoveFromCart(item.id)}
+                              title="Void line item"
                               className="text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded-lg h-8 w-8 p-0"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -2142,6 +2241,66 @@ function formatReceiptNumber(salesId?: string) {
               <span>Print Receipt</span>
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MANAGER OVERRIDE AUTH DIALOG */}
+      <Dialog open={managerOverrideOpen} onOpenChange={setManagerOverrideOpen}>
+        <DialogContent className="bg-[#13131c] border-[#2a2c3a] text-yellow-100 max-w-md rounded-2xl shadow-2xl p-6">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl border border-yellow-400/30 bg-yellow-400/10 text-yellow-400 shadow-inner">
+              <KeyRound className="h-6 w-6" />
+            </div>
+            <DialogTitle className="text-center text-white text-lg font-bold">
+              Manager Authorization Required
+            </DialogTitle>
+            <p className="text-center text-xs text-yellow-200/70 mt-1">
+              {pendingAction?.description || "This action requires manager approval."}
+            </p>
+          </DialogHeader>
+
+          <form onSubmit={handleManagerAuthorize} className="space-y-3.5 mt-2">
+            <div className="space-y-1 text-left">
+              <label className="text-xs text-yellow-200/80 font-medium">Manager Username</label>
+              <Input
+                placeholder="Enter manager username"
+                value={managerUsername}
+                onChange={(e) => setManagerUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                className="h-10 bg-[#1b1b26] border-[#2e2e42] text-sm text-yellow-100 rounded-xl focus-visible:ring-yellow-400/50"
+              />
+            </div>
+            <div className="space-y-1 text-left">
+              <label className="text-xs text-yellow-200/80 font-medium">Manager Password / PIN</label>
+              <Input
+                type="password"
+                placeholder="Enter manager password"
+                value={managerPassword}
+                onChange={(e) => setManagerPassword(e.target.value)}
+                className="h-10 bg-[#1b1b26] border-[#2e2e42] text-sm text-yellow-100 rounded-xl focus-visible:ring-yellow-400/50"
+              />
+            </div>
+
+            <DialogFooter className="flex items-center gap-2 pt-2 sm:justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setManagerOverrideOpen(false);
+                  setPendingAction(null);
+                }}
+                className="border border-[#2e2e42] text-zinc-400 hover:text-white rounded-xl text-xs h-10"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={managerVerifying}
+                className="bg-yellow-400 text-black font-bold hover:bg-yellow-300 rounded-xl text-xs h-10 px-5 shadow"
+              >
+                {managerVerifying ? "Verifying..." : "Authorize Action"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
