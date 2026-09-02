@@ -29,6 +29,7 @@ type CartItem = {
   discountInput?: string;
   promotionType?: string;
   promo_id?: string | null;
+  image_url?: string;
 };
 
 type ProductVariant = {
@@ -775,6 +776,7 @@ export function PointOfSale() {
               discountInput: isBogoApplied ? formatPercentValue(finalDiscount) : undefined,
               promotionType: isBogoApplied ? "bogo" : isBundleApplied ? "bundle" : undefined,
               promo_id: matchedPromotion?.promoKey ?? null,
+              image_url: selectedVariant.image_url,
             },
           ];
       return recalculatePromotions(next);
@@ -1569,7 +1571,21 @@ function formatReceiptNumber(salesId?: string) {
                       return (
                         <TableRow key={item.id} className="border-t border-[#232333] hover:bg-[#1c1c2b] transition-colors">
                           <TableCell className="text-white font-semibold whitespace-nowrap align-middle px-3 py-3 truncate">
-                            {item.productName}
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-lg bg-[#14141e] border border-[#2d2d3f] overflow-hidden flex items-center justify-center flex-shrink-0 shadow-inner">
+                                {item.image_url ? (
+                                  <img
+                                    src={item.image_url}
+                                    alt={item.productName}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <Package className="w-4 h-4 text-yellow-400/40" />
+                                )}
+                              </div>
+                              <span className="truncate">{item.productName}</span>
+                            </div>
                           </TableCell>
                           <TableCell className="text-yellow-100 whitespace-nowrap align-middle px-3 py-3 truncate">{item.brand}</TableCell>
                           <TableCell className="text-yellow-100 whitespace-nowrap text-center align-middle px-2 py-3">{item.color}</TableCell>

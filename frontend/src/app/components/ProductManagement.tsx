@@ -354,26 +354,22 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     if (validation) return toast.error(validation);
 
     const cleanProductName = productNameWithoutBrand(productForm.name, productForm.brand);
-    const trimmedImageUrl = productForm.image_url?.trim();
+    const trimmedImageUrl = productForm.image_url?.trim() || null;
     const basePayload: any = {
       product_name: cleanProductName,
       brand: productForm.brand.trim(),
       category_id: productForm.category_id,
       cost_price: Number(productForm.unit_price || 0),
+      image_url: trimmedImageUrl,
     };
-    if (trimmedImageUrl) {
-      basePayload.image_url = trimmedImageUrl;
-    }
 
     const thisVariantPayload: any = {
       ...basePayload,
       size: productForm.size.trim() || null,
       color: productForm.color.trim() || null,
       gender: productForm.gender || null,
+      image_url: trimmedImageUrl,
     };
-    if (trimmedImageUrl) {
-      thisVariantPayload.image_url = trimmedImageUrl;
-    }
 
     try {
       if (editingProduct) {
@@ -831,11 +827,11 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
   };
 
   return (
-    <div className="border border-red-800 rounded-lg overflow-x-auto">
-      <Table className="w-full min-w-[760px]">
+    <div className="border border-[#24242F] rounded-xl overflow-x-auto bg-[#111118]">
+      <Table className="w-full min-w-[820px]">
         <TableHeader>
-          <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-            {["Product", "Variant", "Price", "Available", "Status", "Actions"].map((head) => (
+          <TableRow className="bg-[#181824] hover:bg-[#181824] border-[#24242F]">
+            {["Image", "Product", "Variant", "Price", "Available", "Status", "Actions"].map((head) => (
               <TableHead key={head} className="text-yellow-300 text-center whitespace-nowrap">{head}</TableHead>
             ))}
           </TableRow>
@@ -843,7 +839,23 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
         <TableBody>
           {products.map((product) => {
             return (
-              <TableRow key={product.product_id} className="border-red-800">
+              <TableRow key={product.product_id} className="border-[#24242F] hover:bg-white/[0.02]">
+                <TableCell className="text-center align-middle py-2 px-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center mx-auto flex-shrink-0 shadow-sm">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <Package className="w-4 h-4 text-yellow-400/40" />
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap font-medium">{product.name}</TableCell>
                 <TableCell className="text-center">
                   <div className="flex items-center justify-center gap-1.5 flex-wrap">
@@ -878,10 +890,10 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
                 <TableCell className="text-center whitespace-nowrap"><Badge className={product.status === 'Active' ? 'bg-green-600 text-white' : 'bg-gray-600 text-white'}>{product.status}</Badge></TableCell>
                 <TableCell className="text-center whitespace-nowrap">
                   <div className="flex justify-center gap-2">
-                    <Button size="sm" variant="ghost" title="View details" className="text-yellow-400 hover:bg-red-600" onClick={() => openDetails(product)}>
+                    <Button size="sm" variant="ghost" title="View details" className="text-yellow-400 hover:bg-zinc-800" onClick={() => openDetails(product)}>
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" title="Product settings" className="text-yellow-400 hover:bg-red-600" onClick={() => onConfigure(product)}>
+                    <Button size="sm" variant="ghost" title="Product settings" className="text-yellow-400 hover:bg-zinc-800" onClick={() => onConfigure(product)}>
                       <Settings className="w-4 h-4" />
                     </Button>
                   </div>
@@ -898,21 +910,42 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
             <DialogTitle className="text-yellow-300">Inventory Details</DialogTitle>
           </DialogHeader>
           {selectedProduct && (
-            <div className="grid gap-3 text-sm md:grid-cols-2">
-              <DetailPill label="SKU" value={shortId(selectedProduct.sku, 12, 8)} />
-              <DetailPill label="Product" value={selectedProduct.name} />
-              <DetailPill label="Brand" value={selectedProduct.brand} />
-              <DetailPill label="Category" value={selectedProduct.category} />
-              <DetailPill label="Variant" value={variantLabel(selectedProduct)} />
-              <DetailPill label="Price" value={formatMoney(selectedProduct.srp)} />
-              <DetailPill label="On Hand" value={`${selectedProduct.stock} units`} />
-              <DetailPill label="Held" value={`${selectedProduct.reserved_stock} units`} />
-              <DetailPill label="Available" value={`${selectedProduct.available_stock} units`} />
-              <DetailPill label="Reorder" value={`${selectedProduct.reorder_level}`} />
-              <DetailPill label="Status" value={selectedProduct.status} />
-              <DetailPill label="Condition" value={stockCondition(selectedProduct.available_stock, selectedProduct.reorder_level, isExpiredProduct(selectedProduct)).label} />
-              <DetailPill label="Manufacturer Date" value={selectedProduct.manufacturer_date ? selectedProduct.manufacturer_date.slice(0, 10) : "N/A"} />
-              <DetailPill label="Expiration Date" value={selectedProduct.expiration_date ? selectedProduct.expiration_date.slice(0, 10) : "N/A"} />
+            <div className="space-y-4">
+              <div className="flex items-center gap-3.5 rounded-xl border border-[#2d2d40] bg-[#1a1a27] p-3.5">
+                <div className="w-14 h-14 rounded-xl bg-[#14141e] border border-[#303044] overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
+                  {selectedProduct.image_url ? (
+                    <img
+                      src={selectedProduct.image_url}
+                      alt={selectedProduct.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <Package className="w-6 h-6 text-yellow-400/40" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-base font-bold text-white">{selectedProduct.brand} - {selectedProduct.name}</p>
+                  <p className="text-xs text-yellow-200/70 mt-0.5">{selectedProduct.category} &bull; {variantLabel(selectedProduct)}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 text-sm md:grid-cols-2">
+                <DetailPill label="SKU" value={shortId(selectedProduct.sku, 12, 8)} />
+                <DetailPill label="Product" value={selectedProduct.name} />
+                <DetailPill label="Brand" value={selectedProduct.brand} />
+                <DetailPill label="Category" value={selectedProduct.category} />
+                <DetailPill label="Variant" value={variantLabel(selectedProduct)} />
+                <DetailPill label="Price" value={formatMoney(selectedProduct.srp)} />
+                <DetailPill label="On Hand" value={`${selectedProduct.stock} units`} />
+                <DetailPill label="Held" value={`${selectedProduct.reserved_stock} units`} />
+                <DetailPill label="Available" value={`${selectedProduct.available_stock} units`} />
+                <DetailPill label="Reorder" value={`${selectedProduct.reorder_level}`} />
+                <DetailPill label="Status" value={selectedProduct.status} />
+                <DetailPill label="Condition" value={stockCondition(selectedProduct.available_stock, selectedProduct.reorder_level, isExpiredProduct(selectedProduct)).label} />
+                <DetailPill label="Manufacturer Date" value={selectedProduct.manufacturer_date ? selectedProduct.manufacturer_date.slice(0, 10) : "N/A"} />
+                <DetailPill label="Expiration Date" value={selectedProduct.expiration_date ? selectedProduct.expiration_date.slice(0, 10) : "N/A"} />
+              </div>
             </div>
           )}
         </DialogContent>
@@ -1304,16 +1337,30 @@ function ProductSettingsPage({
               <>
                 {/* Product Summary Header Bar */}
                 <div className="rounded-xl border border-[#2d2d40] bg-[#1a1a27] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white text-base">{activeProduct.brand} - {activeProduct.name}</span>
-                      <span className="bg-[#242436] text-yellow-300 border border-[#36364e] text-xs px-2.5 py-0.5 rounded-md font-medium">
-                        {activeProduct.category}
-                      </span>
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-14 h-14 rounded-xl bg-[#14141e] border border-[#303044] overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
+                      {activeProduct.image_url ? (
+                        <img
+                          src={activeProduct.image_url}
+                          alt={activeProduct.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <Package className="w-6 h-6 text-yellow-400/40" />
+                      )}
                     </div>
-                    <p className="text-xs text-yellow-200/70">
-                      Color: {activeProduct.color} &nbsp;|&nbsp; Size: {activeProduct.size} &nbsp;|&nbsp; Gender: {activeProduct.gender}
-                    </p>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white text-base">{activeProduct.brand} - {activeProduct.name}</span>
+                        <span className="bg-[#242436] text-yellow-300 border border-[#36364e] text-xs px-2.5 py-0.5 rounded-md font-medium">
+                          {activeProduct.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-yellow-200/70">
+                        Color: {activeProduct.color} &nbsp;|&nbsp; Size: {activeProduct.size} &nbsp;|&nbsp; Gender: {activeProduct.gender}
+                      </p>
+                    </div>
                   </div>
                   <div className="sm:text-right border-t sm:border-t-0 border-[#2b2b3d] pt-2 sm:pt-0">
                     <span className="text-xs text-yellow-200/60 uppercase tracking-wider block">Unit Cost</span>
