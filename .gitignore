@@ -54,3 +54,13 @@ yarn-error.log*
 # Keep frontend source lib folder tracked
 !frontend/src/lib/
 !frontend/src/lib/**
+
+# Papers & Reference Documents
+papers/
+*.pdf
+
+# Testing & Whitebox scripts/data (do not push)
+whitebox_tests/
+test_scripts/
+whitebox_test_cases.csv
+
