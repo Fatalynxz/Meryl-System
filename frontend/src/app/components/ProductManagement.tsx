@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Edit, Eye, Info, Package, Plus, Search, Settings, Warehouse, SlidersHorizontal, ArrowUpDown, CheckCircle2, AlertTriangle, Layers, TrendingUp, Calendar, DollarSign, X, Check, Filter } from "lucide-react";
+import { Edit, Eye, Info, Package, Plus, Search, Settings, Warehouse, SlidersHorizontal, ArrowUpDown, CheckCircle2, AlertTriangle, Layers, TrendingUp, Calendar, DollarSign, X, Check, Filter, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useCategories, useInventory, useProducts, useProductsMutations } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
@@ -671,21 +671,21 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
           onSave={saveProductSettings}
         />
       ) : (
-        <Card className="bg-red-700 border-red-800">
+        <Card className="bg-[#15151D] border-[#24242F]">
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="text-yellow-300 flex items-center gap-2">
-                {activeTab === "list" ? <Package className="w-5 h-5" /> : <Warehouse className="w-5 h-5" />}
+                {activeTab === "list" ? <Package className="w-5 h-5 text-yellow-400" /> : <Warehouse className="w-5 h-5 text-yellow-400" />}
                 {activeTab === "list" ? "Product List / Master Data" : "Sellable Inventory"}
               </CardTitle>
               <div className="flex items-center gap-2">
-                <Badge className="bg-yellow-400 text-red-900">{filteredProducts.length} records</Badge>
+                <Badge className="bg-yellow-400 text-black font-semibold">{filteredProducts.length} records</Badge>
                 {activeTab === "list" && (
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={() => setShowArchived((prev) => !prev)}
-                    className="border border-red-700 text-yellow-200 hover:bg-red-800"
+                    className="border border-[#2d2d3a] text-yellow-200 hover:bg-[#252533]"
                   >
                     {showArchived ? "Hide Archived" : "Show Archived"}
                   </Button>
@@ -740,7 +740,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
                 placeholder={activeTab === "inventory" ? "Search by SKU, product, brand, category, or variant..." : "Search by SKU, product, brand, or category..."}
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                className="pl-10 bg-red-600 border-red-800 text-yellow-200 placeholder:text-yellow-300/50"
+                className="pl-10 bg-[#12121A] border-[#24242F] text-white placeholder:text-zinc-500 focus-visible:ring-yellow-400/40"
               />
             </div>
             {activeTab === "list" ? (
@@ -760,7 +760,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
     <Button
       type="button"
       onClick={onClick}
-      className={active ? "bg-yellow-400 text-red-900 hover:bg-yellow-500" : "bg-red-800 text-yellow-200 hover:bg-red-600"}
+      className={active ? "bg-yellow-400 text-black font-bold hover:bg-yellow-300" : "bg-[#181824] border border-[#24242F] text-zinc-300 hover:text-white hover:bg-[#20202e]"}
     >
       {icon}
       <span className="ml-2">{label}</span>
@@ -770,18 +770,34 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 
 function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit: (product: UiProduct) => void }) {
   return (
-    <div className="border border-red-800 rounded-lg overflow-x-auto">
-      <Table className="w-full min-w-[980px]">
+    <div className="border border-[#24242F] rounded-xl overflow-x-auto bg-[#111118]">
+      <Table className="w-full min-w-[1040px]">
         <TableHeader>
-          <TableRow className="bg-red-800 hover:bg-red-800 border-red-900">
-            {['SKU', 'Product', 'Brand', 'Category', 'Color', 'Department', 'Size', 'Unit Price', 'Actions'].map((head) => (
+          <TableRow className="bg-[#181824] hover:bg-[#181824] border-[#24242F]">
+            {['Image', 'SKU', 'Product', 'Brand', 'Category', 'Color', 'Department', 'Size', 'Unit Price', 'Actions'].map((head) => (
               <TableHead key={head} className="text-yellow-300 text-center whitespace-nowrap">{head}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {products.map((product) => (
-            <TableRow key={product.product_id} className={`border-red-800 ${product.isArchived ? "opacity-55" : ""}`}>
+            <TableRow key={product.product_id} className={`border-[#24242F] hover:bg-white/[0.02] ${product.isArchived ? "opacity-55" : ""}`}>
+              <TableCell className="text-center align-middle py-2 px-3">
+                <div className="w-10 h-10 rounded-lg bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center mx-auto flex-shrink-0 shadow-sm">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <Package className="w-4 h-4 text-yellow-400/40" />
+                  )}
+                </div>
+              </TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">
                 <span>{product.name}</span>
@@ -794,7 +810,7 @@ function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit:
               <TableCell className="text-yellow-300 text-center whitespace-nowrap">{formatMoney(product.unit_price)}</TableCell>
               <TableCell className="text-center whitespace-nowrap">
                 <div className="flex justify-center gap-2">
-                  <Button size="sm" variant="ghost" className="text-yellow-400 hover:bg-red-600" onClick={() => onEdit(product)}><Edit className="w-4 h-4" /></Button>
+                  <Button size="sm" variant="ghost" className="text-yellow-400 hover:bg-zinc-800" onClick={() => onEdit(product)}><Edit className="w-4 h-4" /></Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -1496,6 +1512,64 @@ function ProductSettingsPage({
 }
 
 function ProductMasterForm({ formData, setFormData, categories }: { formData: ProductFormData; setFormData: (data: ProductFormData) => void; categories: any[] }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file (PNG, JPG, WEBP).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image file size should be less than 5MB.");
+      return;
+    }
+
+    setIsProcessingFile(true);
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 500;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setFormData({ ...formData, image_url: compressedDataUrl });
+        setIsProcessingFile(false);
+        toast.success("Image uploaded successfully.");
+      };
+      img.onerror = () => {
+        setFormData({ ...formData, image_url: String(readerEvent.target?.result ?? "") });
+        setIsProcessingFile(false);
+      };
+      img.src = String(readerEvent.target?.result ?? "");
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="grid gap-4 py-4">
       <div className="grid gap-4 md:grid-cols-2">
@@ -1526,9 +1600,25 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
         <NumberField label="Unit Price" value={formData.unit_price} onChange={(value) => setFormData({ ...formData, unit_price: value })} />
       </div>
       <div className="space-y-2">
-        <Label className="text-yellow-300">Product Image URL (Optional)</Label>
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <Label className="text-yellow-300">Product Image (Optional)</Label>
+          {formData.image_url ? (
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, image_url: "" })}
+              className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 transition"
+            >
+              <X className="w-3.5 h-3.5" /> Remove Image
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="w-14 h-14 rounded-xl bg-[#1a1a27] border border-[#2d2d3f] hover:border-yellow-400/50 cursor-pointer overflow-hidden flex items-center justify-center flex-shrink-0 relative group transition shadow-sm"
+            title="Click to upload image file"
+          >
             {formData.image_url ? (
               <img
                 src={formData.image_url}
@@ -1537,16 +1627,42 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
               />
             ) : (
-              <Package className="w-5 h-5 text-yellow-400/40" />
+              <Package className="w-6 h-6 text-yellow-400/40 group-hover:text-yellow-400/70 transition" />
             )}
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+              <Upload className="w-4 h-4 text-white" />
+            </div>
           </div>
-          <Input
-            value={formData.image_url || ""}
-            onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-            placeholder="e.g. https://images.unsplash.com/... or direct image link"
-            className="h-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-zinc-500 text-xs rounded-xl flex-1 focus-visible:ring-yellow-400/40"
-          />
+
+          <div className="flex-1 flex flex-col sm:flex-row items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isProcessingFile}
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full sm:w-auto h-10 border-[#38384a] bg-[#1d1d27] text-yellow-200 hover:bg-[#252533] hover:text-yellow-100 rounded-xl px-4 text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0"
+            >
+              <Upload className="w-3.5 h-3.5 text-yellow-400" />
+              {isProcessingFile ? "Loading..." : "Upload Image"}
+            </Button>
+            <Input
+              value={formData.image_url || ""}
+              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+              placeholder="or paste image URL / link..."
+              className="h-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-zinc-500 text-xs rounded-xl flex-1 focus-visible:ring-yellow-400/40"
+            />
+          </div>
         </div>
+        <p className="text-[11px] text-zinc-500">
+          Upload an image from your device or paste a web image link.
+        </p>
       </div>
     </div>
   );
