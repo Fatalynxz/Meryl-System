@@ -27,6 +27,7 @@ export function Login() {
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
 
+  // Check lockout status whenever username changes
   useEffect(() => {
     const clean = username.trim().toLowerCase();
     if (!clean) {
@@ -35,19 +36,27 @@ export function Login() {
     }
     const status = checkLockoutStatus(clean);
     setLockoutRemaining(status.remainingSeconds);
+  }, [username]);
 
-    if (status.isLocked) {
-      const timer = setInterval(() => {
-        const current = checkLockoutStatus(clean);
-        setLockoutRemaining(current.remainingSeconds);
-        if (!current.isLocked) {
-          clearInterval(timer);
+  // Run live 1-second ticking countdown whenever lockoutRemaining > 0
+  useEffect(() => {
+    if (lockoutRemaining <= 0) return;
+
+    const timer = setInterval(() => {
+      const clean = username.trim().toLowerCase();
+      if (clean) {
+        const status = checkLockoutStatus(clean);
+        setLockoutRemaining(status.remainingSeconds);
+        if (!status.isLocked) {
           setError('');
         }
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [username]);
+      } else {
+        setLockoutRemaining((prev) => Math.max(0, prev - 1));
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [lockoutRemaining > 0, username]);
 
   useEffect(() => {
     const resetExternalSubmitting = () => {
@@ -95,8 +104,9 @@ export function Login() {
         });
 
         if (attempt.isLocked) {
-          setLockoutRemaining(300);
-          setError("Security Alert: Account temporarily locked due to 5 failed attempts. Please wait 5 minutes before retrying.");
+          const status = checkLockoutStatus(cleanUsername);
+          setLockoutRemaining(status.remainingSeconds || 300);
+          setError('');
         } else {
           const remaining = 5 - attempt.count;
           setError(`Invalid username or password. (${remaining} attempt${remaining === 1 ? '' : 's'} remaining before temporary lockout)`);
@@ -419,7 +429,7 @@ export function Login() {
               </div>
             </div>
 
-            {error && (
+            {error && lockoutRemaining === 0 && (
               <div className="rounded-xl px-3 py-2.5 bg-[#E5202A]/15 border border-[#E5202A]/30 text-sm text-[#FF6B72]">
                 {error}
               </div>

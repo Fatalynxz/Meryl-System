@@ -149,3 +149,4 @@ export async function fetchAuditLogs(limit: number = 100): Promise<AuditLogEntry
   // Fallback to local storage logs
   return getLocalAuditLogs().slice(0, limit);
 }
+
