@@ -207,6 +207,20 @@ export function AuthCallback() {
     navigate("/", { replace: true });
   };
 
+  const userRoleGroup = matchedUser ? getRoleGroup(matchedUser.role_name) : null;
+  const roleBadgeStyle =
+    userRoleGroup === "admin"
+      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+      : userRoleGroup === "sales"
+      ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+  const roleBadgeText =
+    userRoleGroup === "admin"
+      ? "Administrator"
+      : userRoleGroup === "sales"
+      ? "Cashier / Sales Staff"
+      : "Inventory Staff";
+
   return (
     <div className="min-h-screen bg-[#0E0E12] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#16161C] p-7 shadow-2xl">
@@ -249,18 +263,8 @@ export function AuthCallback() {
                   </div>
                 </div>
                 <div>
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold ${
-                    getRoleGroup(matchedUser.role_name) === "admin"
-                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                      : getRoleGroup(matchedUser.role_name) === "sales"
-                      ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
-                      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  }`}>
-                    {getRoleGroup(matchedUser.role_name) === "admin"
-                      ? "Administrator"
-                      : getRoleGroup(matchedUser.role_name) === "sales"
-                      ? "Cashier / Sales Staff"
-                      : "Inventory Staff"}
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold ${roleBadgeStyle}`}>
+                    {roleBadgeText}
                   </span>
                 </div>
               </div>
