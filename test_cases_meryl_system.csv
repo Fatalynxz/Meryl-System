@@ -189,20 +189,20 @@ id,title,description,preconditions,postconditions,priority,severity,type,behavio
 2. 
 3. stock_quantity <= reorder_level
 4. "
-,"TC-INV-005: System displays near-expiry products","Verify that the system identifies inventory items nearing expiration (within 30 days).","Inventory records contain products with expiration dates. Some products have exp_date within 30 days.","Near-expiry products are displayed with appropriate warnings on the inventory dashboard.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,near-expiry,monitoring","1. The Inventory Staff opens the Inventory page.
-2. The system retrieves inventory items with expiration dates within 30 days.
-3. The system displays near-expiry indicators.","1. The Inventory page is displayed.
-2. Near-expiry products are identified from inventory data.
-3. Products nearing expiration are highlighted with warnings. Dashboard summary shows the near-expiry count.","1. 
-2. exp_date within 30 days of current date
+,"TC-INV-005: System monitors aging and dormant footwear stock","Verify that the system identifies footwear inventory items with zero sales movement (aging / dead stock > 30 days) since footwear products do not possess perishable expiration dates.","Inventory records contain footwear products with stock history and last movement timestamps.","Aging and dormant footwear products are displayed with dead stock alerts on the inventory dashboard.",medium,major,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,aging-stock,dead-stock,monitoring","1. The Inventory Staff opens the Inventory / Analytics page.
+2. The system retrieves footwear inventory items with zero sales for 30 or more days.
+3. The system displays aging / dead stock indicators.","1. The Inventory page is displayed.
+2. Aging footwear products are identified from sales history and inventory balance.
+3. Products with zero sales velocity are highlighted with Dead Stock warnings. Dashboard summary reflects accurate aging inventory count.","1. 
+2. zero sales in 30+ days with stock > 0
 3. "
-,"TC-INV-006: Inventory dashboard statistics accuracy","Verify the inventory dashboard correctly displays total products, low stock count, out of stock count, and near expiry count.","Inventory records exist with various stock levels and statuses.","Dashboard correctly shows all summary statistics matching actual data.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,dashboard,statistics","1. Navigate to the Inventory dashboard.
+,"TC-INV-006: Inventory dashboard statistics accuracy","Verify the inventory dashboard correctly displays total products, low stock count, out of stock count, and dead stock count.","Inventory records exist with various stock levels and statuses.","Dashboard correctly shows all summary statistics matching actual data.",medium,normal,functional,positive,e2e,is-not-automated,actual,0,"Inventory Management","inventory,dashboard,statistics","1. Navigate to the Inventory dashboard.
 2. Verify total products count matches actual product records in the system.
 3. Verify low stock count matches products where stock_quantity <= reorder_level.
-4. Verify out of stock count and near expiry count match actual data.","1. Dashboard statistics section is displayed.
+4. Verify out of stock count and dead stock count match actual data.","1. Dashboard statistics section is displayed.
 2. Total products count is accurate.
 3. Low stock count is accurate.
-4. Out of stock count and near expiry count are all accurate.","1. 
+4. Out of stock count and dead stock count are all accurate.","1. 
 2. 
 3. 
 4. "
@@ -647,8 +647,13 @@ id,title,description,preconditions,postconditions,priority,severity,type,behavio
 4. Verify alerts appear for relevant conditions: critical/low stock items, pending sales awaiting approval, high sales volume in 24h, promotions expiring in <48h, pending return requests.","1. User is logged in.
 2. Alert count badge is visible on the notification bell.
 3. Alert dropdown or panel is displayed.
-4. Alerts are categorized by type with appropriate severity indicators and actionable links.","1. 
+,"TC-USER-001: Administrator cannot create duplicate user email","Verify that the system enforces unique email constraints and blocks duplicate user email registrations.","The Administrator is logged into the User Management portal. An existing user with an email already exists in the system.","System blocks submission and displays an error toast indicating duplicate email addresses are not permitted.",high,critical,functional,negative,e2e,is-not-automated,actual,0,"User Management","users,email,validation,unique-constraint","1. The Administrator opens the User Management page.
+2. The Administrator clicks Add User.
+3. The Administrator enters user details with an email already registered to another account.
+4. The Administrator submits the form.","1. The User Management page is displayed.
+2. The Add User modal opens.
+3. Form fields accept inputs.
+4. The system validates email uniqueness, blocks account creation, and displays: 'A user with this email address already exists. Duplicate emails are not permitted.'","1. 
 2. 
-3. 
+3. email matching existing user email (case-insensitive)
 4. "
-

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useCategories, useInventory, useProducts, useProductsMutations } from "../../lib/hooks";
 import { supabase } from "../../lib/supabase";
 import { logAuditEvent } from "../../lib/api/audit-logger";
+import { cleanProductImageUrl, getWebpageUrlWarning } from "../../lib/image-utils";
 
 type InventoryStatus = "Active" | "Inactive";
 type ProductTab = "list" | "settings" | "inventory";
@@ -136,6 +137,42 @@ function stockCondition(stock: number, reorder: number, expired = false) {
 
 function formatMoney(value: number) {
   return `PHP ${Number(value || 0).toLocaleString()}`;
+}
+
+function ProductThumbnail({
+  src,
+  alt,
+  className = "w-10 h-10 rounded-lg",
+  iconSize = "w-4 h-4",
+}: {
+  src?: string | null;
+  alt: string;
+  className?: string;
+  iconSize?: string;
+}) {
+  const [loadFailed, setLoadFailed] = useState(false);
+  const cleanSrc = cleanProductImageUrl(src || "");
+
+  // Reset load failure when src changes
+  useEffect(() => {
+    setLoadFailed(false);
+  }, [cleanSrc]);
+
+  return (
+    <div className={`${className} bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center mx-auto flex-shrink-0 shadow-sm relative`}>
+      {cleanSrc && !loadFailed ? (
+        <img
+          src={cleanSrc}
+          alt={alt}
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-cover"
+          onError={() => setLoadFailed(true)}
+        />
+      ) : (
+        <Package className={`${iconSize} text-yellow-400/40`} />
+      )}
+    </div>
+  );
 }
 
 function calculateSrpFromMarkup(unitPrice: number, markupRate: number) {
@@ -262,6 +299,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         hasInventory: Boolean(inventory?.inventory_id),
         isArchived,
         image_url: String(row.image_url ?? "").trim(),
+        image_url: cleanProductImageUrl(String(row.image_url ?? "").trim()),
       };
     });
   }, [inventoryByProductId, productsQuery.data]);
@@ -356,6 +394,7 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
 
     const cleanProductName = productNameWithoutBrand(productForm.name, productForm.brand);
     const trimmedImageUrl = productForm.image_url?.trim() || null;
+    const trimmedImageUrl = cleanProductImageUrl(productForm.image_url?.trim() || "") || null;
     const basePayload: any = {
       product_name: cleanProductName,
       brand: productForm.brand.trim(),
@@ -840,6 +879,7 @@ function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit:
                     <Package className="w-4 h-4 text-yellow-400/40" />
                   )}
                 </div>
+                <ProductThumbnail src={product.image_url} alt={product.name} />
               </TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">
@@ -902,6 +942,7 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
                       <Package className="w-4 h-4 text-yellow-400/40" />
                     )}
                   </div>
+                  <ProductThumbnail src={product.image_url} alt={product.name} />
                 </TableCell>
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap font-medium">{product.name}</TableCell>
                 <TableCell className="text-center">
@@ -971,6 +1012,12 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
                     <Package className="w-6 h-6 text-yellow-400/40" />
                   )}
                 </div>
+                <ProductThumbnail
+                  src={selectedProduct.image_url}
+                  alt={selectedProduct.name}
+                  className="w-14 h-14 rounded-xl"
+                  iconSize="w-6 h-6"
+                />
                 <div>
                   <p className="text-base font-bold text-white">{selectedProduct.brand} - {selectedProduct.name}</p>
                   <p className="text-xs text-yellow-200/70 mt-0.5">{selectedProduct.category} &bull; {variantLabel(selectedProduct)}</p>
@@ -1264,6 +1311,7 @@ function ProductSettingsPage({
                               <Package className="w-4 h-4 text-yellow-400/40" />
                             )}
                           </div>
+                          <ProductThumbnail src={product.image_url} alt={product.name} />
                         </TableCell>
 
                         {/* Product & SKU */}
@@ -1397,6 +1445,12 @@ function ProductSettingsPage({
                         <Package className="w-6 h-6 text-yellow-400/40" />
                       )}
                     </div>
+                    <ProductThumbnail
+                      src={activeProduct.image_url}
+                      alt={activeProduct.name}
+                      className="w-14 h-14 rounded-xl"
+                      iconSize="w-6 h-6"
+                    />
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-white text-base">{activeProduct.brand} - {activeProduct.name}</span>
@@ -1723,6 +1777,12 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
             ) : (
               <Package className="w-6 h-6 text-yellow-400/40 group-hover:text-yellow-400/70 transition" />
             )}
+            <ProductThumbnail
+              src={formData.image_url}
+              alt="Preview"
+              className="w-full h-full rounded-xl"
+              iconSize="w-6 h-6"
+            />
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
               <Upload className="w-4 h-4 text-white" />
             </div>
@@ -1749,13 +1809,24 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
             <Input
               value={formData.image_url || ""}
               onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+              onChange={(e) => {
+                const cleaned = cleanProductImageUrl(e.target.value);
+                setFormData({ ...formData, image_url: cleaned });
+              }}
               placeholder="or paste image URL / link..."
               className="h-10 bg-[#1d1d27] border-[#2d2d3a] text-yellow-100 placeholder:text-zinc-500 text-xs rounded-xl flex-1 focus-visible:ring-yellow-400/40"
             />
           </div>
         </div>
+        {getWebpageUrlWarning(formData.image_url) && (
+          <div className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-lg p-2.5 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <span>{getWebpageUrlWarning(formData.image_url)}</span>
+          </div>
+        )}
         <p className="text-[11px] text-zinc-500">
           Upload an image from your device or paste a web image link.
+          Upload an image from your device or paste a web image link. Tip: On Google, right-click the image and pick &quot;Copy image address&quot;.
         </p>
       </div>
     </div>

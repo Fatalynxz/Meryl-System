@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "./ui/button";
-import { getPostLoginPath, useAuth } from "../../lib/auth-context";
+import { getPostLoginPath, getRoleGroup, useAuth, type AuthUser } from "../../lib/auth-context";
 import { supabase } from "../../lib/supabase";
 
 const OTP_TTL_MS = 5 * 60 * 1000;
@@ -34,6 +34,7 @@ export function AuthCallback() {
   const [otpEmail, setOtpEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpNotice, setOtpNotice] = useState("");
+  const [matchedUser, setMatchedUser] = useState<AuthUser | null>(null);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
   const [otpChallenge, setOtpChallenge] = useState<OtpChallenge | null>(null);
@@ -48,6 +49,7 @@ export function AuthCallback() {
   const expiresAt = otpChallenge ? otpChallenge.sentAt + OTP_TTL_MS : 0;
   const remainingSeconds = Math.max(0, Math.ceil((expiresAt - now) / 1000));
   const canResend = otpChallenge ? now >= otpChallenge.resendAvailableAt : false;
+  const resendCooldownSeconds = otpChallenge ? Math.max(0, Math.ceil((otpChallenge.resendAvailableAt - now) / 1000)) : 0;
   const attemptsLeft = otpChallenge ? Math.max(0, OTP_MAX_ATTEMPTS - otpChallenge.attempts) : OTP_MAX_ATTEMPTS;
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export function AuthCallback() {
         if (provider === "google") {
           setOtpMode(true);
           setOtpEmail(sessionEmail);
+          setMatchedUser(appUser);
           try {
             setSendingOtp(true);
             await requestEmailOtp(sessionEmail);
@@ -195,6 +198,15 @@ export function AuthCallback() {
     }
   };
 
+  const handleBackToLogin = async () => {
+    try {
+      await logout();
+    } catch {
+      // ignore
+    }
+    navigate("/", { replace: true });
+  };
+
   return (
     <div className="min-h-screen bg-[#0E0E12] text-white flex items-center justify-center p-6">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-[#16161C] p-7 shadow-2xl">
@@ -224,6 +236,35 @@ export function AuthCallback() {
                 </p>
               </div>
             </div>
+
+            {matchedUser && (
+              <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-[#1D1D25] px-3.5 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-xs font-semibold text-white/80">
+                    {(matchedUser.name || matchedUser.username || "U").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-white">{matchedUser.name || matchedUser.username}</div>
+                    <div className="text-[11px] text-white/40">{matchedUser.username ? `@${matchedUser.username}` : matchedUser.email}</div>
+                  </div>
+                </div>
+                <div>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-semibold ${
+                    getRoleGroup(matchedUser.role_name) === "admin"
+                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      : getRoleGroup(matchedUser.role_name) === "sales"
+                      ? "bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                      : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                  }`}>
+                    {getRoleGroup(matchedUser.role_name) === "admin"
+                      ? "Administrator"
+                      : getRoleGroup(matchedUser.role_name) === "sales"
+                      ? "Cashier / Sales Staff"
+                      : "Inventory Staff"}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {error && (
               <div className="mt-4 rounded-xl px-3 py-2.5 bg-[#E5202A]/15 border border-[#E5202A]/30 text-sm text-[#FF8B91]">
@@ -264,10 +305,21 @@ export function AuthCallback() {
                 type="button"
                 onClick={handleResendOtp}
                 disabled={verifyingOtp || sendingOtp || !canResend}
-                className="h-11 rounded-xl border border-white/10 bg-[#1D1D25] text-white hover:bg-white/10"
+                className="h-11 rounded-xl border border-white/10 bg-[#1D1D25] text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
-                {sendingOtp ? "Sending..." : canResend ? "Resend OTP" : "Wait"}
+                {sendingOtp ? "Sending..." : canResend ? "Resend OTP" : `Resend (${resendCooldownSeconds}s)`}
               </Button>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-white/10 text-center">
+              <button
+                type="button"
+                onClick={handleBackToLogin}
+                className="inline-flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition py-1 font-medium"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to Login
+              </button>
             </div>
           </div>
         ) : (

@@ -184,6 +184,21 @@ export function UserManagement() {
       return;
     }
 
+    const trimmedUsername = formData.username.trim().toLowerCase();
+    const trimmedEmail = formData.email.trim().toLowerCase();
+
+    // Prevent duplicate username
+    if (users.some((u) => u.username.toLowerCase() === trimmedUsername)) {
+      toast.error('A user with this username already exists.');
+      return;
+    }
+
+    // Prevent duplicate email
+    if (trimmedEmail && users.some((u) => String(u.email ?? '').trim().toLowerCase() === trimmedEmail)) {
+      toast.error('A user with this email address already exists. Duplicate emails are not permitted.');
+      return;
+    }
+
     try {
       const created = await createMutation.mutateAsync(buildPayload(formData));
       await writeAuditLog({
@@ -212,6 +227,21 @@ export function UserManagement() {
     if (!editingUser) return;
     if (!formData.name.trim() || !formData.username.trim()) {
       toast.error('Please fill in name and username');
+      return;
+    }
+
+    const trimmedUsername = formData.username.trim().toLowerCase();
+    const trimmedEmail = formData.email.trim().toLowerCase();
+
+    // Prevent duplicate username across other users
+    if (users.some((u) => u.user_id !== editingUser.user_id && u.username.toLowerCase() === trimmedUsername)) {
+      toast.error('A user with this username already exists.');
+      return;
+    }
+
+    // Prevent duplicate email across other users
+    if (trimmedEmail && users.some((u) => u.user_id !== editingUser.user_id && String(u.email ?? '').trim().toLowerCase() === trimmedEmail)) {
+      toast.error('A user with this email address already exists. Duplicate emails are not permitted.');
       return;
     }
 
@@ -326,7 +356,7 @@ export function UserManagement() {
       username: item.username.toLowerCase(),
       staff_code: item.staff_code || '',
       email: item.email ?? '',
-      password: item.password || '',
+      password: '',
       role: item.role,
       status: item.status,
     });
@@ -604,16 +634,21 @@ function UserForm({ formData, setFormData, requirePassword = false }: {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="role" className="text-yellow-300">Role</Label>
-          <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as AppRole })}>
+          <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as AppRole, staff_code: formData.staff_code ? generateStaffCode(value as AppRole) : '' })}>
             <SelectTrigger className="bg-red-600 border-red-800 text-yellow-200">
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent className="bg-red-700 border-red-800 text-yellow-200">
-              <SelectItem value="admin">Administrator</SelectItem>
-              <SelectItem value="sales">Sales Staff</SelectItem>
-              <SelectItem value="inventory">Inventory Staff</SelectItem>
+              <SelectItem value="admin">Administrator (Full Access)</SelectItem>
+              <SelectItem value="sales">Cashier / Sales Staff (POS, Sales, Returns)</SelectItem>
+              <SelectItem value="inventory">Inventory Staff (Stock, Products, Adjustments)</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-[11px] text-yellow-300/60 mt-1">
+            {formData.role === 'admin' && '🔑 Administrator: Full access to all modules, analytics, and user accounts.'}
+            {formData.role === 'sales' && '💳 Cashier: Access to Point of Sale (POS), Sales History, Customer records, and Returns.'}
+            {formData.role === 'inventory' && '📦 Inventory Staff: Access to Stock Management, Product Catalog, and Stock Movements.'}
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="status" className="text-yellow-300">Status</Label>

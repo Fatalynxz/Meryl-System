@@ -15,7 +15,38 @@ function isMissingStaffCodeColumn(error: any) {
   return message.includes("staff_code") && message.includes("column");
 }
 
+async function assertUniqueUserConstraints(payload: any, excludeUserId?: string) {
+  if (payload.username && String(payload.username).trim()) {
+    let query = supabase
+      .from("user")
+      .select("user_id")
+      .ilike("username", String(payload.username).trim());
+    if (excludeUserId) {
+      query = query.neq("user_id", excludeUserId);
+    }
+    const { data: existingUser } = await query.limit(1);
+    if (existingUser && existingUser.length > 0) {
+      throw new Error("A user with this username already exists.");
+    }
+  }
+
+  if (payload.email && String(payload.email).trim()) {
+    let query = supabase
+      .from("user")
+      .select("user_id")
+      .ilike("email", String(payload.email).trim());
+    if (excludeUserId) {
+      query = query.neq("user_id", excludeUserId);
+    }
+    const { data: existingEmail } = await query.limit(1);
+    if (existingEmail && existingEmail.length > 0) {
+      throw new Error("A user with this email address already exists. Duplicate emails are not permitted.");
+    }
+  }
+}
+
 async function createUserFallback(payload: any) {
+  await assertUniqueUserConstraints(payload);
   let { data, error } = await supabase
     .from("user")
     .insert({
@@ -48,6 +79,7 @@ async function createUserFallback(payload: any) {
 }
 
 async function updateUserFallback(id: string, payload: any) {
+  await assertUniqueUserConstraints(payload, id);
   const updatePayload: any = {
     name: payload.name,
     username: payload.username,
@@ -82,6 +114,7 @@ export const usersApi = {
   list: () => listRows("user", "*, role:role(*)", "created_at"),
   getById: (id: string) => getRowById("user", id, "*, role:role(*)"),
   create: async (payload: any) => {
+    await assertUniqueUserConstraints(payload);
     const { data, error } = await supabase.rpc("upsert_user", {
       p_actor_user_id: payload.actor_user_id,
       p_name: payload.name,
@@ -105,6 +138,7 @@ export const usersApi = {
     return createUserFallback(payload);
   },
   update: async (id: string, payload: any) => {
+    await assertUniqueUserConstraints(payload, id);
     const { data, error } = await supabase.rpc("upsert_user", {
       p_actor_user_id: payload.actor_user_id,
       p_user_id: id,

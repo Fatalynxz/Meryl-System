@@ -15,6 +15,7 @@ import { useCustomers, useInventory, useProducts, usePromotions } from "../../li
 import { getRoleGroup, useAuth } from "../../lib/auth-context";
 import { logAuditEvent } from "../../lib/api/audit-logger";
 import { supabase } from "../../lib/supabase";
+import { cleanProductImageUrl } from "../../lib/image-utils";
 
 type CartItem = {
   id: string;
@@ -90,16 +91,22 @@ function isSellableProduct(product: ProductVariant) {
 }
 
 function ProductPhotoPlaceholder({ productName, imageUrl }: { productName: string; imageUrl?: string }) {
+  const [loadFailed, setLoadFailed] = useState(false);
   const initial = String(productName || "P").trim().charAt(0).toUpperCase() || "P";
+  const cleanUrl = cleanProductImageUrl(imageUrl);
 
   if (imageUrl) {
+  if (cleanUrl && !loadFailed) {
     return (
       <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#2e2e42] bg-[#1a1a27] shadow-inner">
         <img
           src={imageUrl}
+          src={cleanUrl}
           alt={productName}
+          referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
           onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+          onError={() => setLoadFailed(true)}
         />
       </div>
     );
@@ -1674,7 +1681,9 @@ function formatReceiptNumber(salesId?: string) {
                                 {item.image_url ? (
                                   <img
                                     src={item.image_url}
+                                    src={cleanProductImageUrl(item.image_url)}
                                     alt={item.productName}
+                                    referrerPolicy="no-referrer"
                                     className="w-full h-full object-cover"
                                     onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                                   />
