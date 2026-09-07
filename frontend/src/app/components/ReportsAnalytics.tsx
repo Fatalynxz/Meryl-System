@@ -43,8 +43,8 @@ type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually' | 
 function rangeWindow(timeRange: ReportPeriod, customStartDate?: string, customEndDate?: string) {
   const now = new Date();
   const rangeDaysMap: Record<Exclude<ReportPeriod, 'custom'>, number> = {
-    daily: 1,
-    weekly: 7,
+    daily: 7,
+    weekly: 56,
     monthly: 30,
     quarterly: 90,
     annually: 365,
@@ -93,11 +93,9 @@ function localDateKey(date: Date) {
   ].join('-');
 }
 
-function weekStartMonday(date: Date) {
+function weekStartSunday(date: Date) {
   const copy = startOfDay(date);
-  const day = copy.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  copy.setDate(copy.getDate() + diffToMonday);
+  copy.setDate(copy.getDate() - copy.getDay());
   return copy;
 }
 
@@ -115,7 +113,7 @@ function trendBucketMode(timeRange: ReportPeriod, days: number): TrendBucketMode
 
 function bucketStartForDate(date: Date, mode: TrendBucketMode) {
   const copy = startOfDay(date);
-  if (mode === 'weekly') return weekStartMonday(copy);
+  if (mode === 'weekly') return weekStartSunday(copy);
   if (mode === 'monthly') return new Date(copy.getFullYear(), copy.getMonth(), 1);
   if (mode === 'quarterly') return new Date(copy.getFullYear(), Math.floor(copy.getMonth() / 3) * 3, 1);
   if (mode === 'annually') return new Date(copy.getFullYear(), 0, 1);
@@ -154,11 +152,20 @@ function salesTrendFrame(timeRange: ReportPeriod, customStartDate?: string, cust
   const window = rangeWindow(timeRange, customStartDate, customEndDate);
   const baseEnd = window.now;
 
-  if (timeRange === 'weekly') {
-    const start = weekStartMonday(baseEnd);
-    const end = endOfDay(new Date(start));
-    end.setDate(start.getDate() + 6);
+  if (timeRange === 'daily') {
+    const end = endOfDay(baseEnd);
+    const start = startOfDay(new Date(baseEnd));
+    start.setDate(start.getDate() - 6);
     return { start, end, mode: 'daily' as TrendBucketMode };
+  }
+
+  if (timeRange === 'weekly') {
+    const currentWeekStart = weekStartSunday(baseEnd);
+    const start = new Date(currentWeekStart);
+    start.setDate(start.getDate() - (7 * 7));
+    const end = endOfDay(new Date(currentWeekStart));
+    end.setDate(end.getDate() + 6);
+    return { start, end, mode: 'weekly' as TrendBucketMode };
   }
 
   if (timeRange === 'monthly') {
@@ -514,16 +521,12 @@ export function ReportsAnalytics() {
       }
 
       if (salesBreakdownPeriod === 'weekly') {
-        const weekStart = new Date(date);
-        const day = weekStart.getDay();
-        const diffToMonday = day === 0 ? -6 : 1 - day;
-        weekStart.setDate(weekStart.getDate() + diffToMonday);
-        weekStart.setHours(0, 0, 0, 0);
+        const weekStart = weekStartSunday(date);
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
 
         return {
-          key: weekStart.toISOString().slice(0, 10),
+          key: localDateKey(weekStart),
           label: `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
           date: weekStart,
         };
