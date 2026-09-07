@@ -298,7 +298,6 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
         expiration_date: String(inventory?.expiration_date ?? ""),
         hasInventory: Boolean(inventory?.inventory_id),
         isArchived,
-        image_url: String(row.image_url ?? "").trim(),
         image_url: cleanProductImageUrl(String(row.image_url ?? "").trim()),
       };
     });
@@ -393,7 +392,6 @@ export function ProductManagement({ view, onViewChange }: ProductManagementProps
     if (validation) return toast.error(validation);
 
     const cleanProductName = productNameWithoutBrand(productForm.name, productForm.brand);
-    const trimmedImageUrl = productForm.image_url?.trim() || null;
     const trimmedImageUrl = cleanProductImageUrl(productForm.image_url?.trim() || "") || null;
     const basePayload: any = {
       product_name: cleanProductName,
@@ -865,20 +863,6 @@ function ProductListTable({ products, onEdit }: { products: UiProduct[]; onEdit:
           {products.map((product) => (
             <TableRow key={product.product_id} className={`border-[#24242F] hover:bg-white/[0.02] ${product.isArchived ? "opacity-55" : ""}`}>
               <TableCell className="text-center align-middle py-2 px-3">
-                <div className="w-10 h-10 rounded-lg bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center mx-auto flex-shrink-0 shadow-sm">
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <Package className="w-4 h-4 text-yellow-400/40" />
-                  )}
-                </div>
                 <ProductThumbnail src={product.image_url} alt={product.name} />
               </TableCell>
               <TableCell className="text-yellow-200 text-center whitespace-nowrap">{shortId(product.sku)}</TableCell>
@@ -928,20 +912,6 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
             return (
               <TableRow key={product.product_id} className="border-[#24242F] hover:bg-white/[0.02]">
                 <TableCell className="text-center align-middle py-2 px-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center mx-auto flex-shrink-0 shadow-sm">
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <Package className="w-4 h-4 text-yellow-400/40" />
-                    )}
-                  </div>
                   <ProductThumbnail src={product.image_url} alt={product.name} />
                 </TableCell>
                 <TableCell className="text-yellow-200 text-center whitespace-nowrap font-medium">{product.name}</TableCell>
@@ -1000,18 +970,6 @@ function InventoryTable({ products, onConfigure }: { products: UiProduct[]; onCo
           {selectedProduct && (
             <div className="space-y-4">
               <div className="flex items-center gap-3.5 rounded-xl border border-[#2d2d40] bg-[#1a1a27] p-3.5">
-                <div className="w-14 h-14 rounded-xl bg-[#14141e] border border-[#303044] overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
-                  {selectedProduct.image_url ? (
-                    <img
-                      src={selectedProduct.image_url}
-                      alt={selectedProduct.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                    />
-                  ) : (
-                    <Package className="w-6 h-6 text-yellow-400/40" />
-                  )}
-                </div>
                 <ProductThumbnail
                   src={selectedProduct.image_url}
                   alt={selectedProduct.name}
@@ -1299,18 +1257,6 @@ function ProductSettingsPage({
                       <TableRow key={product.product_id} className="border-[#262633] hover:bg-[#1b1b26] transition-colors">
                         {/* Thumbnail Photo */}
                         <TableCell className="py-2.5 pl-4 pr-1">
-                          <div className="w-10 h-10 rounded-lg bg-[#1a1a27] border border-[#2d2d3f] overflow-hidden flex items-center justify-center flex-shrink-0">
-                            {product.image_url ? (
-                              <img
-                                src={product.image_url}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                              />
-                            ) : (
-                              <Package className="w-4 h-4 text-yellow-400/40" />
-                            )}
-                          </div>
                           <ProductThumbnail src={product.image_url} alt={product.name} />
                         </TableCell>
 
@@ -1433,18 +1379,6 @@ function ProductSettingsPage({
                 {/* Product Summary Header Bar */}
                 <div className="rounded-xl border border-[#2d2d40] bg-[#1a1a27] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-14 h-14 rounded-xl bg-[#14141e] border border-[#303044] overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
-                      {activeProduct.image_url ? (
-                        <img
-                          src={activeProduct.image_url}
-                          alt={activeProduct.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                        />
-                      ) : (
-                        <Package className="w-6 h-6 text-yellow-400/40" />
-                      )}
-                    </div>
                     <ProductThumbnail
                       src={activeProduct.image_url}
                       alt={activeProduct.name}
@@ -1767,16 +1701,6 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
             className="w-14 h-14 rounded-xl bg-[#1a1a27] border border-[#2d2d3f] hover:border-yellow-400/50 cursor-pointer overflow-hidden flex items-center justify-center flex-shrink-0 relative group transition shadow-sm"
             title="Click to upload image file"
           >
-            {formData.image_url ? (
-              <img
-                src={formData.image_url}
-                alt="Preview"
-                className="w-full h-full object-cover"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-              />
-            ) : (
-              <Package className="w-6 h-6 text-yellow-400/40 group-hover:text-yellow-400/70 transition" />
-            )}
             <ProductThumbnail
               src={formData.image_url}
               alt="Preview"
@@ -1808,7 +1732,6 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
             </Button>
             <Input
               value={formData.image_url || ""}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
               onChange={(e) => {
                 const cleaned = cleanProductImageUrl(e.target.value);
                 setFormData({ ...formData, image_url: cleaned });
@@ -1825,7 +1748,6 @@ function ProductMasterForm({ formData, setFormData, categories }: { formData: Pr
           </div>
         )}
         <p className="text-[11px] text-zinc-500">
-          Upload an image from your device or paste a web image link.
           Upload an image from your device or paste a web image link. Tip: On Google, right-click the image and pick &quot;Copy image address&quot;.
         </p>
       </div>

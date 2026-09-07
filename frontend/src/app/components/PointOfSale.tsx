@@ -95,17 +95,14 @@ function ProductPhotoPlaceholder({ productName, imageUrl }: { productName: strin
   const initial = String(productName || "P").trim().charAt(0).toUpperCase() || "P";
   const cleanUrl = cleanProductImageUrl(imageUrl);
 
-  if (imageUrl) {
   if (cleanUrl && !loadFailed) {
     return (
       <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#2e2e42] bg-[#1a1a27] shadow-inner">
         <img
-          src={imageUrl}
           src={cleanUrl}
           alt={productName}
           referrerPolicy="no-referrer"
           className="h-full w-full object-cover"
-          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
           onError={() => setLoadFailed(true)}
         />
       </div>
@@ -1680,7 +1677,6 @@ function formatReceiptNumber(salesId?: string) {
                               <div className="w-8 h-8 rounded-lg bg-[#14141e] border border-[#2d2d3f] overflow-hidden flex items-center justify-center flex-shrink-0 shadow-inner">
                                 {item.image_url ? (
                                   <img
-                                    src={item.image_url}
                                     src={cleanProductImageUrl(item.image_url)}
                                     alt={item.productName}
                                     referrerPolicy="no-referrer"
